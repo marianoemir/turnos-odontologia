@@ -1,1 +1,116 @@
-{"discovery": {"casos_de_uso": ["Como recepcionista, quiero crear un turno que no se solape por profesional ni por sillón/box, para evitar dobles reservas.", "Como recepcionista o paciente, quiero cancelar o reprogramar un turno, para liberar el horario y reutilizarlo.", "Como odontólogo, quiero ver mi agenda del día, para saber quién viene y a qué hora.", "Como recepcionista, quiero ofrecer un turno cancelado a un paciente de la lista de espera, para no perder el hueco."], "competitors": [{"name": "DentalCore", "notes_file": "docs/discovery/informe-discovery.md"}, {"name": "DentalSoft", "notes_file": "docs/discovery/informe-discovery.md"}, {"name": "DentalTec", "notes_file": "docs/discovery/informe-discovery.md"}, {"name": "Dentalink", "notes_file": "docs/discovery/informe-discovery.md"}, {"name": "AgendaPro", "notes_file": "docs/discovery/informe-discovery.md"}, {"name": "WhatsApp + papel/planilla (competencia real)", "notes_file": "docs/discovery/informe-discovery.md"}], "created_by": "discovery-research", "funcionalidades_necesarias": ["Agenda sin solapamientos por profesional y sillón/box (primer change)", "Recordatorios con confirmación en 1 toque (change posterior)", "Lista de espera que rellena cancelaciones (change posterior)"], "funcionalidades_opcionales": ["CDSS/IA diagnóstica, voz clínica, implantes 3D, PACS/imagen, laboratorio e inventario, campañas y NPS, financiamiento en cuotas, API pública, multi-país fiscal y telemedicina (etapas posteriores según D3)"], "integraciones": ["Ninguna para el primer change; WhatsApp en un change posterior"], "preguntas_abiertas": ["La reserva online del paciente NO entra en el primer change; solo la carga por recepción. Confirmar.", "¿Cuánta anticipación mínima para cancelar/reprogramar?", "¿Un mismo paciente puede tener dos turnos superpuestos con profesionales distintos?", "¿Límite de sobreturnos por profesional y día? (change posterior)", "¿Criterio de orden de la lista de espera?", "Stack tecnológico del change.", "Los 'No evidenciado' del informe: solapamientos en competidores, costo de WhatsApp en DentalSoft, validación OS de DentalTec en tiempo real, alcance de las leyes 26.529/25.326/27.706 y exportación de datos."], "problema": "Ausentismo y huecos sin rellenar, más la falta de una agenda por profesional y por sillón/box que impida solapamientos. Change candidato: crear un turno sin solapamientos.", "reglas_de_negocio": ["RN-01: cada prestación tiene duración fija en minutos (v1); el turno ocupa desde su inicio hasta inicio + duración.", "RN-02: un profesional no puede tener dos turnos activos con intervalos superpuestos.", "RN-03: un sillón/box no puede tener dos turnos activos con intervalos superpuestos. El sillón es obligatorio en todo turno.", "RN-04 (borde): un turno que empieza justo cuando termina otro NO es solapamiento (intervalos [inicio, fin)).", "RN-05: un turno solo se crea dentro del horario de atención del profesional y no sobre un bloqueo.", "RN-06: un turno cancelado o ausente no cuenta para solapamientos y libera profesional y sillón/box.", "RN-07: reprogramar valida el nuevo horario con las mismas reglas; si falla, se conserva el turno original.", "RN-08: estados: pendiente -> confirmado -> atendido/ausente; pendiente o confirmado -> cancelado."], "restricciones": ["Sin stack ni hosting obligatorio", "Plazo de entrega del TP", "Un solo change especificado, probado y archivado", "Sin interfaz gráfica obligatoria; solo datos ficticios", "No contactar proveedores; README reproducible; sin secretos en el repositorio"], "riesgos": ["Reglas de solapamiento reales más complejas (prestaciones variables, sillones compartidos)", "Datos del Discovery sin verificar del todo y 'No evidenciado' del informe", "MVP grande para un solo change"], "sources": ["docs/discovery/informe-discovery.md (relevamiento propio, 18 sistemas, 2026-10-06)"], "usuarios": ["Paciente", "Odontólogo", "Secretaría/Recepción (rol separado)"]}, "owner": "active-orchestrator", "step": "kb", "version": 4}
+﻿{
+    "discovery":  {
+                      "casos_de_uso":  [
+                                           "Como recepcionista, quiero crear un turno que no se solape por profesional ni por sillón/box, para evitar dobles reservas.",
+                                           "Como recepcionista o paciente, quiero cancelar o reprogramar un turno, para liberar el horario y reutilizarlo.",
+                                           "Como odontólogo, quiero ver mi agenda del día, para saber quién viene y a qué hora.",
+                                           "Como recepcionista, quiero ofrecer un turno cancelado a un paciente de la lista de espera, para no perder el hueco."
+                                       ],
+                      "competitors":  [
+                                          {
+                                              "name":  "DentalCore",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          },
+                                          {
+                                              "name":  "DentalSoft",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          },
+                                          {
+                                              "name":  "DentalTec",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          },
+                                          {
+                                              "name":  "Dentalink",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          },
+                                          {
+                                              "name":  "AgendaPro",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          },
+                                          {
+                                              "name":  "WhatsApp + papel/planilla (competencia real)",
+                                              "notes_file":  "docs/discovery/informe-discovery.md"
+                                          }
+                                      ],
+                      "created_by":  "discovery-research",
+                      "funcionalidades_necesarias":  [
+                                                         "Agenda sin solapamientos por profesional y sillón/box (primer change)",
+                                                         "Recordatorios con confirmación en 1 toque (change posterior)",
+                                                         "Lista de espera que rellena cancelaciones (change posterior)"
+                                                     ],
+                      "funcionalidades_opcionales":  [
+                                                         "CDSS/IA diagnóstica, voz clínica, implantes 3D, PACS/imagen, laboratorio e inventario, campañas y NPS, financiamiento en cuotas, API pública, multi-país fiscal y telemedicina (etapas posteriores según D3)"
+                                                     ],
+                      "integraciones":  [
+                                            "Ninguna para el primer change; WhatsApp en un change posterior"
+                                        ],
+                      "preguntas_abiertas":  [
+                                                 "La reserva online del paciente NO entra en el primer change; solo la carga por recepción. Confirmar.",
+                                                 "¿Cuánta anticipación mínima para cancelar/reprogramar?",
+                                                 "¿Un mismo paciente puede tener dos turnos superpuestos con profesionales distintos?",
+                                                 "¿Límite de sobreturnos por profesional y día? (change posterior)",
+                                                 "¿Criterio de orden de la lista de espera?",
+                                                 "Stack tecnológico del change.",
+                                                 "Los \u0027No evidenciado\u0027 del informe: solapamientos en competidores, costo de WhatsApp en DentalSoft, validación OS de DentalTec en tiempo real, alcance de las leyes 26.529/25.326/27.706 y exportación de datos."
+                                             ],
+                      "problema":  "Ausentismo y huecos sin rellenar, más la falta de una agenda por profesional y por sillón/box que impida solapamientos. Change candidato: crear un turno sin solapamientos.",
+                      "reglas_de_negocio":  [
+                                                "RN-01: cada prestación tiene duración fija en minutos (v1); el turno ocupa desde su inicio hasta inicio + duración.",
+                                                "RN-02: un profesional no puede tener dos turnos activos con intervalos superpuestos.",
+                                                "RN-03: un sillón/box no puede tener dos turnos activos con intervalos superpuestos. El sillón es obligatorio en todo turno.",
+                                                "RN-04 (borde): un turno que empieza justo cuando termina otro NO es solapamiento (intervalos [inicio, fin)).",
+                                                "RN-05: un turno solo se crea dentro del horario de atención del profesional y no sobre un bloqueo.",
+                                                "RN-06: un turno cancelado o ausente no cuenta para solapamientos y libera profesional y sillón/box.",
+                                                "RN-07: reprogramar valida el nuevo horario con las mismas reglas; si falla, se conserva el turno original.",
+                                                "RN-08: estados: pendiente -\u003e confirmado -\u003e atendido/ausente; pendiente o confirmado -\u003e cancelado."
+                                            ],
+                      "restricciones":  [
+                                            "Sin stack ni hosting obligatorio",
+                                            "Plazo de entrega del TP",
+                                            "Un solo change especificado, probado y archivado",
+                                            "Sin interfaz gráfica obligatoria; solo datos ficticios",
+                                            "No contactar proveedores; README reproducible; sin secretos en el repositorio"
+                                        ],
+                      "riesgos":  [
+                                      "Reglas de solapamiento reales más complejas (prestaciones variables, sillones compartidos)",
+                                      "Datos del Discovery sin verificar del todo y \u0027No evidenciado\u0027 del informe",
+                                      "MVP grande para un solo change"
+                                  ],
+                      "sources":  [
+                                      "docs/discovery/informe-discovery.md (relevamiento propio, 18 sistemas, 2026-10-06)"
+                                  ],
+                      "usuarios":  [
+                                       "Paciente",
+                                       "Odontólogo",
+                                       "Secretaría/Recepción (rol separado)"
+                                   ]
+                  },
+    "owner":  "active-orchestrator",
+    "step":  "kb",
+    "version":  4,
+    "kb":  {
+               "created_by":  "kb-creator",
+               "source":  "ingest",
+               "discovery":  {
+                                 "problem":  "Ausentismo y huecos sin rellenar, más la falta de una agenda por profesional y por sillón/box que impida solapamientos. Change candidato: crear un turno sin solapamientos.",
+                                 "system_type":  "api (inferred, low confidence)",
+                                 "domain":  "dental",
+                                 "scale":  "team",
+                                 "stack":  "TBD - sin stack obligatorio (inferred, low confidence)",
+                                 "needs_infra":  true
+                             },
+               "files":  [
+                             "knowledge-base/01_vision_y_objetivos.md",
+                             "knowledge-base/02_descripcion_general.md",
+                             "knowledge-base/03_actores_y_roles.md",
+                             "knowledge-base/04_modelo_de_datos.md",
+                             "knowledge-base/05_reglas_de_negocio.md",
+                             "knowledge-base/06_funcionalidades.md",
+                             "knowledge-base/07_flujos_principales.md",
+                             "knowledge-base/08_arquitectura_propuesta.md",
+                             "knowledge-base/09_decisiones_y_supuestos.md",
+                             "knowledge-base/10_preguntas_abiertas.md",
+                             "knowledge-base/README.md"
+                         ]
+           }
+}
