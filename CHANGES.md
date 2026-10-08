@@ -92,7 +92,7 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 ## FASE 0 — Cimientos
 
 ### [C-01] `foundation-setup`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-10-08)
 - **Scope**: Scaffolding backend Python + base testeable con datos ficticios (US-001..US-003 como norte, no implementadas acá)
   - Estructura `backend/app/turnos/`, `backend/app/agenda/`, `backend/app/seed/`, `backend/tests/` + `docker-compose.yml` (api + postgres) según `08_arquitectura_propuesta.md` §Estructura
   - Python 3.12 + FastAPI + pytest configurados, 1 test dummy en verde (`pytest`)
