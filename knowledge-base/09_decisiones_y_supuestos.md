@@ -31,9 +31,9 @@ Fuente: `docs/discovery/discovery.md` + informe verificado 2026-10-06.
 ### DD-05 — Sin stack/hosting impuesto [REEMPLAZADA por DD-06]
 **Decisión**: ~~no fijar stack en Discovery; lo define el change/KB~~ — ya no vale.
 **Contexto**: restricción TP + sin UI obligatoria (vigente al redactarla).
-**Resolución**: el profesor impuso el stack el 2026-10-08 (ver DD-06). Se conserva por historia, no aplica.
+**Resolución**: el profesor impuso el stack el 2026-10-07 (ver DD-06). Se conserva por historia, no aplica.
 
-### DD-06 — Stack impuesto por el profesor (2026-10-08)
+### DD-06 — Stack impuesto por el profesor (2026-10-07)
 **Decisión**: Backend Python + FastAPI + JWT + SQLAlchemy + PostgreSQL (+ Redis solo con async) + Docker/Docker Compose; frontend React + TypeScript + Vite; estructura `backend/`, `frontend/`, `docker-compose.yml` en raíz; primer change solo backend.
 **Contexto**: corrección del profesor; reemplaza el stack Node.js/TypeScript/Express/Jest registrado por error en Q6/C-01.
 **Alternativas consideradas**: ninguna — imposición de cátedra, no negociable.

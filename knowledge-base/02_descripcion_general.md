@@ -1,6 +1,6 @@
 # Descripción General
 
-Fuente: `docs/discovery/discovery.md` §8-9 + informe §A-D. Stack impuesto por el profesor (2026-10-08) — reemplaza cualquier mención anterior a Node.js/TypeScript/Express/Jest. NO se cambia sin consultarlo.
+Fuente: `docs/discovery/discovery.md` §8-9 + informe §A-D. Stack impuesto por el profesor (2026-10-07) — reemplaza cualquier mención anterior a Node.js/TypeScript/Express/Jest. NO se cambia sin consultarlo.
 
 ## Stack tecnológico
 

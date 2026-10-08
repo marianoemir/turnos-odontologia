@@ -1,6 +1,6 @@
 # Arquitectura Propuesta
 
-Fuente: stack impuesto por el profesor (2026-10-08): Python + FastAPI + SQLAlchemy + PostgreSQL + Docker Compose; frontend React + TypeScript + Vite (posterior); Redis solo con async. Ver `02_descripcion_general.md`.
+Fuente: stack impuesto por el profesor (2026-10-07): Python + FastAPI + SQLAlchemy + PostgreSQL + Docker Compose; frontend React + TypeScript + Vite (posterior); Redis solo con async. Ver `02_descripcion_general.md`.
 
 ## Patrones aplicados
 

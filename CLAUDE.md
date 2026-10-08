@@ -7,7 +7,7 @@
 
 ## Stack Tecnológico
 
-> Stack impuesto por el profesor (2026-10-08). NO se cambia sin consultarlo.
+> Stack impuesto por el profesor (2026-10-07). NO se cambia sin consultarlo.
 
 | Capa | Tecnología | Versión |
 |------|------------|---------|
@@ -71,7 +71,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 
 ## Reglas Duras
 
-> Global `~/.claude/CLAUDE.md` ausente: no hay reglas heredadas. Todo lo contractual vive acá. Son contrato; romperlas es un defecto. Confirmadas con el usuario (stack impuesto por el profesor, 2026-10-08; reglas derivadas del dominio + universales).
+> Global `~/.claude/CLAUDE.md` ausente: no hay reglas heredadas. Todo lo contractual vive acá. Son contrato; romperlas es un defecto. Confirmadas con el usuario (stack impuesto por el profesor, 2026-10-07; reglas derivadas del dominio + universales).
 
 - NUNCA cambiar el stack sin consultar al profesor → Python/FastAPI/SQLAlchemy/PostgreSQL + React/Vite es imposición de cátedra.
 - NUNCA datos reales de pacientes → solo datos ficticios en seeds y tests.

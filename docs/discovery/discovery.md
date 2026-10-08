@@ -71,7 +71,7 @@ No hay stack ni hosting obligatorio (se define según la knowledge-base). Plazo:
 - Datos del Discovery todavía sin verificar del todo (DentalCore, AgendaPro, Doctoralia) y varios "No evidenciado" del informe.
 - MVP grande para un solo change: el recorte al primer change (agenda sin solapamientos, sin reserva online del paciente) es lo que lo hace viable.
 
-> **Actualización 2026-10-08:** DentalCore, AgendaPro y Doctoralia fueron verificados personalmente por el equipo (ver "Verificación de fuentes" del informe). Siguen como "No evidenciado" los datos que no figuran en las fuentes públicas. DentalTec, Bilog y la cifra de "62 entidades" de DentalCore no fueron comprobados por el equipo.
+> **Actualización 2026-10-08:** DentalSoft, DentalCore, AgendaPro y Doctoralia fueron verificados personalmente por el equipo (ver "Verificación de fuentes" del informe). Siguen como "No evidenciado" los datos que no figuran en las fuentes públicas. DentalTec, Bilog y la cifra de "62 entidades" de DentalCore no fueron comprobados por el equipo.
 
 ## 11. Preguntas abiertas
 
