@@ -101,7 +101,6 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
   - `README.md` reproducible (cómo levantar con Compose, cómo correr tests, datos ficticios)
   - CI mínima (1 job: tests con Python + pytest) si el repo usa GitHub Actions
   - Tests: dummy verde
-  - NOTA 2026-10-08 (stack profesor): la base implementada en C-01 era Node/Express y queda obsoleta; rehacer en Python en el change que corresponda antes de C-02
 - **Dependencias**: ninguna
 - **Governance**: BAJO
 - **Leer antes**:
@@ -140,7 +139,6 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
   - `ServicioTurnos.crear(...)` único punto de validación + `POST /turnos` (FastAPI): calcula fin, exige sillón, verifica horario + bloqueo, busca solapes `[inicio,fin)` en turnos activos mismo profesional y mismo sillón; 201 pendiente | 409 `HTTPException` con causa (`profesional|sillon|horario|bloqueo`) | 422 Pydantic/sin sillón
   - Alembic revisión 002: tabla turno + índices parciales (`profesional_id,inicio,fin` y `sillon_id,inicio,fin` donde estado en pendiente/confirmado; `paciente_id,inicio`)
   - Tests pytest (red-green, skill `tdd`): crear ok, solape profesional 409, solape sillón 409, borde inicio==fin acepta (RN-AG-04), sin sillón 422, fuera de horario 409, sobre bloqueo 409, nada creado en 409
-  - NOTA 2026-10-08 (stack profesor): la implementación archivada era Node/Express y queda obsoleta; rehacer en Python antes de dar por cerrado el recorte TP
 - **Dependencias**: C-02
 - **Governance**: CRITICO
 - **Leer antes**:

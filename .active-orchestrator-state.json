@@ -85,7 +85,7 @@
                                                 "RN-08: estados: pendiente -\u003e confirmado -\u003e atendido/ausente; pendiente o confirmado -\u003e cancelado."
                                             ],
                       "restricciones":  [
-                                            "Sin stack ni hosting obligatorio",
+                                            "Stack definido por el profesor (2026-10-07); hosting no obligatorio",
                                             "Plazo de entrega del TP",
                                             "Un solo change especificado, probado y archivado",
                                             "Sin interfaz gráfica obligatoria; solo datos ficticios",
@@ -116,7 +116,7 @@
                                  "system_type":  "api (inferred, low confidence)",
                                  "domain":  "dental",
                                  "scale":  "team",
-                                 "stack":  "TBD - sin stack obligatorio (inferred, low confidence)",
+                                 "stack":  "Backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis (solo asincrónico), Docker/Docker Compose. Frontend: React, TypeScript, Vite (impuesto por el profesor, 2026-10-07)",
                                  "needs_infra":  true
                              },
                "files":  [
