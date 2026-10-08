@@ -63,11 +63,15 @@ Ninguna para el primer change. WhatsApp es necesario para la v1 (recordatorios),
 
 No hay stack ni hosting obligatorio (se define según la knowledge-base). Plazo: el de entrega del TP. Además: un solo change especificado, probado y archivado; sin interfaz gráfica obligatoria; solo datos ficticios; no se contacta a proveedores; README reproducible; sin secretos en el repositorio.
 
+> **Actualización 2026-10-07:** el profesor definió el stack (backend: Python, FastAPI, JWT, SQLAlchemy, PostgreSQL, Redis para lo asincrónico, Docker/Docker Compose; frontend: React, TypeScript, Vite). El hosting sigue sin ser obligatorio.
+
 ## 10. Riesgos
 
 - Las reglas de solapamiento reales pueden ser más complejas (prestaciones de duración variable, sillones compartidos).
 - Datos del Discovery todavía sin verificar del todo (DentalCore, AgendaPro, Doctoralia) y varios "No evidenciado" del informe.
 - MVP grande para un solo change: el recorte al primer change (agenda sin solapamientos, sin reserva online del paciente) es lo que lo hace viable.
+
+> **Actualización 2026-10-08:** DentalCore, AgendaPro y Doctoralia fueron verificados personalmente por el equipo (ver "Verificación de fuentes" del informe). Siguen como "No evidenciado" los datos que no figuran en las fuentes públicas. DentalTec, Bilog y la cifra de "62 entidades" de DentalCore no fueron comprobados por el equipo.
 
 ## 11. Preguntas abiertas
 
@@ -78,5 +82,5 @@ Textuales (la etapa 3 las lee desde acá):
 3. ¿Un mismo paciente puede tener dos turnos superpuestos con profesionales distintos?
 4. ¿Límite de sobreturnos por profesional y día? (change posterior)
 5. ¿Criterio de orden de la lista de espera?
-6. Stack tecnológico del change.
+6. Stack tecnológico del change. **Resuelta 2026-10-07 por indicación del profesor (ver sección 9).**
 7. Los "No evidenciado" del informe: solapamientos en competidores, costo de WhatsApp en DentalSoft, validación OS de DentalTec en tiempo real, alcance de las leyes 26.529/25.326/27.706 y exportación de datos.
