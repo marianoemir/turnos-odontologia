@@ -28,10 +28,17 @@ Fuente: `docs/discovery/discovery.md` + informe verificado 2026-10-06.
 **Contexto**: RN-03, RN-04.
 **Justificación**: modela recurso físico real y evita falsos conflictos encadenados.
 
-### DD-05 — Sin stack/hosting impuesto
-**Decisión**: no fijar stack en Discovery; lo define el change/KB.
-**Contexto**: restricción TP + sin UI obligatoria.
-**Trade-offs**: flexibilidad vs. necesidad de fijarlo antes de codificar (ver pregunta abierta 6).
+### DD-05 — Sin stack/hosting impuesto [REEMPLAZADA por DD-06]
+**Decisión**: ~~no fijar stack en Discovery; lo define el change/KB~~ — ya no vale.
+**Contexto**: restricción TP + sin UI obligatoria (vigente al redactarla).
+**Resolución**: el profesor impuso el stack el 2026-10-08 (ver DD-06). Se conserva por historia, no aplica.
+
+### DD-06 — Stack impuesto por el profesor (2026-10-08)
+**Decisión**: Backend Python + FastAPI + JWT + SQLAlchemy + PostgreSQL (+ Redis solo con async) + Docker/Docker Compose; frontend React + TypeScript + Vite; estructura `backend/`, `frontend/`, `docker-compose.yml` en raíz; primer change solo backend.
+**Contexto**: corrección del profesor; reemplaza el stack Node.js/TypeScript/Express/Jest registrado por error en Q6/C-01.
+**Alternativas consideradas**: ninguna — imposición de cátedra, no negociable.
+**Justificación**: criterio de evaluación del TP.
+**Trade-offs aceptados**: la implementación Node/Express existente en `src/` queda obsoleta y deberá rehacerse en Python en el change que corresponda (esta tarea no toca código).
 
 ## Supuestos inferidos
 

@@ -7,7 +7,7 @@ Base generada en Mode A (ingest) desde `docs/discovery/discovery.md` + `docs/dis
 | Archivo | Contenido |
 |---------|-----------|
 | [01_vision_y_objetivos.md](01_vision_y_objetivos.md) | Propósito, objetivos por actor, alcance v1 + recorte primer change, métricas |
-| [02_descripcion_general.md](02_descripcion_general.md) | Stack (TBD), arquitectura mínima, integraciones (ninguna en change 1), API propuesta |
+| [02_descripcion_general.md](02_descripcion_general.md) | Stack (profesor: Python+FastAPI+PostgreSQL), arquitectura, integraciones (ninguna en change 1) |
 | [03_actores_y_roles.md](03_actores_y_roles.md) | Paciente, Odontólogo, Recepción; RBAC; rutas públicas (ninguna en change 1) |
 | [04_modelo_de_datos.md](04_modelo_de_datos.md) | ERD, 8 entidades, constraints de solape, seed ficticio |
 | [05_reglas_de_negocio.md](05_reglas_de_negocio.md) | RN-AG-01..05, RN-TU-01..02, RN-ES-01..02 (mapeo RN-01..RN-08) |
@@ -15,7 +15,7 @@ Base generada en Mode A (ingest) desde `docs/discovery/discovery.md` + `docs/dis
 | [07_flujos_principales.md](07_flujos_principales.md) | Crear, cancelar/reprogramar, agenda día, lista espera (posterior) |
 | [08_arquitectura_propuesta.md](08_arquitectura_propuesta.md) | Patrones, directorios, seguridad, env vars |
 | [09_decisiones_y_supuestos.md](09_decisiones_y_supuestos.md) | DD-01..05, SU-01..03 |
-| [10_preguntas_abiertas.md](10_preguntas_abiertas.md) | IN-01..02, Q1..Q7 + low-confidence system_type/stack |
+| [10_preguntas_abiertas.md](10_preguntas_abiertas.md) | IN-01..02, Q1..Q7 (Q6 resuelta por el profesor) |
 
 ## Quick Start para Desarrolladores
 
@@ -24,7 +24,7 @@ Base generada en Mode A (ingest) desde `docs/discovery/discovery.md` + `docs/dis
 3. Entender las reglas → [05](05_reglas_de_negocio.md)
 4. Entender la arquitectura → [02](02_descripcion_general.md), [08](08_arquitectura_propuesta.md)
 5. Implementar → [07](07_flujos_principales.md), [06](06_funcionalidades.md)
-6. Antes de codificar → [10](10_preguntas_abiertas.md) (confirmar Q1 reserva solo-recepción y Q6 stack)
+6. Antes de codificar → [10](10_preguntas_abiertas.md) (confirmar Q1 reserva solo-recepción)
 
 ## Resumen Ejecutivo
 

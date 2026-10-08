@@ -93,13 +93,15 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 
 ### [C-01] `foundation-setup`
 - **Estado**: `[x]` archivado (2026-10-07)
-- **Scope**: Scaffolding mínimo + base testeable con datos ficticios (US-001..US-003 como norte, no implementadas acá)
-  - Estructura `src/turnos/`, `src/agenda/`, `src/seed/`, `tests/` según `08_arquitectura_propuesta.md` §Estructura
-  - Test runner + linter configurados, 1 test dummy en verde
-  - `.env.example` con `TZ`, `DATABASE_URL`, `SEED_FICTICIO` (sin secretos, valores ficticios)
-  - `README.md` reproducible (cómo instalar, cómo correr tests, datos ficticios)
-  - CI mínima (1 job: tests) si el repo usa GitHub Actions
-  - Tests: dummy verde, carga de `.env.example` sin secretos
+- **Scope**: Scaffolding backend Python + base testeable con datos ficticios (US-001..US-003 como norte, no implementadas acá)
+  - Estructura `backend/app/turnos/`, `backend/app/agenda/`, `backend/app/seed/`, `backend/tests/` + `docker-compose.yml` (api + postgres) según `08_arquitectura_propuesta.md` §Estructura
+  - Python 3.12 + FastAPI + pytest configurados, 1 test dummy en verde (`pytest`)
+  - `backend/requirements.txt` (fastapi, uvicorn, sqlalchemy, alembic, pytest, httpx)
+  - `.env.example` con `TZ`, `DATABASE_URL` (postgres), `SECRET_KEY` (ficticia), `SEED_FICTICIO` (sin secretos reales)
+  - `README.md` reproducible (cómo levantar con Compose, cómo correr tests, datos ficticios)
+  - CI mínima (1 job: tests con Python + pytest) si el repo usa GitHub Actions
+  - Tests: dummy verde
+  - NOTA 2026-10-08 (stack profesor): la base implementada en C-01 era Node/Express y queda obsoleta; rehacer en Python en el change que corresponda antes de C-02
 - **Dependencias**: ninguna
 - **Governance**: BAJO
 - **Leer antes**:
@@ -113,10 +115,10 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 ### [C-02] `catalogo-recursos`
 - **Estado**: `[ ]` pendiente
 - **Scope**: Entidades referenciadas por Turno + seed ficticio (sin Turno todavía)
-  - Modelos: `Paciente` (dni único), `Profesional`, `SillonBox` (activo), `Prestacion` (duracion_min > 0 fija), `HorarioAtencion` (desde < hasta, sin solape mismo profesional/día), `Bloqueo` (profesional/sillón nullable, desde < hasta)
-  - Migración 001: tablas del catálogo + índices (`dni`, `activo`)
+  - Modelos SQLAlchemy: `Paciente` (dni único), `Profesional`, `SillonBox` (activo), `Prestacion` (duracion_min > 0 fija), `HorarioAtencion` (desde < hasta, sin solape mismo profesional/día), `Bloqueo` (profesional/sillón nullable, desde < hasta)
+  - Alembic revisión 001: tablas del catálogo + índices (`dni`, `activo`)
   - Seed ficticio: 2 profesionales, 2 sillones, 3 prestaciones (20/30/60 min), horarios Lun–Vie 9–18, 1 bloqueo, 3 pacientes ficticios
-  - Tests: constraints (dni único, duración > 0, sillón activo, horario desde < hasta), seed carga 2+2+3
+  - Tests pytest: constraints (dni único, duración > 0, sillón activo, horario desde < hasta), seed carga 2+2+3
 - **Dependencias**: C-01
 - **Governance**: CRITICO
 - **Leer antes**:
@@ -133,11 +135,12 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 
 ### [C-03] `crear-turno-sin-solapamientos`
 - **Estado**: `[x]` archivado (2026-10-07)
-- **Scope**: US-001 completa — núcleo del TP (RN-AG-01..05, RN-ES-02)
-  - Modelo `Turno`: `paciente_id`, `profesional_id`, `sillon_id NOT NULL`, `prestacion_id`, `inicio`, `fin = inicio + duracion`, `estado` (pendiente|confirmado|cancelado|atendido|ausente), `creado_por`
-  - `POST /turnos` (o `ServicioTurnos.crear(...)` si no hay HTTP): calcula fin, exige sillón, verifica horario + bloqueo, busca solapes `[inicio,fin)` en turnos activos mismo profesional y mismo sillón; 201 pendiente | 409 `profesional|sillon|horario|bloqueo` | 422 sin sillón/prestación inválida
-  - Migración 002: tabla turno + índices parciales (`profesional_id,inicio,fin` y `sillon_id,inicio,fin` donde estado en pendiente/confirmado; `paciente_id,inicio`)
-  - Tests: crear ok, solape profesional 409, solape sillón 409, borde inicio==fin acepta (RN-AG-04), sin sillón 422, fuera de horario 409, sobre bloqueo 409, nada creado en 409
+- **Scope**: US-001 completa — núcleo del TP (RN-AG-01..05, RN-ES-02), backend FastAPI + pytest
+  - Modelo SQLAlchemy `Turno`: `paciente_id`, `profesional_id`, `sillon_id NOT NULL`, `prestacion_id`, `inicio`, `fin = inicio + duracion`, `estado`, `creado_por`
+  - `ServicioTurnos.crear(...)` único punto de validación + `POST /turnos` (FastAPI): calcula fin, exige sillón, verifica horario + bloqueo, busca solapes `[inicio,fin)` en turnos activos mismo profesional y mismo sillón; 201 pendiente | 409 `HTTPException` con causa (`profesional|sillon|horario|bloqueo`) | 422 Pydantic/sin sillón
+  - Alembic revisión 002: tabla turno + índices parciales (`profesional_id,inicio,fin` y `sillon_id,inicio,fin` donde estado en pendiente/confirmado; `paciente_id,inicio`)
+  - Tests pytest (red-green, skill `tdd`): crear ok, solape profesional 409, solape sillón 409, borde inicio==fin acepta (RN-AG-04), sin sillón 422, fuera de horario 409, sobre bloqueo 409, nada creado en 409
+  - NOTA 2026-10-08 (stack profesor): la implementación archivada era Node/Express y queda obsoleta; rehacer en Python antes de dar por cerrado el recorte TP
 - **Dependencias**: C-02
 - **Governance**: CRITICO
 - **Leer antes**:

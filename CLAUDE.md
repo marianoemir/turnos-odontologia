@@ -7,15 +7,17 @@
 
 ## Stack Tecnológico
 
-> Stack decidido en Q6 (2026-10-07, change C-01): Node.js + TypeScript + Express + Jest.
+> Stack impuesto por el profesor (2026-10-08). NO se cambia sin consultarlo.
 
 | Capa | Tecnología | Versión |
 |------|------------|---------|
-| Lógica de dominio | Node.js LTS + TypeScript estricto + Express 4 | Node 24, TS 5.6+, Express 4.21+ |
-| Persistencia | En memoria / SQLite para tests; Postgres solo si el change lo justifica | — |
-| Presentación | Sin UI obligatoria; API REST mínima (Express) si el change la necesita | — |
-| Tests | Jest + ts-jest, CommonJS (skill `tdd`) | Jest 29+ |
-| Integraciones (posteriores) | WhatsApp, Mercado Pago, ARCA, OS | — |
+| Backend | Python + FastAPI + SQLAlchemy + Alembic | Python 3.12+, FastAPI 0.115+, SQLAlchemy 2.0+ |
+| Auth | JWT (change de roles posterior) | — |
+| Persistencia | PostgreSQL vía Docker Compose | Postgres 16+ |
+| Async | Redis — solo con funcionalidad asincrónica (posterior) | Redis 7+ |
+| Frontend | React + TypeScript + Vite (change posterior; primer change solo backend) | — |
+| Tests | pytest (skill `tdd`) | pytest 8+ |
+| Infra local | Docker + Docker Compose (`docker-compose.yml` en raíz) | Docker 24+ |
 
 Detalle completo: [knowledge-base/02_descripcion_general.md](knowledge-base/02_descripcion_general.md)
 
@@ -36,7 +38,7 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 | [08_arquitectura_propuesta.md](knowledge-base/08_arquitectura_propuesta.md) | Patrones, estructura, env vars |
 | [10_preguntas_abiertas.md](knowledge-base/10_preguntas_abiertas.md) | ⚠️ Inconsistencias a resolver ANTES de codear |
 
-> ⚠️ Resolver las preguntas de prioridad **Alta** de `10_preguntas_abiertas.md` (Q1 reserva solo-recepción, Q6 stack) antes de arrancar el primer change.
+> ⚠️ Resolver la pregunta de prioridad **Alta** restante de `10_preguntas_abiertas.md` (Q1 reserva solo-recepción) antes de arrancar el próximo change. Q6 (stack) resuelta por el profesor.
 
 ---
 
@@ -44,7 +46,7 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 
 | Agente | Rol | Skills que carga |
 |--------|-----|------------------|
-| Núcleo agenda | Turnos, solapes, estados, tests | `tdd` |
+| Núcleo agenda | Turnos, solapes, estados, tests (pytest) | `tdd`, `python-testing-patterns`, `pytest-coverage`, `fastapi-patterns` |
 | Orquestación | SDD / KB / roadmap / reglas | `kb-creator`, `roadmap-generator`, `agents-md-generator`, `find-skills`, `active-orchestrator` |
 | Cambios OpenSpec | Proponer / aplicar / archivar / explorar | `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`, `openspec-sync-specs`, `openspec-update-change` |
 | Meta | Crear o mejorar skills | `skill-creator` |
@@ -69,8 +71,9 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 
 ## Reglas Duras
 
-> Global `~/.claude/CLAUDE.md` ausente: no hay reglas heredadas. Todo lo contractual vive acá. Son contrato; romperlas es un defecto. Confirmadas con el usuario (stack Node+TS+Express+Jest; reglas derivadas del dominio + universales).
+> Global `~/.claude/CLAUDE.md` ausente: no hay reglas heredadas. Todo lo contractual vive acá. Son contrato; romperlas es un defecto. Confirmadas con el usuario (stack impuesto por el profesor, 2026-10-08; reglas derivadas del dominio + universales).
 
+- NUNCA cambiar el stack sin consultar al profesor → Python/FastAPI/SQLAlchemy/PostgreSQL + React/Vite es imposición de cátedra.
 - NUNCA datos reales de pacientes → solo datos ficticios en seeds y tests.
 - NUNCA secretos commiteados → tokens/keys solo vía env; `.env.example` sin valores reales.
 - NUNCA crear turno sin validar solape de profesional + sillón en `[inicio,fin)` en un único ServicioTurnos → aplica RN-AG-02/03/04 en un solo punto.
