@@ -1,4 +1,10 @@
-node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+htmlcov/
+.coverage
+.venv/
+venv/
 dist/
+node_modules/
 .env
-.atl/

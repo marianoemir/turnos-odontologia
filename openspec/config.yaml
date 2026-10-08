@@ -3,11 +3,11 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack (impuesto por el profesor, no cambiar sin consultarlo): backend Python + FastAPI + SQLAlchemy + Alembic + PostgreSQL (+ Redis solo con funcionalidad asincronica) + Docker/Docker Compose; frontend React + TypeScript + Vite (change posterior). Primer change: solo backend.
+  Estructura: carpetas backend/ y frontend/ en la raiz, docker-compose.yml en la raiz.
+  Tests: pytest con TDD (skill tdd). Solo datos ficticios, nunca secretos en el repo.
+  Dominio: agenda odontologica sin solapamientos por profesional ni por sillon/box en [inicio,fin); 409 conflicto (solape/horario/bloqueo) vs 422 input invalido; cancelar es cambio de estado, nunca hard delete.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

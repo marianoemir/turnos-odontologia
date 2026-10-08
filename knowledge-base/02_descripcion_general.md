@@ -1,26 +1,33 @@
 # Descripción General
 
-Fuente: `docs/discovery/discovery.md` §8-9 + informe §A-D. Stack no impuesto — ver supuesto en `09_decisiones_y_supuestos.md`.
+Fuente: `docs/discovery/discovery.md` §8-9 + informe §A-D. Stack impuesto por el profesor (2026-10-08) — reemplaza cualquier mención anterior a Node.js/TypeScript/Express/Jest. NO se cambia sin consultarlo.
 
 ## Stack tecnológico
 
-> Decidido en Q6 (2026-10-07, change C-01): Node.js + TypeScript + Express + Jest.
-
 | Capa | Tecnologías | Versión mínima |
 |------|-------------|----------------|
-| Lógica de dominio | Node.js LTS + TypeScript estricto + Express 4 | Node 24, TS 5.6+, Express 4.21+ |
-| Persistencia (primer changes) | En memoria / SQLite para tests con datos ficticios; Postgres u otro solo si el change lo justifica | — |
-| API/presentación | Sin UI gráfica obligatoria. CLI o API REST mínima (Express) si el change la necesita | — |
-| Tests | Jest + ts-jest, módulos CommonJS (skill `tdd`) | Jest 29+ |
-| Infra | Sin hosting obligatorio. Sin secretos en repo. README reproducible. CI: 1 job tests | — |
+| Backend | Python + FastAPI + SQLAlchemy (ORM) + Alembic (migraciones) | Python 3.12+, FastAPI 0.115+, SQLAlchemy 2.0+ |
+| Auth | JWT (llega con el change de roles; antes, sin login) | — |
+| Persistencia | PostgreSQL (desarrollo y tests vía Docker Compose) | Postgres 16+ |
+| Async / jobs | Redis — solo cuando haya funcionalidad asincrónica (change posterior) | Redis 7+ |
+| Frontend | React + TypeScript + Vite (change posterior; el primer change es solo backend) | — |
+| Tests backend | pytest (skill `tdd`) | pytest 8+ |
+| Infra local | Docker + Docker Compose (`docker-compose.yml` en raíz) | Docker 24+ |
 
 ## Arquitectura general
 
-Monolito modular mínimo centrado en el dominio Agenda/Turnos, sin frontend obligatorio:
+Monolito modular backend-first. El primer change (crear turno) es solo backend; el frontend React llega en un change posterior:
 
 ```
-Recepción (actor/test) → ServicioTurnos.valida(RN-01..RN-08) → Agenda (profesional + sillón/box + bloqueos)
-                                                      ↘ Turno [pendiente|confirmado|cancelado|...]
+backend/ (FastAPI)              frontend/ (React+Vite, posterior)
+├── app/
+│   ├── turnos/        # ServicioTurnos.valida(RN-01..RN-08)
+│   ├── agenda/        # profesional + sillón/box + bloqueos
+│   └── seed/          # datos ficticios
+├── tests/             # pytest
+└── alembic/           # migraciones (desde C-02)
+
+docker-compose.yml en raíz: api + postgres (+ redis solo cuando haya async)
 ```
 
 Justificación: el primer change es crear un turno sin solapamientos, probado y archivado. No requiere UI, ni integraciones, ni multi-sucursal. El MVP completo (D3) evolucionaría a SaaS nube multi-profesional/multi-sucursal, pero eso es posterior.
