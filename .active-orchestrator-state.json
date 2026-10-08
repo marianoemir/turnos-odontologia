@@ -1,4 +1,24 @@
 ﻿{
+    "registry":  {
+                    "created_by":  "skill-registry",
+                    "file":  ".atl/skill-registry.md",
+                    "skills_count":  45,
+                    "project_skills":  [
+                                           "openspec-propose",
+                                           "openspec-apply-change",
+                                           "openspec-archive-change",
+                                           "openspec-explore",
+                                           "openspec-sync-specs",
+                                           "openspec-update-change"
+                                       ],
+                    "dropped_stale":  [
+                                          "tdd",
+                                          "python-testing-patterns",
+                                          "pytest-coverage",
+                                          "fastapi-patterns"
+                                      ],
+                    "notes":  "Paths canonicalized to C:\\Users\\andre (stale FACUNDO entries removed). Project openspec paths point at .opencode/skills (runtime-loaded); .agents/skills mirror noted in registry. AGENTS.md references 4 uninstalled skills + missing docker-compose.yml (flagged in registry)."
+                },
     "discovery":  {
                       "casos_de_uso":  [
                                            "Como recepcionista, quiero crear un turno que no se solape por profesional ni por sillón/box, para evitar dobles reservas.",
@@ -86,7 +106,7 @@
                                    ]
                   },
     "owner":  "active-orchestrator",
-    "step":  "kb",
+    "step":  "done",
     "version":  4,
     "kb":  {
                "created_by":  "kb-creator",
@@ -110,7 +130,24 @@
                              "knowledge-base/08_arquitectura_propuesta.md",
                              "knowledge-base/09_decisiones_y_supuestos.md",
                              "knowledge-base/10_preguntas_abiertas.md",
-                             "knowledge-base/README.md"
-                         ]
-           }
+                              "knowledge-base/README.md"
+                          ]
+            },
+    "roadmap":  {
+                    "created_by":  "roadmap-generator (externo: CHANGES.md producido por el equipo fuera del flujo orquestado; verificado existente en disco)",
+                    "changes_file":  "CHANGES.md"
+                },
+    "skills":  {
+                   "created_by":  "find-skill (externo: sin corrida formal recommend-only; inventario reconciliado desde state.registry)",
+                   "recommended":  [],
+                   "installed":  []
+               },
+    "agents":  {
+                   "created_by":  "agent-instruction (externo: CLAUDE.md/AGENTS.md producidos por el equipo fuera del flujo orquestado; verificados existentes en disco)",
+                   "files":  [
+                                  "CLAUDE.md",
+                                  "AGENTS.md"
+                              ],
+                   "reglas_applied":  []
+               }
 }

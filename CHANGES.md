@@ -92,7 +92,7 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 ## FASE 0 — Cimientos
 
 ### [C-01] `foundation-setup`
-- **Estado**: `[x]` archivado (2026-10-07)
+- **Estado**: `[x]` archivado (2026-10-08)
 - **Scope**: Scaffolding backend Python + base testeable con datos ficticios (US-001..US-003 como norte, no implementadas acá)
   - Estructura `backend/app/turnos/`, `backend/app/agenda/`, `backend/app/seed/`, `backend/tests/` + `docker-compose.yml` (api + postgres) según `08_arquitectura_propuesta.md` §Estructura
   - Python 3.12 + FastAPI + pytest configurados, 1 test dummy en verde (`pytest`)
@@ -134,7 +134,7 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 > C-04 y C-05 son paralelos tras C-03. El evaluable mínimo cierra en C-03.
 
 ### [C-03] `crear-turno-sin-solapamientos`
-- **Estado**: `[x]` archivado (2026-10-07)
+- **Estado**: `[ ]` pendiente
 - **Scope**: US-001 completa — núcleo del TP (RN-AG-01..05, RN-ES-02), backend FastAPI + pytest
   - Modelo SQLAlchemy `Turno`: `paciente_id`, `profesional_id`, `sillon_id NOT NULL`, `prestacion_id`, `inicio`, `fin = inicio + duracion`, `estado`, `creado_por`
   - `ServicioTurnos.crear(...)` único punto de validación + `POST /turnos` (FastAPI): calcula fin, exige sillón, verifica horario + bloqueo, busca solapes `[inicio,fin)` en turnos activos mismo profesional y mismo sillón; 201 pendiente | 409 `HTTPException` con causa (`profesional|sillon|horario|bloqueo`) | 422 Pydantic/sin sillón
