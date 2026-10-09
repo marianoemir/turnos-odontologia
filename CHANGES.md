@@ -112,7 +112,7 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 ---
 
 ### [C-02] `catalogo-recursos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-10-09)
 - **Scope**: Entidades referenciadas por Turno + seed ficticio (sin Turno todavía)
   - Modelos SQLAlchemy: `Paciente` (dni único), `Profesional`, `SillonBox` (activo), `Prestacion` (duracion_min > 0 fija), `HorarioAtencion` (desde < hasta, sin solape mismo profesional/día), `Bloqueo` (profesional/sillón nullable, desde < hasta)
   - Alembic revisión 001: tablas del catálogo + índices (`dni`, `activo`)
