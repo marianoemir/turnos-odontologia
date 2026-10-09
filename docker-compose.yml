@@ -20,7 +20,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://odontologia:odontologia@postgres:5432/turnos
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@postgres:5432/turnos
     depends_on:
       postgres:
         condition: service_healthy
