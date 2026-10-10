@@ -133,7 +133,7 @@ Paso │ Agente A (Backend Core)          │ Agente B (Backend Aux)       │ A
 > C-04 y C-05 son paralelos tras C-03. El evaluable mínimo cierra en C-03.
 
 ### [C-03] `crear-turno-sin-solapamientos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-10-10)
 - **Scope**: US-001 completa — núcleo del TP (RN-AG-01..05, RN-ES-02), backend FastAPI + pytest
   - Modelo SQLAlchemy `Turno`: `paciente_id`, `profesional_id`, `sillon_id NOT NULL`, `prestacion_id`, `inicio`, `fin = inicio + duracion`, `estado`, `creado_por`
   - `ServicioTurnos.crear(...)` único punto de validación + `POST /turnos` (FastAPI): calcula fin, exige sillón, verifica horario + bloqueo, busca solapes `[inicio,fin)` en turnos activos mismo profesional y mismo sillón; 201 pendiente | 409 `HTTPException` con causa (`profesional|sillon|horario|bloqueo`) | 422 Pydantic/sin sillón
