@@ -13,6 +13,7 @@ from sqlalchemy import create_engine
 
 from backend.app.agenda import models  # noqa: F401  (metadata)
 from backend.app.db import Base
+from backend.app.turnos import models as _turnos_models  # noqa: F401
 
 config = context.config
 target_metadata = Base.metadata
