@@ -33,8 +33,9 @@ $env:DATABASE_URL="postgresql+psycopg://usuario:clave@localhost:5432/turnos"
 export DATABASE_URL="postgresql+psycopg://usuario:clave@localhost:5432/turnos"
 ```
 
-> ⚠️ Los tests **truncan** las 6 tablas del catálogo (`pacientes`,
-> `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos`)
+> ⚠️ Los tests **truncan** las 7 tablas (`pacientes`,
+> `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos`
+> y `turnos`)
 > de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base
 > `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado
 > con error antes de conectar o truncar.
@@ -42,7 +43,7 @@ export DATABASE_URL="postgresql+psycopg://usuario:clave@localhost:5432/turnos"
 Con Postgres levantado:
 
 ```bash
-py -m alembic -c backend/alembic.ini upgrade head   # crea las 6 tablas
+py -m alembic -c backend/alembic.ini upgrade head   # crea las 7 tablas
 SEED_FICTICIO=true py -m backend.app.seed.catalogo # datos ficticios (idempotente, sin turnos)
 py -m pytest backend/tests -rs                      # todo en verde, sin skips
 ```
@@ -61,6 +62,64 @@ py -m alembic -c backend/alembic.ini downgrade -1
 
 Sin Postgres, los tests `integration` se skipean y el resto sigue en
 verde; con `CI=true` la falta de Postgres falla en lugar de skipear.
+
+## Crear turnos (C-03)
+
+`POST /turnos` crea un turno en estado `pendiente`. Con `DATABASE_URL`
+definida (ver arriba), base migrada y seed ficticio cargado:
+
+```powershell
+py -m alembic -c backend/alembic.ini upgrade head
+$env:SEED_FICTICIO="true"; py -m backend.app.seed.catalogo
+```
+
+El seed deja 2 profesionales (`MAT-FICT-001/002`), 2 sillones
+(`Sillon 1/2`), 3 prestaciones (`Limpieza` 20, `Consulta` 30,
+`Endodoncia` 60 min), horario Lun–Vie 9–18 por profesional y
+3 pacientes (`DNI-FICT-001/002/003`). Los IDs reales salen de la base:
+
+```powershell
+$ids = py -c "import json; from backend.app.db import get_session; from backend.app.agenda.models import Paciente, Profesional, SillonBox, Prestacion; s = get_session()(); q = lambda m, **f: str(s.query(m).filter_by(**f).one().id); print(json.dumps({'paciente': q(Paciente, dni='DNI-FICT-001'), 'profesional': q(Profesional, matricula='MAT-FICT-001'), 'profesional2': q(Profesional, matricula='MAT-FICT-002'), 'sillon': q(SillonBox, nombre='Sillon 1'), 'sillon2': q(SillonBox, nombre='Sillon 2'), 'consulta30': q(Prestacion, nombre='Consulta')})); s.close()" | ConvertFrom-Json
+```
+
+Levantá la API y creá un turno (lunes 12/10/2026 10:00, dentro del
+horario del seed; `Consulta` dura 30 min):
+
+```powershell
+$srv = Start-Process py -ArgumentList "-m uvicorn backend.app.main:app --port 8000" -PassThru -WindowStyle Hidden
+Start-Sleep -Seconds 6
+$body = @{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:00:00-03:00" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body $body
+```
+
+Responde `201` con el turno (`estado` `pendiente`,
+`fin` `2026-10-12T10:30:00-03:00`, más `id` y `creado_por: null`).
+`fin` lo calcula el servidor (`inicio + prestacion.duracion_min`);
+un `fin` enviado por el cliente se ignora (schema `extra="ignore"`):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T11:00:00-03:00"; fin="2026-10-12T12:00:00-03:00" } | ConvertTo-Json) | Select-Object inicio, fin
+```
+
+Contrato de errores. El solape da `409` con cuerpo EXACTO
+`{"detail": {"causa": ..., "detalle": ...}}`:
+
+```powershell
+try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon2; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:15:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+```
+
+`causa` es una de `profesional|sillon|horario|bloqueo`. El resto:
+
+```powershell
+try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+$inexistente = [guid]::NewGuid().ToString()
+try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$inexistente; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+Stop-Process -Id $srv.Id
+```
+
+El primer bloque da `422` (falta `sillon_id`; también `422` con
+`{"detail": "<motivo>"}` ante sillón inactivo o `inicio` sin zona
+horaria). El segundo da `404` (`{"detail": "<recurso> no existe: <id>"}`).
 
 ## Variables de entorno
 
