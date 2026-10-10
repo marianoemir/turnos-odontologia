@@ -6,4 +6,5 @@ uvicorn
 httpx
 pytest>=8
 ruff
+tzdata
 
