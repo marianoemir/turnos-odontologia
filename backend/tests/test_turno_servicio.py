@@ -309,7 +309,7 @@ def test_inicio_naive_da_422(db_session):
         _crear(
             db_session,
             ids,
-            inicio=datetime(2026, 10, 12, 10, 0),  # noqa: DTZ001
+            inicio=datetime(2026, 10, 12, 10, 0),  
         )
 
     assert db_session.query(Turno).count() == 0
