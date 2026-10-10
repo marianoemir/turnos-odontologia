@@ -2,7 +2,10 @@
 
 from fastapi import FastAPI
 
+from backend.app.turnos.router import router as turnos_router
+
 app = FastAPI()
+app.include_router(turnos_router)
 
 
 @app.get("/health")
