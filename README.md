@@ -1,159 +1,206 @@
 # turnos-odontologia
 
-Trabajo de Integración: del Discovery al primer Change, con Spec-Driven Development y Active Stack.
+Trabajo de Integración de **Metodología I** (UTN, Tecnicatura Universitaria en Programación): del Discovery al primer Change, con Spec-Driven Development (OpenSpec) y Active Stack.
 
-Sistema de gestión de turnos para consultorios odontológicos (Argentina). Núcleo: agenda por profesional y por sillón/box sin solapamientos.
+Integrantes: Mariano Chirino, Andres Fabre, Facundo Quiroga.
 
-Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con async) + Docker Compose; frontend React + TypeScript + Vite (change posterior). El primer change es solo backend.
+Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos (Argentina). Núcleo implementado: **crear un turno sin solapamientos**, por profesional y por sillón/box.
+
+Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (change posterior). El primer change es solo backend.
+
+Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`.
 
 ## Requisitos
 
-- Python 3.12+ y Docker + Docker Compose
-- Sin servicios externos obligatorios para los tests del núcleo (datos ficticios)
+- **Git**.
+- **Python 3.12 o superior** (el CI usa 3.12; también probado con 3.13 en Windows).
+- **PostgreSQL 16**: la forma más simple es **Docker Desktop** con el `docker-compose.yml` del repo. Sin base de datos se puede instalar y correr el subconjunto de tests que no la necesita (paso 2).
+- Los comandos están en **PowerShell** (Windows) y en **bash** (Linux/macOS).
 
-## Clonar e instalar
+## 1. Clonar e instalar
+
+PowerShell:
 
 ```powershell
 git clone https://github.com/marianoemir/turnos-odontologia.git
 cd turnos-odontologia
 py -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt
+python -m pip install -r backend/requirements.txt
 ```
 
-En Linux o macOS: `python3 -m venv .venv`, `source .venv/bin/activate` y el mismo `pip install`.
-
-Para correr los tests: `pytest backend/tests`. Sin PostgreSQL, los tests de integración se saltean; con la variable `CI=true`, en cambio, fallan (así el CI nunca da verde sin haber probado nada). Para correrlos todos hace falta PostgreSQL (ver más abajo).
-
-## Instalar y probar (backend)
+bash:
 
 ```bash
-docker compose up -d postgres   # o el servicio que defina docker-compose.yml
-pip install -r backend/requirements.txt
-pytest backend/tests            # suite en verde
+git clone https://github.com/marianoemir/turnos-odontologia.git
+cd turnos-odontologia
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
 ```
 
-## Base de datos del catálogo (C-02)
+Notas:
 
-`DATABASE_URL` con esquema `postgresql+psycopg://` (ver `.env.example`).
-Para apuntar a otra base sin editar archivos, definí la variable de
-entorno en tu shell antes de cada comando:
+- Crear el entorno virtual puede tardar uno o dos minutos: **no lo interrumpas**. Al activarlo, la consola muestra `(.venv)` al principio de la línea.
+- Si PowerShell bloquea la activación por la política de ejecución, corré antes `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+- Si usás una versión de Python muy nueva y `pip install` falla al instalar alguna dependencia, creá el entorno con Python 3.12 o 3.13, por ejemplo `py -3.13 -m venv .venv`.
+
+## 2. Probar sin base de datos
 
 ```powershell
-$env:DATABASE_URL="postgresql+psycopg://usuario:clave@localhost:5432/turnos"
+python -m pytest backend/tests
 ```
+
+Resultado esperado sin PostgreSQL: **24 passed, 56 skipped**. Los tests de integración se saltean porque no encuentran la base. Con la variable `CI=true` la falta de PostgreSQL **falla** en lugar de saltear, para que nunca haya un resultado verde sin haber probado nada.
+
+## 3. Levantar PostgreSQL
+
+```powershell
+docker compose up -d postgres
+```
+
+Hay que tener **Docker Desktop encendido**. El servicio crea la base `turnos` con usuario `odontologia` y contraseña `odontologia` (valores ficticios del `docker-compose.yml`).
+
+**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto.
+
+Definí la base a la que apuntan los comandos en **cada consola** donde los uses:
+
+PowerShell:
+
+```powershell
+$env:DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos"
+```
+
+bash:
 
 ```bash
-export DATABASE_URL="postgresql+psycopg://usuario:clave@localhost:5432/turnos"
+export DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos"
 ```
 
-> ⚠️ Los tests **truncan** las 7 tablas (`pacientes`,
-> `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos`
-> y `turnos`)
-> de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base
-> `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado
-> con error antes de conectar o truncar.
+> ⚠️ Los tests **truncan** las 7 tablas (`pacientes`, `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos` y `turnos`) de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado con error antes de conectar o truncar. No apuntes los tests a una base con datos que quieras conservar.
 
-Con Postgres levantado:
+## 4. Migrar, cargar datos ficticios y correr todos los tests
+
+PowerShell:
+
+```powershell
+python -m alembic -c backend/alembic.ini upgrade head
+$env:SEED_FICTICIO="true"; python -m backend.app.seed.catalogo
+python -m pytest -rs backend/tests
+```
+
+bash:
 
 ```bash
-py -m alembic -c backend/alembic.ini upgrade head   # crea las 7 tablas
-SEED_FICTICIO=true py -m backend.app.seed.catalogo # datos ficticios (idempotente, sin turnos)
-py -m pytest backend/tests -rs                      # todo en verde, sin skips
+python -m alembic -c backend/alembic.ini upgrade head
+SEED_FICTICIO=true python -m backend.app.seed.catalogo
+python -m pytest -rs backend/tests
 ```
 
-En PowerShell, el seed es:
+Resultado esperado:
+
+- La migración crea las 7 tablas (si ya existían, informa que está al día).
+- El seed informa `seed ok` con 2 profesionales, 2 sillones, 3 prestaciones, 10 horarios, 1 bloqueo y 3 pacientes ficticios. Es idempotente y no crea turnos.
+- Los tests: **80 passed, 0 skipped**.
+
+Rollback de la migración, si hace falta:
 
 ```powershell
-$env:SEED_FICTICIO="true"; py -m backend.app.seed.catalogo
+python -m alembic -c backend/alembic.ini downgrade -1
 ```
 
-Rollback de la migración (si hace falta):
+## 5. Probar la API (`POST /turnos`)
 
-```bash
-py -m alembic -c backend/alembic.ini downgrade -1
-```
+Necesitás **dos consolas**. En ambas: carpeta del repo, entorno virtual activado y `DATABASE_URL` definida (paso 3), con la base migrada y el seed cargado (paso 4).
 
-Sin Postgres, los tests `integration` se skipean y el resto sigue en
-verde; con `CI=true` la falta de Postgres falla en lugar de skipear.
-
-## Crear turnos (C-03)
-
-`POST /turnos` crea un turno en estado `pendiente`. Con `DATABASE_URL`
-definida (ver arriba), base migrada y seed ficticio cargado:
+**Consola 1: el servidor.** Queda ocupada mientras corre; no la cierres.
 
 ```powershell
-py -m alembic -c backend/alembic.ini upgrade head
-$env:SEED_FICTICIO="true"; py -m backend.app.seed.catalogo
+python -m uvicorn backend.app.main:app --port 8000
 ```
 
-El seed deja 2 profesionales (`MAT-FICT-001/002`), 2 sillones
-(`Sillon 1/2`), 3 prestaciones (`Limpieza` 20, `Consulta` 30,
-`Endodoncia` 60 min), horario Lun–Vie 9–18 por profesional y
-3 pacientes (`DNI-FICT-001/002/003`). Los IDs reales salen de la base:
+Comprobación rápida: `http://127.0.0.1:8000/health` responde `{"status":"ok"}`. FastAPI también trae una pantalla para probar el endpoint en `http://127.0.0.1:8000/docs`.
+
+**Consola 2: los pedidos** (PowerShell). Primero los IDs reales del seed. Es **una sola línea larga**: copiala entera, hasta `ConvertFrom-Json`.
 
 ```powershell
-$ids = py -c "import json; from backend.app.db import get_session; from backend.app.agenda.models import Paciente, Profesional, SillonBox, Prestacion; s = get_session()(); q = lambda m, **f: str(s.query(m).filter_by(**f).one().id); print(json.dumps({'paciente': q(Paciente, dni='DNI-FICT-001'), 'profesional': q(Profesional, matricula='MAT-FICT-001'), 'profesional2': q(Profesional, matricula='MAT-FICT-002'), 'sillon': q(SillonBox, nombre='Sillon 1'), 'sillon2': q(SillonBox, nombre='Sillon 2'), 'consulta30': q(Prestacion, nombre='Consulta')})); s.close()" | ConvertFrom-Json
+$ids = python -c "import json; from backend.app.db import get_session; from backend.app.agenda.models import Paciente, Profesional, SillonBox, Prestacion; s = get_session()(); q = lambda m, **f: str(s.query(m).filter_by(**f).one().id); print(json.dumps({'paciente': q(Paciente, dni='DNI-FICT-001'), 'profesional': q(Profesional, matricula='MAT-FICT-001'), 'profesional2': q(Profesional, matricula='MAT-FICT-002'), 'sillon': q(SillonBox, nombre='Sillon 1'), 'sillon2': q(SillonBox, nombre='Sillon 2'), 'consulta30': q(Prestacion, nombre='Consulta')})); s.close()" | ConvertFrom-Json
 ```
 
-Levantá la API y creá un turno (lunes 12/10/2026 10:00, dentro del
-horario del seed; `Consulta` dura 30 min):
+Comprobá con `$ids`: tienen que aparecer seis códigos.
+
+**a) Turno válido** (lunes 12/10/2026 10:00, dentro del horario del seed; `Consulta` dura 30 min). Responde `201` con estado `pendiente` y `fin` a las 10:30:
 
 ```powershell
-$srv = Start-Process py -ArgumentList "-m uvicorn backend.app.main:app --port 8000" -PassThru -WindowStyle Hidden
-Start-Sleep -Seconds 6
 $body = @{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:00:00-03:00" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body $body
 ```
 
-Responde `201` con el turno (`estado` `pendiente`,
-`fin` `2026-10-12T10:30:00-03:00`, más `id` y `creado_por: null`).
-`fin` lo calcula el servidor (`inicio + prestacion.duracion_min`);
-un `fin` enviado por el cliente se ignora (schema `extra="ignore"`):
+**b) El `fin` lo calcula el servidor** (`inicio + duración de la prestación`); un `fin` enviado por el cliente se ignora. Responde `201` con `fin` 11:30, no 12:00:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T11:00:00-03:00"; fin="2026-10-12T12:00:00-03:00" } | ConvertTo-Json) | Select-Object inicio, fin
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T11:00:00-03:00"; fin="2026-10-12T12:00:00-03:00" } | ConvertTo-Json) | Select-Object inicio, fin
 ```
 
-Contrato de errores. El solape da `409` con cuerpo EXACTO
-`{"detail": {"causa": ..., "detalle": ...}}`:
+**c) Solape con el mismo profesional** (otro sillón, 10:15). Responde `409` con cuerpo `{"detail": {"causa": ..., "detalle": ...}}`:
 
 ```powershell
-try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon2; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:15:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon2; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:15:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
 ```
 
-`causa` es una de `profesional|sillon|horario|bloqueo`. El resto:
+`causa` es una de `profesional`, `sillon`, `horario` o `bloqueo`.
+
+**d) Sin sillón.** Responde `422` (el sillón es obligatorio; también da `422` ante un sillón inactivo o un `inicio` sin zona horaria):
 
 ```powershell
-try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+```
+
+**e) Recurso inexistente.** Responde `404` (`{"detail": "<recurso> no existe: <id>"}`):
+
+```powershell
 $inexistente = [guid]::NewGuid().ToString()
-try { Invoke-RestMethod -Method Post -Uri http://localhost:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$inexistente; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
-Stop-Process -Id $srv.Id
+try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$inexistente; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
 ```
 
-El primer bloque da `422` (falta `sillon_id`; también `422` con
-`{"detail": "<motivo>"}` ante sillón inactivo o `inicio` sin zona
-horaria). El segundo da `404` (`{"detail": "<recurso> no existe: <id>"}`).
+Resumen de resultados:
+
+| Pedido | Resultado |
+|---|---|
+| Turno válido | `201`, estado `pendiente`, `fin` calculado |
+| Solape con el mismo profesional o sillón | `409` con `causa` |
+| Fuera del horario de atención o sobre un bloqueo | `409` con `causa` |
+| Sin sillón, sillón inactivo o `inicio` sin zona horaria | `422` |
+| Profesional, sillón, paciente o prestación inexistente | `404` |
+
+Si repetís el pedido a), da `409`: el turno de las 10:00 ya quedó guardado. Para cerrar, `Ctrl + C` en la consola 1.
+
+El solape se rechaza en dos niveles: el servicio valida primero y devuelve el `409` con la causa, y dos restricciones `EXCLUDE` de PostgreSQL (`btree_gist`, intervalo `[inicio, fin)`) garantizan que no se creen turnos pisados ni con pedidos simultáneos. Un turno que empieza justo cuando termina otro **no** es solapamiento.
 
 ## Variables de entorno
 
-Copiar `.env.example` a `.env` si hace falta (valores ficticios; nunca commitear secretos).
+Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola.
 
-## Estructura
+## Estructura del repositorio
 
-- `backend/app/turnos/` — dominio de turnos (C-03)
-- `backend/app/agenda/` — horarios, bloqueos, recursos (C-02)
-- `backend/app/seed/` — datos ficticios
-- `backend/tests/` — suite pytest
-- `frontend/` — React + Vite (change posterior)
-- `docker-compose.yml` — api + postgres (+ redis con async)
-- `knowledge-base/` — fuente de verdad del dominio
-- `CHANGES.md` — roadmap de changes (recorte TP: C-01 → C-02 → C-03)
+- `backend/app/turnos/` — dominio de turnos: modelo, servicio y `POST /turnos` (C-03).
+- `backend/app/agenda/` — horarios, bloqueos y recursos del catálogo (C-02).
+- `backend/app/seed/` — datos ficticios.
+- `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
+- `backend/tests/` — suite pytest (un test por escenario de la especificación).
+- `docker-compose.yml` — PostgreSQL 16 y API. `frontend/` (React + Vite) queda para un change posterior.
+- `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
+- `docs/explore/` y `docs/verify/` — exploración y verificación de cada change.
+- `docs/capturas-evidencia/` — capturas de Engram y del instalador de Active Stack.
+- `knowledge-base/` — base de conocimiento del dominio.
+- `CHANGES.md` — roadmap de changes (recorte del TP: C-01 → C-02 → C-03).
+- `openspec/` — especificaciones vigentes (`specs/`) y changes archivados (`changes/archive/`).
+- `AGENTS.md` y `CLAUDE.md` — reglas del agente; `.atl/skill-registry.md` — registro de skills; `.active-orchestrator-state.json` — estado del orquestador.
 
 ## Datos
 
-Solo datos ficticios en seeds y tests. Nunca datos reales de pacientes ni secretos en el repositorio.
+Solo datos ficticios en seeds, tests y ejemplos (`DNI-FICT-*`, `MAT-FICT-*`). Nunca datos reales de pacientes ni secretos en el repositorio.
 
 ## Uso de inteligencia artificial
 
-Este trabajo se desarrolló con asistencia de agentes de IA (Claude y OpenCode con Active Stack). Todo lo entregado fue leído, revisado y validado por el grupo, y los datos de pacientes son siempre ficticios.
+Este trabajo se desarrolló con asistencia de agentes de IA (Claude y OpenCode con Active Stack), siguiendo el flujo de la cátedra: Discovery, base de conocimiento, roadmap, reglas del agente y un ciclo OPSX completo por change. Todo lo entregado fue leído, revisado y validado por el grupo; las verificaciones de fuentes del informe y la reflexión escrita las realizaron los integrantes.
