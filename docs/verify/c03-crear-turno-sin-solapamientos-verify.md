@@ -93,7 +93,7 @@ Los tests locales corrieron contra un **PostgreSQL 17 privado y descartable** (c
 
 ## 5. Último run de GitHub Actions
 
-Información aportada por el usuario (no verificada por el agente). Primer run de GitHub Actions (2026-10-10): `tests` en verde y `lint` en rojo por un `noqa` sin uso (RUF100) en backend/tests/test_turno_servicio.py, que no se detectó localmente por diferencia de versión de ruff. Corregido en el commit `fix(lint): quitar noqa (RUF100)` (ef37a5c). Segundo run: `tests / tests (push)` exitoso en 46 s y `tests / lint (push)` exitoso en 14 s. Resultado de pytest en el job `tests`: [N passed, N skipped].
+Información aportada por el usuario (no verificada por el agente). Primer run de GitHub Actions (2026-10-10): `tests` en verde y `lint` en rojo por un `noqa` sin uso (RUF100) en backend/tests/test_turno_servicio.py, que no se detectó localmente por diferencia de versión de ruff. Corregido en el commit `fix(lint): quitar noqa (RUF100)` (ef37a5c). Segundo run: `tests / tests (push)` exitoso en 46 s y `tests / lint (push)` exitoso en 14 s. Resultado de pytest en el job `tests`: [80 passed, 0 skipped].
 
 ## 6. Veredicto por ítem
 
