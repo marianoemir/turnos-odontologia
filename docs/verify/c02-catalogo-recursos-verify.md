@@ -97,11 +97,10 @@ Los tests locales corrieron contra un **PostgreSQL 17 privado** (cluster en `App
 
 ## 5. Último run del CI de GitHub
 
-**PENDIENTE — completar con lo observado en GitHub Actions** (no tengo acceso a los runs del CI desde este entorno):
+Resultado observado en GitHub Actions el 2026-10-09, sobre el commit `docs: README del catalogo y tasks completadas`:
 
-> [ACÁ PEGÁS LO QUE VISTE, por ejemplo "tests: 40 passed, 0 skipped; lint: verde"]
-
-Lo esperado según este verify: `tests` 40 passed / 0 skipped (fail-fast con `CI=true` impediría skips silenciosos) y `lint` en verde.
+- Job `tests`: 40 passed, 0 skipped.
+- Job `lint`: verde.
 
 ## 6. Veredicto por ítem
 
