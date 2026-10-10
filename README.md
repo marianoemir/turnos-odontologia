@@ -11,6 +11,20 @@ Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreS
 - Python 3.12+ y Docker + Docker Compose
 - Sin servicios externos obligatorios para los tests del núcleo (datos ficticios)
 
+## Clonar e instalar
+
+```powershell
+git clone https://github.com/marianoemir/turnos-odontologia.git
+cd turnos-odontologia
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+```
+
+En Linux o macOS: `python3 -m venv .venv`, `source .venv/bin/activate` y el mismo `pip install`.
+
+Para correr los tests: `pytest backend/tests`. Sin PostgreSQL, los tests de integración se saltean; con la variable `CI=true`, en cambio, fallan (así el CI nunca da verde sin haber probado nada). Para correrlos todos hace falta PostgreSQL (ver más abajo).
+
 ## Instalar y probar (backend)
 
 ```bash
@@ -139,3 +153,7 @@ Copiar `.env.example` a `.env` si hace falta (valores ficticios; nunca commitear
 ## Datos
 
 Solo datos ficticios en seeds y tests. Nunca datos reales de pacientes ni secretos en el repositorio.
+
+## Uso de inteligencia artificial
+
+Este trabajo se desarrolló con asistencia de agentes de IA (Claude y OpenCode con Active Stack). Todo lo entregado fue leído, revisado y validado por el grupo, y los datos de pacientes son siempre ficticios.
