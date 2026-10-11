@@ -105,9 +105,9 @@ Información aportada por el usuario (no verificada por el agente). Primer run d
 | Alembic sin drifts | VERDE | `No new upgrade operations detected.` |
 | `openspec validate` sin errores | VERDE | `Change 'crear-turno-sin-solapamientos' is valid` |
 | 16/16 escenarios con test | VERDE | §2, sin gaps |
-| Run CI GitHub | PENDIENTE | Ver §5 |
+| Run CI GitHub | VERDE | Ver §5 |
 
-## 7. Veredicto global: ARCHIVABLE (archive pendiente de OK explícito)
+## 7. Veredicto global: ARCHIVADO el 2026-10-10
 
 Todo lo ejecutable en esta máquina está en verde; no hay escenarios en rojo ni gaps de cobertura. No se archiva todavía por orden del usuario.
 
