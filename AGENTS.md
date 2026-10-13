@@ -16,7 +16,7 @@
 | Persistencia | PostgreSQL vía Docker Compose | Postgres 16+ |
 | Async | Redis — solo con funcionalidad asincrónica (posterior) | Redis 7+ |
 | Frontend | React + TypeScript + Vite (change posterior; primer change solo backend) | — |
-| Tests | pytest (skill `tdd`) | pytest 8+ |
+| Tests | pytest directo (sin skill dedicada) | pytest 8+ |
 | Infra local | Docker + Docker Compose (`docker-compose.yml` en raíz) | Docker 24+ |
 
 Detalle completo: [knowledge-base/02_descripcion_general.md](knowledge-base/02_descripcion_general.md)
@@ -46,8 +46,8 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 
 | Agente | Rol | Skills que carga |
 |--------|-----|------------------|
-| Núcleo agenda | Turnos, solapes, estados, tests (pytest) | `tdd`, `python-testing-patterns`, `pytest-coverage`, `fastapi-patterns` |
-| Orquestación | SDD / KB / roadmap / reglas | `kb-creator`, `roadmap-generator`, `agents-md-generator`, `find-skills`, `active-orchestrator` |
+| Núcleo agenda | Turnos, solapes, estados, tests (pytest) | (sin skill dedicada — pytest directo) |
+| Orquestación | SDD / KB / roadmap / reglas | `kb-creator`, `roadmap-generator`, `agent-instruction`, `find-skill`, `active-orchestrator` |
 | Cambios OpenSpec | Proponer / aplicar / archivar / explorar | `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`, `openspec-sync-specs`, `openspec-update-change` |
 | Meta | Crear o mejorar skills | `skill-creator` |
 
@@ -79,7 +79,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
 - NUNCA crear turno sin validar solape de profesional + sillón en `[inicio,fin)` en un único ServicioTurnos → aplica RN-AG-02/03/04 en un solo punto.
 - NUNCA 200/500 ante conflicto de negocio → 409 conflicto (solape/horario/bloqueo) vs 422 input inválido.
 - NUNCA hard delete de turnos → cancelar es cambio de estado (RN-ES-01); cancelado/ausente no cuenta para solapes.
-- NUNCA cerrar change sin tests en verde → red-green con skill `tdd` (solape, borde inicio==fin, estados, 409/422).
+- NUNCA cerrar change sin tests en verde → red-green manual (sin skill dedicada) (solape, borde inicio==fin, estados, 409/422).
 - NUNCA commitear/pushear sin pedido explícito → commits en conventional commits, sin co-autoría IA.
 
 ---

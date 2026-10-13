@@ -10,6 +10,15 @@ Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreS
 
 Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`.
 
+[![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
+
+[![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
+
+[![Video de defensa](https://img.youtube.com/vi/0sj4smXVclY/hqdefault.jpg)](https://youtu.be/0sj4smXVclY)
+
+## 🎥 [Ver el video de defensa → https://youtu.be/0sj4smXVclY](https://youtu.be/0sj4smXVclY)
+
+
 ## Requisitos
 
 - **Git**.

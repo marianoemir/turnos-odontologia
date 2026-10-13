@@ -17,7 +17,7 @@
                                           "pytest-coverage",
                                           "fastapi-patterns"
                                       ],
-                    "notes":  "Paths canonicalized to C:\\Users\\andre (stale FACUNDO entries removed). Project openspec paths point at .opencode/skills (runtime-loaded); .agents/skills mirror noted in registry. AGENTS.md references 4 uninstalled skills + missing docker-compose.yml (flagged in registry)."
+                    "notes":  "Paths canonicalized to C:\\Users\\andre (stale FACUNDO entries removed). Project openspec paths point at .agents/skills/ (canónica); .agents/skills mirror noted in registry. AGENTS.md references 4 uninstalled skills + missing docker-compose.yml (flagged in registry)."
                 },
     "discovery":  {
                       "casos_de_uso":  [
