@@ -203,4 +203,4 @@ Solo datos ficticios en seeds, tests y ejemplos (`DNI-FICT-*`, `MAT-FICT-*`). Nu
 
 ## Uso de inteligencia artificial
 
-Este trabajo se desarrolló con asistencia de agentes de IA (Claude y OpenCode con Active Stack), siguiendo el flujo de la cátedra: Discovery, base de conocimiento, roadmap, reglas del agente y un ciclo OPSX completo por change. Todo lo entregado fue leído, revisado y validado por el grupo; las verificaciones de fuentes del informe y la reflexión escrita las realizaron los integrantes.
+Este trabajo se desarrolló con asistencia de agentes de IA (OpenCode con Active Stack) y asistentes de chat (Claude y Gemini), siguiendo el flujo de la cátedra: Discovery, base de conocimiento, roadmap, reglas del agente y un ciclo OPSX completo por change. Todo lo entregado fue leído, revisado y validado por el grupo; las verificaciones de fuentes del informe y la reflexión escrita las realizaron los integrantes.
