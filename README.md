@@ -6,7 +6,7 @@ Integrantes: Mariano Chirino, Andres Fabre, Facundo Quiroga.
 
 Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos (Argentina). Núcleo implementado: **crear un turno sin solapamientos**, por profesional y por sillón/box.
 
-Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite estructura base creada en frontend/, sin funcionalidad). El primer change es solo backend.
+Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, sin funcionalidad). El primer change es solo backend.
 
 Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`.
 
@@ -70,7 +70,7 @@ docker compose up -d postgres
 
 Hay que tener **Docker Desktop encendido**. El servicio crea la base `turnos` con usuario `odontologia` y contraseña `odontologia` (valores ficticios del `docker-compose.yml`).
 
-**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto.
+**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto. Síntoma típico: `alembic` o el seed fallan con «la autenticación password falló para el usuario odontologia»; en Windows suele ser un servicio de PostgreSQL instalado que ocupa el 5432. Antes de migrar, esperá a que `docker compose ps` muestre el servicio `postgres` como `healthy`.
 
 Definí la base a la que apuntan los comandos en **cada consola** donde los uses:
 
@@ -197,7 +197,7 @@ Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni sec
 - `backend/app/seed/` — datos ficticios.
 - `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).
-- `docker-compose.yml` — PostgreSQL 16 y API. `frontend/` (React + Vite) estructura base creada en frontend/, sin funcionalidad.
+- `docker-compose.yml` — PostgreSQL 16 y API. `frontend/` — estructura base de React + TypeScript + Vite, sin funcionalidad (fuera de los changes C-01 a C-03).
 - `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
 - `docs/explore/` y `docs/verify/` — exploración y verificación de cada change.
 - `docs/capturas-evidencia/` — capturas de Engram y del instalador de Active Stack.
