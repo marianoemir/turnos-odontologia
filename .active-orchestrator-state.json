@@ -2,14 +2,23 @@
     "registry":  {
                     "created_by":  "skill-registry",
                     "file":  ".atl/skill-registry.md",
-                    "skills_count":  45,
+                    "skills_count":  15,
                     "project_skills":  [
-                                           "openspec-propose",
+                                           "active-orchestrator",
+                                           "agent-instruction",
+                                           "discovery-research",
+                                           "find-skill",
+                                           "kb-creator",
                                            "openspec-apply-change",
                                            "openspec-archive-change",
                                            "openspec-explore",
+                                           "openspec-propose",
                                            "openspec-sync-specs",
-                                           "openspec-update-change"
+                                           "openspec-update-change",
+                                           "roadmap-generator",
+                                           "skill-creator",
+                                           "skill-registry",
+                                           "web-scraper"
                                        ],
                     "dropped_stale":  [
                                           "tdd",
@@ -17,7 +26,7 @@
                                           "pytest-coverage",
                                           "fastapi-patterns"
                                       ],
-                    "notes":  "Paths canonicalized to C:\\Users\\andre (stale FACUNDO entries removed). Project openspec paths point at .agents/skills/ (canónica); .agents/skills mirror noted in registry. AGENTS.md references 4 uninstalled skills + missing docker-compose.yml (flagged in registry)."
+                    "notes":  "Registro regenerado el 2026-10-13 escaneando solo .agents/skills/ (rutas relativas, sin skills de nivel usuario)."
                 },
     "discovery":  {
                       "casos_de_uso":  [
@@ -140,7 +149,23 @@
     "skills":  {
                    "created_by":  "find-skill (externo: sin corrida formal recommend-only; inventario reconciliado desde state.registry)",
                    "recommended":  [],
-                   "installed":  []
+                   "installed":  [
+                                  "active-orchestrator",
+                                  "agent-instruction",
+                                  "discovery-research",
+                                  "find-skill",
+                                  "kb-creator",
+                                  "openspec-apply-change",
+                                  "openspec-archive-change",
+                                  "openspec-explore",
+                                  "openspec-propose",
+                                  "openspec-sync-specs",
+                                  "openspec-update-change",
+                                  "roadmap-generator",
+                                  "skill-creator",
+                                  "skill-registry",
+                                  "web-scraper"
+                              ]
                },
     "agents":  {
                    "created_by":  "agent-instruction (externo: CLAUDE.md/AGENTS.md producidos por el equipo fuera del flujo orquestado; verificados existentes en disco)",
@@ -148,6 +173,15 @@
                                   "CLAUDE.md",
                                   "AGENTS.md"
                               ],
-                   "reglas_applied":  []
+                   "reglas_applied":  [
+                                  "No cambiar el stack sin consultar al profesor (Python/FastAPI/SQLAlchemy/PostgreSQL + React/Vite).",
+                                  "No usar datos reales de pacientes: solo datos ficticios en seeds y tests.",
+                                  "No commitear secretos: tokens/keys solo via env; .env.example sin valores reales.",
+                                  "No crear turno sin validar solape de profesional + sillon en [inicio,fin) en un unico ServicioTurnos (RN-AG-02/03/04).",
+                                  "No devolver 200/500 ante conflicto de negocio: 409 conflicto vs 422 input invalido.",
+                                  "No hacer hard delete de turnos: cancelar es cambio de estado (RN-ES-01).",
+                                  "No cerrar change sin tests en verde con red-green manual (solape, borde inicio==fin, estados, 409/422).",
+                                  "No commitear/pushear sin pedido explicito: conventional commits, sin co-autoria IA."
+                              ]
                }
 }

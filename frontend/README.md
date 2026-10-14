@@ -21,4 +21,4 @@ npm run dev
 
 ## Estado
 
-Estructura inicial, fuera del ciclo OPSX y sin tests; el frontend funcional queda para un change posterior de CHANGES.md.
+Estructura inicial, fuera del ciclo OPSX y sin tests; el frontend funcional queda como trabajo futuro; no forma parte de los changes C-01 a C-03.
