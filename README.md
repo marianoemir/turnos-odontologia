@@ -6,11 +6,36 @@ Integrantes: Mariano Chirino, Andres Fabre, Facundo Quiroga.
 
 Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos (Argentina). Núcleo implementado: **crear un turno sin solapamientos**, por profesional y por sillón/box.
 
-Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, sin funcionalidad). El primer change es solo backend.
+Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, todavía sin funcionalidad: su desarrollo está planificado en los changes C-13 a C-22). El primer change es solo backend.
 
 Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`.
 
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
+
+## Roadmap
+
+El roadmap completo tiene **23 changes**: implementados y archivados **C-01, C-02 y C-03**; pendientes los **20** restantes. La rectificación del 2026-10-28 agregó:
+
+- **C-12 `catalogo-recursos-api`** (backend): expone por API el catálogo que C-02 modeló y sembró —pacientes, profesionales, sillones, prestaciones, horarios y bloqueos—, que hasta ahora solo existía en la base.
+- **C-13 a C-22** (frontend): React + TypeScript + Vite, un change por capability del backend. C-13 `frontend-foundation` (shell, ruteo y contratos) y C-14 `frontend-componentes-base` (componentes y capa de datos) son la base; C-15 a C-22 son las pantallas.
+- **C-23 `fix-api-contenedor`** (corrección): arregla el `Dockerfile` de la API, que hoy no arranca en contenedor (ver la nota del paso 3).
+
+| ID | Nombre | Estado |
+|----|--------|--------|
+| C-12 | `catalogo-recursos-api` | pendiente |
+| C-13 | `frontend-foundation` | pendiente |
+| C-14 | `frontend-componentes-base` | pendiente |
+| C-15 | `frontend-catalogo-recursos` | pendiente |
+| C-16 | `frontend-crear-turno` | pendiente |
+| C-17 | `frontend-agenda-turnos` | pendiente |
+| C-18 | `frontend-lista-de-espera` | pendiente |
+| C-19 | `frontend-hc-odontograma` | pendiente |
+| C-20 | `frontend-caja-pagos` | pendiente |
+| C-21 | `frontend-reserva-publica` | pendiente |
+| C-22 | `frontend-admin-roles-export` | pendiente |
+| C-23 | `fix-api-contenedor` | pendiente |
+
+El detalle de cada change, sus dependencias, el orden de ejecución y el recorte evaluable están en [CHANGES.md](CHANGES.md).
 
 ## Requisitos
 
@@ -62,6 +87,8 @@ docker compose up -d postgres
 ```
 
 Hay que tener **Docker Desktop encendido**. El servicio crea la base `turnos` con usuario `odontologia` y contraseña `odontologia` (valores ficticios del `docker-compose.yml`).
+
+> **El servicio `api` del compose todavía no arranca.** Su `backend/Dockerfile` copia solo `app/` y ejecuta `uvicorn app.main:app`, pero el código importa `from backend.app...`, paquete que la imagen no incluye; tampoco incluye `alembic`, así que las migraciones no se pueden correr adentro. Está registrado como **C-23 `fix-api-contenedor`** (pendiente). Hasta que se corrija, levantá únicamente la base con `docker compose up -d postgres` y corré la API desde la raíz del repo con `uvicorn`, como indican los pasos 4 y 5.
 
 **Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto. Síntoma típico: `alembic` o el seed fallan con «la autenticación password falló para el usuario odontologia»; en Windows suele ser un servicio de PostgreSQL instalado que ocupa el 5432. Antes de migrar, esperá a que `docker compose ps` muestre el servicio `postgres` como `healthy`.
 
@@ -192,14 +219,18 @@ Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni sec
 - `backend/app/seed/` — datos ficticios.
 - `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).
-- `docker-compose.yml` — PostgreSQL 16 y API. `frontend/` — estructura base de React + TypeScript + Vite, sin funcionalidad (fuera de los changes C-01 a C-03).
+- `docker-compose.yml` — PostgreSQL 16 y un servicio `api` cuyo `Dockerfile` tiene el problema conocido de C-23 (ver la nota del paso 3).
+- `frontend/` — estructura base de React + TypeScript + Vite, todavía sin funcionalidad; su desarrollo está planificado en C-13 a C-22.
+- `frontend/design-system/` — fundación visual aprobada: tokens, marca y referencia de componentes, con `components.html` para verla en el navegador.
 - `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
 - `docs/explore/` y `docs/verify/` — exploración y verificación de cada change.
 - `docs/capturas-evidencia/` — capturas de Engram y del instalador de Active Stack.
 - `knowledge-base/` — base de conocimiento del dominio.
-- `CHANGES.md` — roadmap de changes (recorte del TP: C-01 → C-02 → C-03).
+- `CHANGES.md` — roadmap completo (C-01 a C-23) y recorte del TP original (C-01 → C-02 → C-03).
 - `openspec/` — especificaciones vigentes (`specs/`) y changes archivados (`changes/archive/`).
 - `AGENTS.md` y `CLAUDE.md` — reglas del agente; `.atl/skill-registry.md` — registro de skills; `.active-orchestrator-state.json` — estado del orquestador.
+- `opencode.json` — comandos del flujo active-orchestrator para OpenCode.
+- `.gitattributes` — normalización de fin de línea (`* text=auto`; `eol=lf` para `*.sh` y `Dockerfile`).
 
 ## Datos
 
