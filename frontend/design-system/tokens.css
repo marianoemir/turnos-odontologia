@@ -1,0 +1,217 @@
+/* ==========================================================================
+   Fundación visual — tokens
+   Proyecto: turnos-odontologia · Revisión 1 · Aprobación: pendiente
+   Fuente de verdad de los valores visuales. Ningún mockup ni pantalla debe
+   hardcodear un color, tamaño o duración: se referencia el token.
+   Paleta: papel cálido + petróleo clínico + ocre. Sin gradientes, sin morados.
+   Contraste: todos los pares texto/fondo declarados acá cumplen AA (>= 4.5:1
+   para texto normal, >= 3:1 para texto grande y bordes de control).
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- Marca: petróleo clínico -------------------------------------- */
+  /* Un solo matiz, escala fría y apagada: lee instrumento, no app de consumo. */
+  --brand-50:  #ECF6F3;
+  --brand-100: #D7EBE6;
+  --brand-200: #B4D8D0;
+  --brand-300: #83BDB2;
+  --brand-400: #4A9A8F;
+  --brand-500: #12736B;  /* foco, líneas activas */
+  --brand-600: #0E5B55;  /* acción primaria · 7.9:1 con blanco */
+  --brand-700: #0B4A45;  /* hover, texto de marca sobre papel · 9.6:1 */
+  --brand-800: #083A36;
+  --brand-900: #052A27;
+
+  /* ---------- Tinta: neutro cálido, nunca gris puro ------------------------ */
+  --ink-900: #14201F;  /* títulos · 14.9:1 sobre blanco */
+  --ink-700: #2C3A38;  /* cuerpo · 11.0:1 */
+  --ink-600: #45524F;  /* secundario fuerte */
+  --ink-500: #5A6663;  /* secundario · 5.9:1 */
+  --ink-400: #64706D;  /* placeholder y metadatos · 5.2:1 */
+  --ink-300: #8B9591;  /* solo decorativo / deshabilitado */
+  --ink-inverse: #FFFFFF;
+
+  /* ---------- Superficies -------------------------------------------------- */
+  --surface-page: #F7F5F0;   /* papel: fondo de la aplicación */
+  --surface-1:    #FFFFFF;   /* tarjetas, paneles, filas */
+  --surface-2:    #F1EEE7;   /* zonas hundidas, hover de fila */
+  --surface-3:    #E8E4DA;   /* separadores gruesos, esqueletos */
+  --surface-ink:  #14201F;   /* cabeceras oscuras puntuales */
+  --surface-tint: var(--brand-50);
+
+  /* ---------- Bordes ------------------------------------------------------- */
+  --border-subtle: #EAE6DD;  /* separadores internos */
+  --border:        #DCD7CB;  /* borde por defecto de tarjetas */
+  --border-strong: #958F80;  /* borde de controles · 3.2:1 sobre blanco */
+  --border-ink:    #14201F;
+
+  /* ---------- Acento cálido: ocre de instrumento --------------------------- */
+  --accent-100: #FBEEDA;
+  --accent-200: #F2DDB4;
+  --accent-500: #B4761A;
+  --accent-600: #96600F;
+  --accent-700: #6B4405;  /* texto ocre sobre papel · 8.6:1 */
+  --accent-800: #4E3103;
+
+  /* ---------- Feedback (fuera de los 5 estados de turno) ------------------- */
+  --success-50:  #E4F0E6;
+  --success-600: #27603A;
+  --success-700: #1B4A2B;
+  --warning-50:  #FBF0D9;
+  --warning-600: #7A4E06;
+  --warning-700: #5E3B04;
+  --danger-50:   #F8E5E1;
+  --danger-100:  #F2D2CC;
+  --danger-600:  #93281E;  /* destructivo · 7.2:1 con blanco */
+  --danger-700:  #7A2018;
+  --info-50:     #E6F0F4;
+  --info-600:    #1C5468;
+  --info-700:    #14404F;
+
+  /* ---------- Estados de turno (RN-ES-01) ---------------------------------- */
+  /* Cinco estados, cinco señales distintas: el color nunca es la única pista
+     (siempre hay etiqueta + forma del punto + semántica del texto).          */
+  /* pendiente  — cargado, sin confirmar. Requiere acción de recepción.        */
+  --state-pendiente-bg:     #FBEEDA;
+  --state-pendiente-border: #E7C888;
+  --state-pendiente-fg:     #6B4405;  /* 7.5:1 sobre su fondo */
+  --state-pendiente-rail:   #E7C888;
+  /* confirmado — el paciente confirmó; se espera que venga.                  */
+  --state-confirmado-bg:     #DCF0EB;
+  --state-confirmado-border: #9CD0C5;
+  --state-confirmado-fg:     #074B45;  /* 8.6:1 sobre su fondo */
+  --state-confirmado-rail:   #12736B;
+  /* atendido   — ya pasó por el sillón. Histórico, no editable.              */
+  --state-atendido-bg:     #E1EFE3;
+  --state-atendido-border: #AECFB5;
+  --state-atendido-fg:     #1C5530;  /* 7.4:1 sobre su fondo */
+  --state-atendido-rail:   #27603A;
+  /* ausente    — no vino. Libera recursos, pero se audita.                   */
+  --state-ausente-bg:     #F8E2DE;
+  --state-ausente-border: #EFBDB4;
+  --state-ausente-fg:     #8A2318;  /* 7.8:1 sobre su fondo */
+  --state-ausente-rail:   #93281E;
+  /* cancelado  — liberado. Se muestra apagado y tachado, nunca se borra.     */
+  --state-cancelado-bg:     #ECEBE6;
+  --state-cancelado-border: #D3D0C7;
+  --state-cancelado-fg:     #5B6360;  /* 5.3:1 sobre su fondo */
+  --state-cancelado-rail:   #B3B0A8;
+
+  /* ---------- Tipografía --------------------------------------------------- */
+  /* Sin fuentes remotas ni cuentas: pila local. Segoe UI en Windows,
+     SF en macOS, Roboto en Android. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype",
+    "Times New Roman", serif;
+  /* Solo para horas, DNI, matrículas y montos: cifras tabulares. */
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas,
+    "Liberation Mono", monospace;
+
+  --text-2xs:  0.75rem;    /* 12 — etiquetas de chip, metadatos densos */
+  --text-xs:   0.8125rem;  /* 13 — ayudas, cabeceras de tabla */
+  --text-sm:   0.875rem;   /* 14 — UI densa (tabla, formularios) */
+  --text-base: 1rem;       /* 16 — cuerpo */
+  --text-md:   1.125rem;   /* 18 — nombre de paciente en card */
+  --text-lg:   1.375rem;   /* 22 — título de sección */
+  --text-xl:   1.75rem;    /* 28 — título de pantalla */
+  --text-2xl:  2.125rem;   /* 34 — masthead */
+
+  --leading-tight:  1.15;
+  --leading-snug:   1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+
+  --tracking-tight:   -0.02em;  /* títulos */
+  --tracking-normal:  0;
+  --tracking-wide:    0.04em;   /* etiquetas en versalitas */
+  --tracking-wider:   0.08em;
+
+  --measure: 68ch;        /* ancho de lectura de párrafos */
+  --measure-tight: 46ch;  /* textos de UI y ayudas */
+
+  /* ---------- Espaciado (base 4px) ----------------------------------------- */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4  */
+  --space-2: 0.5rem;    /* 8  */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;    /* 24 */
+  --space-7: 2rem;      /* 32 */
+  --space-8: 2.5rem;    /* 40 */
+  --space-9: 3rem;      /* 48 */
+  --space-10: 4rem;     /* 64 */
+  --space-11: 5rem;     /* 80 */
+
+  --gutter: var(--space-5);          /* margen lateral mobile */
+  --section-gap: var(--space-8);     /* separación entre bloques */
+
+  /* ---------- Radios ------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;    /* controles */
+  --radius-lg: 12px;   /* tarjetas */
+  --radius-xl: 16px;   /* modales y paneles */
+  --radius-pill: 999px;
+
+  /* ---------- Sombras: offset + blur suave, una sola capa de elevación ----- */
+  --shadow-none: none;
+  --shadow-xs: 0 1px 2px rgba(20, 32, 31, 0.06);
+  --shadow-sm: 0 1px 2px rgba(20, 32, 31, 0.06), 0 2px 6px rgba(20, 32, 31, 0.05);
+  --shadow-md: 0 2px 4px rgba(20, 32, 31, 0.06), 0 8px 20px -6px rgba(20, 32, 31, 0.14);
+  --shadow-lg: 0 4px 10px rgba(20, 32, 31, 0.08), 0 22px 44px -12px rgba(20, 32, 31, 0.22);
+  --shadow-inset: inset 0 1px 2px rgba(20, 32, 31, 0.07);
+
+  /* ---------- Foco --------------------------------------------------------- */
+  --focus-ring-color: var(--brand-500);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
+  --focus-halo: 0 0 0 4px rgba(18, 115, 107, 0.18);
+
+  /* ---------- Motion ------------------------------------------------------- */
+  --dur-instant: 0ms;
+  --dur-fast: 120ms;     /* hover, color, borde */
+  --dur-base: 180ms;     /* aparición de chip, tab, fila */
+  --dur-slow: 280ms;     /* modal, panel lateral */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-lift: -1px;     /* desplazamiento de hover en controles */
+  --motion-enter-y: 6px;   /* desplazamiento de entrada de overlays */
+
+  /* ---------- Capas -------------------------------------------------------- */
+  --z-nav: 20;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+/* Movimiento reducido: las duraciones a cero y los desplazamientos anulados.
+   Los componentes deben animar solo transform/opacity y respetar estos tokens. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+    --motion-lift: 0px;
+    --motion-enter-y: 0px;
+  }
+}
+
+/* Contraste forzado (Windows alto contraste): no dependemos solo del color. */
+@media (forced-colors: active) {
+  :root {
+    --focus-ring-color: Highlight;
+    --border: CanvasText;
+    --border-strong: CanvasText;
+  }
+}

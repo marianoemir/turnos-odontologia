@@ -59,11 +59,14 @@ Cargá la skill correspondiente al contexto ANTES de escribir código.
 
 ## Roadmap de Changes
 
-El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen:
+El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (rectificado 2026-10-28, rev. 3):
 
-- **Total**: 11 changes en 4 fases.
-- **Camino crítico** (5): `C-01 → C-02 → C-03 → C-10 → C-11` (recorte TP: `C-01 → C-02 → C-03`).
-- **Primer change**: `C-01` (foundation-setup).
+- **Total**: 23 changes en 6 fases (backend C-01..C-12 + corrección de infra C-23 + frontend C-13..C-22).
+- **Camino crítico backend** (5): `C-01 → C-02 → C-03 → C-10 → C-11`.
+- **Camino crítico end-to-end con UI** (8): `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`.
+- **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados: C-01..C-03. Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
+- **Próximo change**: `C-12` (`catalogo-recursos-api`). `C-23` (`fix-api-contenedor`) puede intercalarse: depende solo de C-03 y conviene cerrarlo antes de C-13.
+- **Frontend**: C-13 `frontend-foundation` (shell/ruteo/contratos) y C-14 `frontend-componentes-base` (componentes + data layer + rol) son la base; C-15..C-22 son un change por capability. Consumen `frontend/design-system/` (`Revision: 1`, `Mode: system-only`). Ningún change de frontend se adelanta al endpoint que consume.
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".
 

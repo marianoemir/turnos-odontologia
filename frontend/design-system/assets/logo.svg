@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-labelledby="logo-titulo logo-desc">
+  <title id="logo-titulo">Marca provisoria</title>
+  <desc id="logo-desc">Placeholder de logo: marco ocre punteado, pieza dental tenue y la palabra PROV. Marca de reemplazo, no aprobada.</desc>
+  <!-- Marco punteado ocre: señal de que la identidad no está definida -->
+  <rect x="2.5" y="2.5" width="91" height="91" rx="20" fill="#F7F5F0" stroke="#B4761A" stroke-width="2.5" stroke-dasharray="8 6"/>
+  <!-- Pieza dental tenue: solo insinúa el dominio, no compite con la leyenda -->
+  <path d="M48 20c-7 0-11 4-11 10.1 0 3.4.7 5.9 1.5 8.7.8 2.8 1.4 5.8 1.8 8.7.3 2.4.7 5.4 2.1 5.4 1.5 0 2.1-2.9 2.6-5.6.4-2.3.9-4.2 3-4.2s2.6 1.9 3 4.2c.5 2.7 1.1 5.6 2.6 5.6 1.4 0 1.8-3 2.1-5.4.4-2.9 1-5.9 1.8-8.7.8-2.8 1.5-5.3 1.5-8.7C59 24 55 20 48 20Z"
+        fill="none" stroke="#0E5B55" stroke-width="2.6" stroke-linejoin="round" opacity="0.38"/>
+  <!-- Leyenda dominante: se lee a tamaño de interfaz -->
+  <text x="48" y="79" text-anchor="middle" font-family="system-ui, 'Segoe UI', Roboto, sans-serif"
+        font-size="22" font-weight="700" letter-spacing="0.5" fill="#96600F">PROV.</text>
+</svg>

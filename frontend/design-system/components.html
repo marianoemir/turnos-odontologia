@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fundación visual · Agenda Odontológica</title>
+<meta name="description" content="Referencia local de componentes y tokens del sistema de turnos odontológicos. Revisión 1, aprobación pendiente." />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  /* =====================================================================
+     Capa de componentes. Todos los valores salen de tokens.css.
+     Regla de elevación: superficie con borde no lleva sombra; superficie
+     flotante (modal, toast) lleva sombra y no lleva borde.
+     ===================================================================== */
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--surface-page);
+    color: var(--ink-700);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection { background: var(--brand-200); color: var(--ink-900); }
+
+  * { scrollbar-color: var(--border-strong) transparent; scrollbar-width: thin; }
+
+  :focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+    border-radius: var(--radius-xs);
+  }
+
+  a { color: var(--brand-700); text-underline-offset: 0.2em; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  .skip-link {
+    position: absolute; left: var(--space-4); top: -4rem; z-index: var(--z-toast);
+    background: var(--brand-700); color: #fff; padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600;
+    text-decoration: none; transition: top var(--dur-fast) var(--ease-out);
+  }
+  .skip-link:focus { top: var(--space-3); }
+
+  .wrap {
+    width: 100%;
+    max-width: 1180px;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  /* ---------- Masthead ---------------------------------------------------- */
+  .masthead { background: var(--surface-1); border-bottom: 1px solid var(--border); }
+
+  .masthead__inner {
+    display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: space-between; gap: var(--space-4);
+    padding-block: var(--space-4);
+  }
+
+  .brand { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+  .brand__mark { width: 48px; height: 48px; flex: none; display: block; }
+  .brand__text { min-width: 0; }
+  .brand__name {
+    margin: 0; font-size: var(--text-md); font-weight: 700;
+    letter-spacing: var(--tracking-tight); color: var(--ink-900); line-height: 1.2;
+  }
+  .brand__sub {
+    margin: 2px 0 0; font-size: var(--text-xs); color: var(--ink-500);
+    display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  }
+
+  .flag {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    background: var(--accent-100); color: var(--accent-700);
+    border: 1px solid var(--accent-200); border-radius: var(--radius-pill);
+    padding: 0.0625rem 0.5rem; font-size: var(--text-2xs); font-weight: 600;
+    letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  }
+  .flag[hidden] { display: none; }
+
+  .meta-list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+  .meta-item {
+    display: inline-flex; align-items: baseline; gap: 0.375rem;
+    border: 1px solid var(--border); border-radius: var(--radius-pill);
+    padding: 0.25rem 0.625rem; font-size: var(--text-2xs); color: var(--ink-500);
+    background: var(--surface-1);
+  }
+  .meta-item b { color: var(--ink-900); font-weight: 600; }
+
+  /* ---------- Estructura de página ---------------------------------------- */
+  .page-head { padding-block: var(--space-8) var(--space-6); }
+  .page-head h1 {
+    margin: 0; font-size: var(--text-2xl); line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight); color: var(--ink-900); font-weight: 700;
+    text-wrap: balance;
+  }
+  .page-head p {
+    margin: var(--space-3) 0 0; max-width: var(--measure);
+    color: var(--ink-500); font-size: var(--text-base);
+  }
+
+  section.block { margin-block-end: var(--section-gap); }
+
+  .block__head { margin-block-end: var(--space-4); }
+  .block__head h2 {
+    margin: 0; font-size: var(--text-lg); line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-tight); color: var(--ink-900); font-weight: 700;
+  }
+  .block__head p { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--ink-500); max-width: var(--measure); }
+
+  .panel {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+  @media (min-width: 48rem) { .panel { padding: var(--space-6); } }
+
+  .demo { display: block; }
+  .demo + .demo { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--border-subtle); }
+
+  .demo-label {
+    margin: 0 0 var(--space-3); font-size: var(--text-2xs); font-weight: 600;
+    letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--ink-400);
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .row--tight { gap: var(--space-2); }
+  .row--end { justify-content: flex-end; }
+  .stack { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); }
+  .stack--tight { gap: var(--space-2); }
+  .stack--loose { gap: var(--space-6); }
+
+  .grid-cards { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
+
+  /* ---------- Botones ----------------------------------------------------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.5rem; min-height: 2.5rem; padding: 0 0.875rem;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    background: var(--surface-1); color: var(--ink-900);
+    font: inherit; font-size: var(--text-sm); font-weight: 600; line-height: 1;
+    cursor: pointer; text-decoration: none; white-space: nowrap;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { transform: translateY(var(--motion-lift)); }
+  .btn:active { transform: none; }
+  .btn[disabled], .btn[aria-disabled="true"] {
+    opacity: 0.5; cursor: not-allowed; transform: none;
+  }
+
+  .btn--primary { background: var(--brand-600); color: #fff; }
+  .btn--primary:hover { background: var(--brand-700); }
+  .btn--primary:active { background: var(--brand-800); }
+
+  .btn--secondary { background: var(--surface-1); border-color: var(--border-strong); color: var(--ink-900); }
+  .btn--secondary:hover { background: var(--surface-2); border-color: var(--ink-300); }
+
+  .btn--ghost { background: transparent; color: var(--brand-700); }
+  .btn--ghost:hover { background: var(--brand-50); }
+
+  .btn--danger { background: var(--danger-600); color: #fff; }
+  .btn--danger:hover { background: var(--danger-700); }
+
+  .btn--sm { min-height: 2rem; padding: 0 0.625rem; font-size: var(--text-xs); border-radius: var(--radius-sm); }
+  .btn--lg { min-height: 3rem; padding: 0 1.25rem; font-size: var(--text-base); }
+  .btn--icon { min-width: 2.5rem; padding: 0; }
+  .btn--sm.btn--icon { min-width: 2rem; }
+
+  .spinner {
+    width: 1rem; height: 1rem; flex: none; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent;
+    animation: spin 700ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; border-right-color: currentColor; opacity: 0.6; }
+  }
+
+  .ico { width: 1.125rem; height: 1.125rem; flex: none; display: block; }
+  .ico--sm { width: 0.9375rem; height: 0.9375rem; }
+
+  /* ---------- Formularios ------------------------------------------------- */
+  .form-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+
+  .field { display: grid; gap: 0.375rem; align-content: start; }
+  .field__label { font-size: var(--text-sm); font-weight: 600; color: var(--ink-900); }
+  .field__label .req { color: var(--danger-600); margin-inline-start: 0.125rem; }
+  .field__hint { margin: 0; font-size: var(--text-xs); color: var(--ink-500); }
+  .field__error {
+    display: flex; align-items: flex-start; gap: 0.375rem; margin: 0;
+    font-size: var(--text-xs); font-weight: 500; color: var(--danger-700);
+  }
+
+  .input, .select, .textarea {
+    width: 100%; min-height: 2.5rem; padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    background: var(--surface-1); color: var(--ink-900);
+    font: inherit; font-size: var(--text-sm); line-height: 1.4;
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .textarea { min-height: 5.5rem; resize: vertical; }
+  .input::placeholder, .textarea::placeholder { color: var(--ink-400); }
+  .input:hover, .select:hover, .textarea:hover { border-color: var(--ink-300); }
+  .input:focus, .select:focus, .textarea:focus {
+    outline: none; border-color: var(--brand-500); box-shadow: var(--focus-halo);
+  }
+  .input[aria-invalid="true"], .select[aria-invalid="true"] {
+    border-color: var(--danger-600); background: var(--danger-50);
+  }
+  .input[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgba(147, 40, 30, 0.16); }
+  .input[disabled], .select[disabled], .textarea[disabled] {
+    background: var(--surface-2); color: var(--ink-400); cursor: not-allowed; border-color: var(--border);
+  }
+
+  .select {
+    appearance: none; padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%2345524F' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 12px 8px;
+  }
+
+  .input-icon { position: relative; }
+  .input-icon .ico {
+    position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+    color: var(--ink-400); pointer-events: none;
+  }
+  .input-icon .input { padding-left: 2.375rem; }
+
+  .check { display: flex; align-items: flex-start; gap: 0.625rem; font-size: var(--text-sm); color: var(--ink-700); cursor: pointer; }
+  .check input { width: 1.125rem; height: 1.125rem; margin: 0.125rem 0 0; flex: none; accent-color: var(--brand-600); }
+  .check b { color: var(--ink-900); font-weight: 600; }
+
+  /* ---------- Chips de estado --------------------------------------------- */
+  .estado {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    padding: 0.1875rem 0.5rem; border-radius: var(--radius-pill);
+    border: 1px solid; font-size: var(--text-2xs); font-weight: 600;
+    white-space: nowrap; line-height: 1.35;
+  }
+  .estado::before {
+    content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%;
+    background: currentColor; flex: none;
+  }
+  .estado--pendiente { background: var(--state-pendiente-bg); border-color: var(--state-pendiente-border); color: var(--state-pendiente-fg); }
+  .estado--confirmado { background: var(--state-confirmado-bg); border-color: var(--state-confirmado-border); color: var(--state-confirmado-fg); }
+  .estado--atendido { background: var(--state-atendido-bg); border-color: var(--state-atendido-border); color: var(--state-atendido-fg); }
+  .estado--ausente { background: var(--state-ausente-bg); border-color: var(--state-ausente-border); color: var(--state-ausente-fg); }
+  .estado--cancelado { background: var(--state-cancelado-bg); border-color: var(--state-cancelado-border); color: var(--state-cancelado-fg); }
+  .estado--cancelado::before { width: 0.5rem; height: 1px; border-radius: 0; }
+  .estado--ausente::before { border-radius: 1px; transform: rotate(45deg); width: 0.4375rem; height: 0.4375rem; }
+  .estado--atendido::before { border-radius: 1px; }
+
+  /* ---------- Card de turno ----------------------------------------------- */
+  .turno {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-4); align-items: start;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4);
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .turno:hover { border-color: var(--border-strong); }
+
+  .turno__time {
+    display: grid; gap: 0.0625rem; justify-items: center;
+    min-width: 3.75rem; padding: 0.3125rem 0.5rem;
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: var(--text-sm); font-weight: 600; line-height: 1.25;
+    color: var(--ink-900); background: var(--surface-2);
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  }
+  .turno__dur { font-size: var(--text-2xs); font-weight: 500; color: var(--ink-500); }
+  .turno--pendiente .turno__time { background: var(--state-pendiente-bg); border-color: var(--state-pendiente-border); color: var(--state-pendiente-fg); }
+  .turno--pendiente .turno__dur { color: var(--state-pendiente-fg); }
+  .turno--confirmado .turno__time { background: var(--state-confirmado-bg); border-color: var(--state-confirmado-border); color: var(--state-confirmado-fg); }
+  .turno--confirmado .turno__dur { color: var(--state-confirmado-fg); }
+  .turno--atendido .turno__time { background: var(--state-atendido-bg); border-color: var(--state-atendido-border); color: var(--state-atendido-fg); }
+  .turno--atendido .turno__dur { color: var(--state-atendido-fg); }
+  .turno--ausente .turno__time { background: var(--state-ausente-bg); border-color: var(--state-ausente-border); color: var(--state-ausente-fg); }
+  .turno--ausente .turno__dur { color: var(--state-ausente-fg); }
+  .turno--cancelado .turno__time { background: var(--state-cancelado-bg); border-color: var(--state-cancelado-border); color: var(--state-cancelado-fg); }
+  .turno--cancelado .turno__dur { color: var(--state-cancelado-fg); }
+
+  .turno__name {
+    margin: 0; font-size: var(--text-md); font-weight: 600;
+    color: var(--ink-900); letter-spacing: -0.01em; line-height: var(--leading-snug);
+  }
+  .turno--cancelado .turno__name { color: var(--ink-500); text-decoration: line-through; }
+  .turno--ausente .turno__name { color: var(--ink-700); }
+  .turno__meta {
+    margin: 0.25rem 0 0; font-size: var(--text-sm); color: var(--ink-500);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem;
+  }
+  .turno__dot { color: var(--ink-300); }
+  .turno__meta > span { white-space: nowrap; }
+  .turno__side { display: grid; gap: var(--space-2); justify-items: end; }
+
+  @media (max-width: 40rem) {
+    .turno { grid-template-columns: auto minmax(0, 1fr); }
+    .turno__side {
+      grid-column: 1 / -1; display: flex; align-items: center;
+      justify-content: space-between; gap: var(--space-3);
+      padding-top: var(--space-3); border-top: 1px solid var(--border-subtle);
+    }
+  }
+
+  /* ---------- Tabla de agenda --------------------------------------------- */
+  .table-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-1); overflow: hidden; }
+
+  table.agenda { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .agenda thead th {
+    text-align: left; padding: 0.625rem 0.75rem;
+    font-size: var(--text-2xs); font-weight: 600; letter-spacing: var(--tracking-wide);
+    text-transform: uppercase; color: var(--ink-500);
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .agenda tbody td {
+    padding: 0.75rem; border-bottom: 1px solid var(--border-subtle);
+    vertical-align: middle; color: var(--ink-700);
+  }
+  .agenda tbody tr:last-child td { border-bottom: 0; }
+  .agenda tbody tr { transition: background-color var(--dur-fast) var(--ease-out); }
+  .agenda tbody tr:hover { background: var(--surface-2); }
+
+  .c-time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink-900); white-space: nowrap; }
+  .c-name { font-weight: 600; color: var(--ink-900); }
+  .c-sub { display: block; font-weight: 400; font-size: var(--text-2xs); color: var(--ink-500); margin-top: 0.0625rem; }
+  .c-sub--mobile { display: none; }
+  .c-sillon { white-space: nowrap; color: var(--ink-600); }
+  .c-actions { text-align: right; white-space: nowrap; }
+  .agenda tr.is-cancelled .c-name { color: var(--ink-500); text-decoration: line-through; }
+
+  @media (max-width: 46rem) {
+    .c-sub--mobile { display: block; }
+    .agenda thead {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    .agenda, .agenda tbody { display: block; width: 100%; }
+    .agenda tbody tr {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: "time name actions" "time state actions";
+      column-gap: var(--space-3); align-items: start;
+      padding: 0.75rem 0.625rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .agenda tbody tr:last-child { border-bottom: 0; }
+    .agenda tbody td { display: block; padding: 0; border: 0; }
+    .agenda .c-pro, .agenda .c-prest, .agenda .c-sillon { display: none; }
+    .agenda .c-time { grid-area: time; }
+    .agenda .c-name { grid-area: name; }
+    .agenda .c-state { grid-area: state; margin-top: var(--space-2); }
+    .agenda .c-actions { grid-area: actions; align-self: center; }
+    .agenda { font-size: var(--text-sm); }
+  }
+
+  /* ---------- Navegación -------------------------------------------------- */
+  .app-shell {
+    display: grid; grid-template-columns: 14rem minmax(0, 1fr);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden; background: var(--surface-1);
+  }
+  .side { background: var(--surface-2); border-right: 1px solid var(--border); padding: var(--space-4); display: grid; gap: var(--space-5); align-content: start; }
+  .side__brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: var(--text-sm); color: var(--ink-900); letter-spacing: var(--tracking-tight); }
+  .side__brand img { width: 26px; height: 26px; }
+  .side__label { margin: 0 0 0.375rem; padding-inline: 0.5rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--ink-500); }
+  .side__group { display: grid; gap: 2px; }
+  .side__link {
+    display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem;
+    border-radius: var(--radius-sm); color: var(--ink-700);
+    text-decoration: none; font-size: var(--text-sm); font-weight: 500;
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .side__link:hover { background: rgba(255, 255, 255, 0.62); color: var(--ink-900); }
+  .side__link[aria-current="page"] { background: var(--surface-1); color: var(--brand-700); font-weight: 600; }
+  .side__link .ico { color: currentColor; opacity: 0.85; }
+
+  .app-main { padding: var(--space-5); display: grid; gap: var(--space-4); align-content: start; }
+  .app-title { margin: 0; font-size: var(--text-lg); letter-spacing: var(--tracking-tight); color: var(--ink-900); }
+
+  @media (max-width: 46rem) {
+    .app-shell { grid-template-columns: 1fr; }
+    .side { border-right: 0; border-bottom: 1px solid var(--border); padding: var(--space-3); gap: var(--space-3); }
+    .side__group { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .side__label { display: none; }
+    .app-main { padding: var(--space-4); }
+  }
+
+  .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab {
+    appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; padding: 0.625rem 0.75rem; font: inherit;
+    font-size: var(--text-sm); font-weight: 600; color: var(--ink-500);
+    cursor: pointer; white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .tab:hover { color: var(--ink-900); }
+  .tab[aria-selected="true"] { color: var(--brand-700); border-bottom-color: var(--brand-600); }
+
+  /* ---------- Modal ------------------------------------------------------- */
+  .modal-stage {
+    position: relative; display: grid; place-items: center;
+    min-height: 24rem; padding: var(--space-5);
+    background: rgba(20, 32, 31, 0.34); border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+  .modal {
+    width: min(100%, 30rem); background: var(--surface-1);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .modal__head { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); }
+  .modal__title { margin: 0; font-size: var(--text-md); font-weight: 700; color: var(--ink-900); letter-spacing: -0.01em; line-height: var(--leading-snug); flex: 1; }
+  .modal__body { padding: 0 var(--space-5) var(--space-5); display: grid; gap: var(--space-4); }
+  .modal__body p { margin: 0; font-size: var(--text-sm); color: var(--ink-600); }
+  .modal__foot { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; padding: var(--space-3) var(--space-5); background: var(--surface-2); border-top: 1px solid var(--border-subtle); }
+
+  .summary { margin: 0; display: grid; gap: 0.5rem; padding: var(--space-3) var(--space-4); background: var(--surface-2); border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .summary > div { display: flex; justify-content: space-between; gap: var(--space-4); }
+  .summary dt { color: var(--ink-500); }
+  .summary dd { margin: 0; color: var(--ink-900); font-weight: 600; text-align: right; }
+
+  /* ---------- Avisos y toasts --------------------------------------------- */
+  .alert {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem; align-items: start;
+    padding: 0.875rem 1rem; border: 1px solid; border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+  }
+  .alert__title { margin: 0 0 0.125rem; font-weight: 600; font-size: var(--text-sm); }
+  .alert__body { margin: 0; font-size: var(--text-sm); }
+  .alert__icon { margin-top: 0.0625rem; }
+  .alert--error { background: var(--danger-50); border-color: var(--danger-100); color: var(--danger-700); }
+  .alert--warning { background: var(--warning-50); border-color: #EBD4A6; color: var(--warning-700); }
+  .alert--success { background: var(--success-50); border-color: #C2DBCB; color: var(--success-700); }
+  .alert--info { background: var(--info-50); border-color: #C5DAE3; color: var(--info-700); }
+  .alert--error .alert__title, .alert--warning .alert__title,
+  .alert--success .alert__title, .alert--info .alert__title { color: inherit; }
+  .alert .btn--ghost { color: inherit; }
+  .alert .btn--ghost:hover { background: rgba(20, 32, 31, 0.07); }
+
+  .toast {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem; align-items: center; width: min(100%, 26rem);
+    padding: 0.75rem 0.875rem; border-radius: var(--radius-md);
+    background: var(--surface-ink); color: #fff; box-shadow: var(--shadow-lg);
+    font-size: var(--text-sm);
+  }
+  .toast__msg { color: #E7EBE9; }
+  .toast__msg b { color: #fff; display: block; font-weight: 600; }
+  .toast .btn--ghost { color: #fff; }
+  .toast .btn--ghost:hover { background: rgba(255, 255, 255, 0.14); }
+
+  /* ---------- Empty state ------------------------------------------------- */
+  .empty {
+    display: grid; justify-items: center; text-align: center; gap: var(--space-3);
+    padding: var(--space-8) var(--space-5);
+    border: 1px dashed var(--border-strong); border-radius: var(--radius-lg);
+    background: var(--surface-1);
+  }
+  .empty__icon {
+    display: grid; place-items: center; width: 3rem; height: 3rem;
+    border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--ink-500);
+  }
+  .empty__title { margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--ink-900); }
+  .empty__body { margin: 0; max-width: 40ch; font-size: var(--text-sm); color: var(--ink-500); }
+
+  /* ---------- Esqueletos -------------------------------------------------- */
+  .sk {
+    display: block; height: 0.75rem; border-radius: var(--radius-xs);
+    background: linear-gradient(90deg, var(--surface-3) 0%, var(--surface-2) 38%, var(--surface-3) 76%);
+    background-size: 220% 100%;
+    animation: sk 1.5s var(--ease-in-out) infinite;
+  }
+  .sk--time { width: 3rem; }
+  .sk--name { width: 65%; }
+  .sk--chip { width: 5rem; height: 1.375rem; border-radius: var(--radius-pill); }
+  @keyframes sk { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; background: var(--surface-3); } }
+
+  /* ---------- Tokens visuales --------------------------------------------- */
+  .swatches { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+  .sw { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-1); }
+  .sw__chip { height: 3.25rem; display: block; }
+  .sw__meta { padding: 0.4375rem 0.625rem 0.5rem; }
+  .sw__name { display: block; font-size: var(--text-2xs); font-weight: 600; color: var(--ink-900); }
+  .sw__hex { display: block; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--ink-500); margin-top: 0.0625rem; }
+
+  .type-scale { display: grid; gap: var(--space-4); }
+  .type-row { display: grid; gap: 0.25rem; padding-bottom: var(--space-4); border-bottom: 1px solid var(--border-subtle); }
+  .type-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .type-row__spec { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--ink-500); }
+  .type-row__sample { margin: 0; color: var(--ink-900); }
+
+  .legend { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--text-sm); }
+  .legend th, .legend td { text-align: left; padding: 0.625rem 0.75rem; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+  .legend th { font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--ink-500); font-weight: 600; }
+  .legend tr:last-child td { border-bottom: 0; }
+  .legend td:first-child { width: 36%; overflow-wrap: anywhere; }
+  .legend code { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-600); overflow-wrap: anywhere; }
+
+  footer.site-foot { border-top: 1px solid var(--border); background: var(--surface-1); margin-top: var(--space-9); }
+  .site-foot__inner { padding-block: var(--space-6); display: grid; gap: var(--space-2); font-size: var(--text-xs); color: var(--ink-500); }
+  .site-foot b { color: var(--ink-900); font-weight: 600; }
+
+  @media (min-width: 56rem) {
+    :root { --gutter: var(--space-7); }
+    .page-head { padding-block: var(--space-9) var(--space-7); }
+  }
+
+  /* ---------- Leyenda de estados ------------------------------------------- */
+  .estado-legend { margin: 0; display: grid; gap: 0; }
+  .estado-item {
+    display: grid; grid-template-columns: 9.5rem minmax(0, 1fr);
+    gap: var(--space-4); align-items: start;
+    padding-block: var(--space-3); border-bottom: 1px solid var(--border-subtle);
+  }
+  .estado-item:last-child { border-bottom: 0; padding-bottom: 0; }
+  .estado-item:first-child { padding-top: 0; }
+  .estado-item dt { margin: 0; }
+  .estado-item dd { margin: 0; font-size: var(--text-sm); color: var(--ink-600); }
+  .estado-item .efecto { display: block; color: var(--ink-500); margin-top: 0.125rem; }
+
+  @media (max-width: 40rem) {
+    .estado-item { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+  }
+</style>
+<script src="brand.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <div class="brand">
+      <img class="brand__mark" src="assets/logo.svg" width="48" height="48" alt="Marca provisoria: marco punteado ocre con la leyenda PROV." />
+      <div class="brand__text">
+        <p class="brand__name" data-brand-name>Agenda Odontológica</p>
+        <p class="brand__sub">
+          <span>Sistema de turnos · es-AR</span>
+          <span class="flag" data-brand-provisional hidden>Marca provisoria</span>
+        </p>
+      </div>
+    </div>
+    <ul class="meta-list">
+      <li class="meta-item">Modo <b>system-only</b></li>
+      <li class="meta-item">Revisión <b>1</b></li>
+      <li class="meta-item">Aprobación <b>pendiente</b></li>
+    </ul>
+  </div>
+</header>
+
+<main id="contenido">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Fundación visual</h1>
+      <p>
+        Referencia local de tokens y componentes para la agenda odontológica. Los valores viven en
+        <code>tokens.css</code>; este archivo muestra cómo se combinan en pantalla, en escritorio de recepción
+        y en tablet o celular del profesional. Todos los nombres de pacientes son ficticios.
+      </p>
+    </div>
+
+    <!-- ================= PALETA ================= -->
+    <section class="block" aria-labelledby="paleta">
+      <div class="block__head">
+        <h2 id="paleta">Paleta</h2>
+        <p>Papel cálido de fondo, petróleo para la acción, ocre para lo que pide atención. Ningún gradiente: el contraste hace el trabajo.</p>
+      </div>
+      <div class="panel stack">
+        <div class="demo">
+          <p class="demo-label">Marca y tinta</p>
+          <div class="swatches">
+            <div class="sw"><span class="sw__chip" style="background: var(--brand-600)"></span><div class="sw__meta"><span class="sw__name">brand-600</span><span class="sw__hex">#0E5B55</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--brand-700)"></span><div class="sw__meta"><span class="sw__name">brand-700</span><span class="sw__hex">#0B4A45</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--brand-100)"></span><div class="sw__meta"><span class="sw__name">brand-100</span><span class="sw__hex">#D7EBE6</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--ink-900)"></span><div class="sw__meta"><span class="sw__name">ink-900</span><span class="sw__hex">#14201F</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--ink-500)"></span><div class="sw__meta"><span class="sw__name">ink-500</span><span class="sw__hex">#5A6663</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--accent-500)"></span><div class="sw__meta"><span class="sw__name">accent-500</span><span class="sw__hex">#B4761A</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--surface-page)"></span><div class="sw__meta"><span class="sw__name">surface-page</span><span class="sw__hex">#F7F5F0</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--surface-2)"></span><div class="sw__meta"><span class="sw__name">surface-2</span><span class="sw__hex">#F1EEE7</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--border-strong)"></span><div class="sw__meta"><span class="sw__name">border-strong</span><span class="sw__hex">#958F80</span></div></div>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Estados de turno (RN-ES-01)</p>
+          <div class="swatches">
+            <div class="sw"><span class="sw__chip" style="background: var(--state-pendiente-bg); border-bottom: 2px solid var(--state-pendiente-border)"></span><div class="sw__meta"><span class="sw__name">pendiente</span><span class="sw__hex">#FBEEDA</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--state-confirmado-bg); border-bottom: 2px solid var(--state-confirmado-border)"></span><div class="sw__meta"><span class="sw__name">confirmado</span><span class="sw__hex">#DCF0EB</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--state-atendido-bg); border-bottom: 2px solid var(--state-atendido-border)"></span><div class="sw__meta"><span class="sw__name">atendido</span><span class="sw__hex">#E1EFE3</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--state-ausente-bg); border-bottom: 2px solid var(--state-ausente-border)"></span><div class="sw__meta"><span class="sw__name">ausente</span><span class="sw__hex">#F8E2DE</span></div></div>
+            <div class="sw"><span class="sw__chip" style="background: var(--state-cancelado-bg); border-bottom: 2px solid var(--state-cancelado-border)"></span><div class="sw__meta"><span class="sw__name">cancelado</span><span class="sw__hex">#ECEBE6</span></div></div>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Contraste medido sobre su propio fondo</p>
+          <table class="legend">
+            <caption class="sr-only">Pares de color y relación de contraste</caption>
+            <thead>
+              <tr><th scope="col">Par</th><th scope="col">Uso</th><th scope="col">Ratio</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>ink-900 / surface-1</code></td><td>Texto principal</td><td>14.9:1</td></tr>
+              <tr><td><code>ink-500 / surface-1</code></td><td>Texto secundario</td><td>5.9:1</td></tr>
+              <tr><td><code>#FFFFFF / brand-600</code></td><td>Botón primario</td><td>7.9:1</td></tr>
+              <tr><td><code>state-ausente-fg / state-ausente-bg</code></td><td>Chip ausente</td><td>7.8:1</td></tr>
+              <tr><td><code>state-pendiente-fg / state-pendiente-bg</code></td><td>Chip pendiente</td><td>7.5:1</td></tr>
+              <tr><td><code>state-cancelado-fg / state-cancelado-bg</code></td><td>Chip cancelado</td><td>5.3:1</td></tr>
+              <tr><td><code>border-strong / surface-1</code></td><td>Borde de controles</td><td>3.2:1</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TIPOGRAFÍA ================= -->
+    <section class="block" aria-labelledby="tipografia">
+      <div class="block__head">
+        <h2 id="tipografia">Tipografía</h2>
+        <p>Pila local, sin fuentes remotas. La jerarquía se construye con tamaño y peso; las horas y los documentos usan cifras tabulares.</p>
+      </div>
+      <div class="panel">
+        <div class="type-scale">
+          <div class="type-row">
+            <span class="type-row__spec">--text-2xl · 34px · 700 · tracking -0.02em</span>
+            <p class="type-row__sample" style="font-size: var(--text-2xl); font-weight: 700; letter-spacing: var(--tracking-tight); line-height: var(--leading-tight)">Agenda del martes</p>
+          </div>
+          <div class="type-row">
+            <span class="type-row__spec">--text-lg · 22px · 700</span>
+            <p class="type-row__sample" style="font-size: var(--text-lg); font-weight: 700; letter-spacing: var(--tracking-tight); line-height: var(--leading-snug)">Sillones y prestaciones</p>
+          </div>
+          <div class="type-row">
+            <span class="type-row__spec">--text-md · 18px · 600</span>
+            <p class="type-row__sample" style="font-size: var(--text-md); font-weight: 600; line-height: var(--leading-snug)">Sofía Miranda</p>
+          </div>
+          <div class="type-row">
+            <span class="type-row__spec">--text-base · 16px · 400 · medida 68ch</span>
+            <p class="type-row__sample" style="font-size: var(--text-base); max-width: var(--measure)">El turno ocupa desde su inicio hasta inicio más la duración de la prestación. Si el horario se solapa con otro turno activo del mismo profesional o del mismo sillón, no se crea.</p>
+          </div>
+          <div class="type-row">
+            <span class="type-row__spec">--text-sm · 14px · 400 · UI densa</span>
+            <p class="type-row__sample" style="font-size: var(--text-sm)">Consulta · Sillón 1 · Dra. Ferreyra</p>
+          </div>
+          <div class="type-row">
+            <span class="type-row__spec">--font-mono · 13px · cifras tabulares</span>
+            <p class="type-row__sample" style="font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-xs)">09:00 → 09:30 · DNI 30.114.882 · MAT 18.442</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BOTONES ================= -->
+    <section class="block" aria-labelledby="botones">
+      <div class="block__head">
+        <h2 id="botones">Botones</h2>
+        <p>Una acción primaria por vista. El destructivo solo aparece en confirmaciones de cancelación.</p>
+      </div>
+      <div class="panel">
+        <div class="demo">
+          <p class="demo-label">Jerarquía</p>
+          <div class="row">
+            <button class="btn btn--primary" type="button">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Nuevo turno
+            </button>
+            <button class="btn btn--secondary" type="button">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+              Cambiar fecha
+            </button>
+            <button class="btn btn--ghost" type="button">Ver historia clínica</button>
+            <button class="btn btn--danger" type="button">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 7h15M9 7V4.8h6V7M6.5 7l.8 12.2a1.8 1.8 0 0 0 1.8 1.7h5.8a1.8 1.8 0 0 0 1.8-1.7L17.5 7"/></svg>
+              Cancelar turno
+            </button>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Tamaños</p>
+          <div class="row row--tight">
+            <button class="btn btn--primary btn--sm" type="button">Pequeño</button>
+            <button class="btn btn--primary" type="button">Medio</button>
+            <button class="btn btn--primary btn--lg" type="button">Grande</button>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Estados: deshabilitado, cargando, solo icono</p>
+          <div class="row row--tight">
+            <button class="btn btn--primary" type="button" disabled>Guardando</button>
+            <button class="btn btn--secondary" type="button" disabled>Sin sillón</button>
+            <button class="btn btn--primary" type="button" aria-busy="true">
+              <span class="spinner" aria-hidden="true"></span>
+              Creando turno
+            </button>
+            <button class="btn btn--secondary btn--icon" type="button" aria-label="Más acciones">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FORMULARIOS ================= -->
+    <section class="block" aria-labelledby="formularios">
+      <div class="block__head">
+        <h2 id="formularios">Formularios</h2>
+        <p>Densidad de recepción: 14px, altura 40px y etiqueta siempre visible. El error dice qué pasó y cómo seguir.</p>
+      </div>
+      <div class="panel stack">
+        <div class="demo">
+          <p class="demo-label">Alta de turno</p>
+          <form class="form-grid" novalidate>
+            <div class="field">
+              <label class="field__label" for="paciente">Paciente <span class="req" aria-hidden="true">*</span></label>
+              <div class="input-icon">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+                <input class="input" id="paciente" name="paciente" type="search" placeholder="Buscar por nombre o DNI" autocomplete="off" />
+              </div>
+              <p class="field__hint">Mínimo dos letras. Trae pacientes ficticios del seed.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="profesional">Profesional <span class="req" aria-hidden="true">*</span></label>
+              <select class="select" id="profesional" name="profesional">
+                <option>Dra. Ferreyra — Clínica</option>
+                <option>Dr. Aguirre — Endodoncia</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="sillon">Sillón / box <span class="req" aria-hidden="true">*</span></label>
+              <select class="select" id="sillon" name="sillon">
+                <option>Sillón 1</option>
+                <option>Sillón 2</option>
+              </select>
+              <p class="field__hint">Obligatorio: sin sillón el turno no se valida.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="inicio">Inicio <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="inicio" name="inicio" type="time" value="10:30" />
+              <p class="field__hint">Dentro del horario de atención, sin bloqueos.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="prestacion">Prestación <span class="req" aria-hidden="true">*</span></label>
+              <select class="select" id="prestacion" name="prestacion">
+                <option>Consulta — 30 min</option>
+                <option>Limpieza — 30 min</option>
+                <option>Endodoncia — 60 min</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="nota">Nota para el profesional</label>
+              <input class="input" id="nota" name="nota" type="text" placeholder="Opcional" />
+            </div>
+          </form>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Validación y error</p>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field__label" for="paciente-error">Paciente <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="paciente-error" type="text" value="Sofía" aria-invalid="true" aria-describedby="paciente-error-msg" />
+              <p class="field__error" id="paciente-error-msg">
+                <svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/></svg>
+                No encontramos ese paciente. Buscá por apellido o por DNI.
+              </p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="sillon-off">Sillón / box</label>
+              <select class="select" id="sillon-off" disabled>
+                <option>Seleccioná un profesional primero</option>
+              </select>
+              <p class="field__hint">Se habilita cuando elegís profesional.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Confirmaciones</p>
+          <label class="check">
+            <input type="checkbox" checked />
+            <span><b>Confirmar por teléfono</b> — deja el turno en confirmado y registra quién llamó.</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ESTADOS ================= -->
+    <section class="block" aria-labelledby="estados">
+      <div class="block__head">
+        <h2 id="estados">Estados de turno</h2>
+        <p>Cinco estados, cinco señales. El texto del chip es la fuente de verdad; el color y la forma del punto acompañan.</p>
+      </div>
+      <div class="panel">
+        <div class="demo">
+          <p class="demo-label">Chips</p>
+          <div class="row row--tight">
+            <span class="estado estado--pendiente">Pendiente</span>
+            <span class="estado estado--confirmado">Confirmado</span>
+            <span class="estado estado--atendido">Atendido</span>
+            <span class="estado estado--ausente">Ausente</span>
+            <span class="estado estado--cancelado">Cancelado</span>
+          </div>
+        </div>
+
+        <div class="demo">
+          <dl class="estado-legend">
+            <div class="estado-item">
+              <dt><span class="estado estado--pendiente">Pendiente</span></dt>
+              <dd>Cargado por recepción, el paciente todavía no confirmó.<span class="efecto">Ocupa profesional y sillón. Pide seguimiento.</span></dd>
+            </div>
+            <div class="estado-item">
+              <dt><span class="estado estado--confirmado">Confirmado</span></dt>
+              <dd>El paciente avisó que viene.<span class="efecto">Ocupa profesional y sillón.</span></dd>
+            </div>
+            <div class="estado-item">
+              <dt><span class="estado estado--atendido">Atendido</span></dt>
+              <dd>Ya pasó por el sillón.<span class="efecto">Queda como registro del día. No se cancela.</span></dd>
+            </div>
+            <div class="estado-item">
+              <dt><span class="estado estado--ausente">Ausente</span></dt>
+              <dd>No vino y no avisó.<span class="efecto">Libera sillón y profesional para reutilizar el hueco.</span></dd>
+            </div>
+            <div class="estado-item">
+              <dt><span class="estado estado--cancelado">Cancelado</span></dt>
+              <dd>Se canceló antes de la atención.<span class="efecto">Libera el hueco. No se borra: se conserva la traza.</span></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CARD DE TURNO ================= -->
+    <section class="block" aria-labelledby="card-turno">
+      <div class="block__head">
+        <h2 id="card-turno">Card de turno</h2>
+        <p>Se usa en la agenda del profesional y en la vista angosta. La hora manda; el estado se lee sin abrir nada.</p>
+      </div>
+      <div class="panel">
+        <div class="stack stack--tight">
+          <article class="turno turno--pendiente">
+            <div class="turno__time">09:00<span class="turno__dur">30 min</span></div>
+            <div>
+              <h3 class="turno__name">Marta Quiroga</h3>
+              <p class="turno__meta"><span>Limpieza</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 1</span><span class="turno__dot" aria-hidden="true">·</span><span>Dra. Ferreyra</span></p>
+            </div>
+            <div class="turno__side">
+              <span class="estado estado--pendiente">Pendiente</span>
+              <button class="btn btn--ghost btn--sm" type="button">Confirmar</button>
+            </div>
+          </article>
+
+          <article class="turno turno--confirmado">
+            <div class="turno__time">09:30<span class="turno__dur">60 min</span></div>
+            <div>
+              <h3 class="turno__name">Julián Pérez</h3>
+              <p class="turno__meta"><span>Endodoncia</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 2</span><span class="turno__dot" aria-hidden="true">·</span><span>Dr. Aguirre</span></p>
+            </div>
+            <div class="turno__side">
+              <span class="estado estado--confirmado">Confirmado</span>
+              <button class="btn btn--ghost btn--sm" type="button">Reprogramar</button>
+            </div>
+          </article>
+
+          <article class="turno turno--atendido">
+            <div class="turno__time">10:30<span class="turno__dur">30 min</span></div>
+            <div>
+              <h3 class="turno__name">Sofía Miranda</h3>
+              <p class="turno__meta"><span>Consulta</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 1</span><span class="turno__dot" aria-hidden="true">·</span><span>Dra. Ferreyra</span></p>
+            </div>
+            <div class="turno__side">
+              <span class="estado estado--atendido">Atendido</span>
+              <button class="btn btn--ghost btn--sm" type="button">Historia</button>
+            </div>
+          </article>
+
+          <article class="turno turno--ausente">
+            <div class="turno__time">11:00<span class="turno__dur">20 min</span></div>
+            <div>
+              <h3 class="turno__name">Nadia Ferro</h3>
+              <p class="turno__meta"><span>Control</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 1</span><span class="turno__dot" aria-hidden="true">·</span><span>Dra. Ferreyra</span></p>
+            </div>
+            <div class="turno__side">
+              <span class="estado estado--ausente">Ausente</span>
+              <button class="btn btn--ghost btn--sm" type="button">Ofrecer hueco</button>
+            </div>
+          </article>
+
+          <article class="turno turno--cancelado">
+            <div class="turno__time">11:30<span class="turno__dur">60 min</span></div>
+            <div>
+              <h3 class="turno__name">Bruno Salas</h3>
+              <p class="turno__meta"><span>Extracción</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 2</span><span class="turno__dot" aria-hidden="true">·</span><span>Dr. Aguirre</span></p>
+            </div>
+            <div class="turno__side">
+              <span class="estado estado--cancelado">Cancelado</span>
+              <button class="btn btn--ghost btn--sm" type="button">Reutilizar</button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= AGENDA ================= -->
+    <section class="block" aria-labelledby="agenda">
+      <div class="block__head">
+        <h2 id="agenda">Agenda del día</h2>
+        <p>Vista de recepción en escritorio: siete columnas, filas de 48px, hora en cifras tabulares. En menos de 46rem se ocultan prestación, sillón y profesional, y el resumen baja debajo del nombre.</p>
+      </div>
+      <div class="panel">
+        <div class="tabs" role="tablist" aria-label="Vista de agenda">
+          <button class="tab" role="tab" aria-selected="true" id="tab-dia" aria-controls="panel-dia" type="button">Día</button>
+          <button class="tab" role="tab" aria-selected="false" tabindex="-1" id="tab-semana" aria-controls="panel-dia" type="button">Semana</button>
+          <button class="tab" role="tab" aria-selected="false" tabindex="-1" id="tab-espera" aria-controls="panel-dia" type="button">Lista de espera</button>
+        </div>
+
+        <div class="row" style="justify-content: space-between; margin-block: var(--space-3)">
+          <p style="margin:0; font-size: var(--text-sm); color: var(--ink-500)">Martes 28 de octubre · 5 turnos · 1 hueco liberado</p>
+          <button class="btn btn--primary btn--sm" type="button">
+            <svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Nuevo turno
+          </button>
+        </div>
+
+        <div class="table-card" id="panel-dia" role="tabpanel" aria-labelledby="tab-dia" tabindex="0">
+          <table class="agenda">
+            <caption class="sr-only">Turnos del martes 28 de octubre, ordenados por hora. Datos ficticios.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Hora</th>
+                <th scope="col">Paciente</th>
+                <th scope="col" class="c-prest">Prestación</th>
+                <th scope="col" class="c-sillon">Sillón</th>
+                <th scope="col" class="c-pro">Profesional</th>
+                <th scope="col">Estado</th>
+                <th scope="col"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="c-time">09:00<span class="c-sub">30 min</span></td>
+                <td class="c-name">Marta Quiroga<span class="c-sub c-sub--mobile">Limpieza · Sillón 1 · Dra. Ferreyra</span></td>
+                <td class="c-prest">Limpieza</td>
+                <td class="c-sillon">Sillón 1</td>
+                <td class="c-pro">Dra. Ferreyra</td>
+                <td class="c-state"><span class="estado estado--pendiente">Pendiente</span></td>
+                <td class="c-actions"><button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Acciones del turno de Marta Quiroga"><svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></button></td>
+              </tr>
+              <tr>
+                <td class="c-time">09:30<span class="c-sub">60 min</span></td>
+                <td class="c-name">Julián Pérez<span class="c-sub c-sub--mobile">Endodoncia · Sillón 2 · Dr. Aguirre</span></td>
+                <td class="c-prest">Endodoncia</td>
+                <td class="c-sillon">Sillón 2</td>
+                <td class="c-pro">Dr. Aguirre</td>
+                <td class="c-state"><span class="estado estado--confirmado">Confirmado</span></td>
+                <td class="c-actions"><button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Acciones del turno de Julián Pérez"><svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></button></td>
+              </tr>
+              <tr>
+                <td class="c-time">10:30<span class="c-sub">30 min</span></td>
+                <td class="c-name">Sofía Miranda<span class="c-sub c-sub--mobile">Consulta · Sillón 1 · Dra. Ferreyra</span></td>
+                <td class="c-prest">Consulta</td>
+                <td class="c-sillon">Sillón 1</td>
+                <td class="c-pro">Dra. Ferreyra</td>
+                <td class="c-state"><span class="estado estado--atendido">Atendido</span></td>
+                <td class="c-actions"><button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Acciones del turno de Sofía Miranda"><svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></button></td>
+              </tr>
+              <tr>
+                <td class="c-time">11:00<span class="c-sub">20 min</span></td>
+                <td class="c-name">Nadia Ferro<span class="c-sub c-sub--mobile">Control · Sillón 1 · Dra. Ferreyra</span></td>
+                <td class="c-prest">Control</td>
+                <td class="c-sillon">Sillón 1</td>
+                <td class="c-pro">Dra. Ferreyra</td>
+                <td class="c-state"><span class="estado estado--ausente">Ausente</span></td>
+                <td class="c-actions"><button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Acciones del turno de Nadia Ferro"><svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></button></td>
+              </tr>
+              <tr class="is-cancelled">
+                <td class="c-time">11:30<span class="c-sub">60 min</span></td>
+                <td class="c-name">Bruno Salas<span class="c-sub c-sub--mobile">Extracción · Sillón 2 · Dr. Aguirre</span></td>
+                <td class="c-prest">Extracción</td>
+                <td class="c-sillon">Sillón 2</td>
+                <td class="c-pro">Dr. Aguirre</td>
+                <td class="c-state"><span class="estado estado--cancelado">Cancelado</span></td>
+                <td class="c-actions"><button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Acciones del turno de Bruno Salas"><svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= NAVEGACIÓN ================= -->
+    <section class="block" aria-labelledby="navegacion">
+      <div class="block__head">
+        <h2 id="navegacion">Navegación</h2>
+        <p>Shell de la aplicación: barra lateral fija en escritorio, franja compacta en móvil. El ítem activo se marca con superficie, no con una barra de color.</p>
+      </div>
+      <div class="panel">
+        <div class="demo">
+          <div class="app-shell">
+          <nav class="side" aria-label="Navegación principal">
+            <div class="side__brand">
+              <span data-brand-name>Agenda Odontológica</span>
+            </div>
+            <div>
+              <p class="side__label">Operación</p>
+              <div class="side__group">
+                <a class="side__link" href="#navegacion" aria-current="page">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+                  Agenda
+                </a>
+                <a class="side__link" href="#navegacion">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20.5c0-3.9 3.4-6.5 7.5-6.5s7.5 2.6 7.5 6.5"/></svg>
+                  Pacientes
+                </a>
+                <a class="side__link" href="#navegacion">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19V9.5M12 19V5M19 19v-6"/></svg>
+                  Sillones
+                </a>
+                <a class="side__link" href="#navegacion">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 8.5h15v10a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/><path d="M8.5 8.5V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2.5"/></svg>
+                  Caja
+                </a>
+              </div>
+            </div>
+          </nav>
+
+          <div class="app-main">
+            <div class="row" style="justify-content: space-between">
+              <h3 class="app-title">Miércoles 29 de octubre</h3>
+              <span class="estado estado--confirmado">3 confirmados</span>
+            </div>
+            <article class="turno turno--confirmado">
+              <div class="turno__time">09:30<span class="turno__dur">60 min</span></div>
+              <div>
+                <h4 class="turno__name">Julián Pérez</h4>
+                <p class="turno__meta"><span>Endodoncia</span><span class="turno__dot" aria-hidden="true">·</span><span>Sillón 2</span><span class="turno__dot" aria-hidden="true">·</span><span>Dr. Aguirre</span></p>
+              </div>
+              <div class="turno__side">
+                <span class="estado estado--confirmado">Confirmado</span>
+                <button class="btn btn--ghost btn--sm" type="button">Reprogramar</button>
+              </div>
+            </article>
+            <p style="margin:0; font-size: var(--text-sm); color: var(--ink-500)">Sin sobreturnos. Último turno 17:30.</p>
+          </div>
+        </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Tabs de vista</p>
+          <div class="tabs" role="tablist" aria-label="Vista de la agenda">
+            <button class="tab" role="tab" aria-selected="true" type="button">Día</button>
+            <button class="tab" role="tab" aria-selected="false" tabindex="-1" type="button">Semana</button>
+            <button class="tab" role="tab" aria-selected="false" tabindex="-1" type="button">Lista de espera</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MODAL ================= -->
+    <section class="block" aria-labelledby="modal">
+      <div class="block__head">
+        <h2 id="modal">Modal de confirmación</h2>
+        <p>Solo para acciones que no se deshacen: cancelar o reprogramar no tienen vuelta atrás en la agenda.</p>
+      </div>
+      <div class="modal-stage">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-desc">
+          <div class="modal__head">
+            <h3 class="modal__title" id="modal-titulo">Cancelar el turno de Bruno Salas</h3>
+            <button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Cerrar">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div class="modal__body">
+            <p id="modal-desc">El turno pasa a cancelado y el sillón queda libre para reutilizar el hueco. No se borra: queda la traza para auditoría.</p>
+            <dl class="summary">
+              <div><dt>Paciente</dt><dd>Bruno Salas</dd></div>
+              <div><dt>Horario</dt><dd>11:30 – 12:30</dd></div>
+              <div><dt>Sillón</dt><dd>Sillón 2</dd></div>
+              <div><dt>Profesional</dt><dd>Dr. Aguirre</dd></div>
+            </dl>
+          </div>
+          <div class="modal__foot">
+            <button class="btn btn--secondary" type="button">Volver</button>
+            <button class="btn btn--danger" type="button">Cancelar turno</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= AVISOS ================= -->
+    <section class="block" aria-labelledby="avisos">
+      <div class="block__head">
+        <h2 id="avisos">Avisos y toasts</h2>
+        <p>El error de agenda dice qué recurso está ocupado y qué hacer. En pantalla, nunca un 409 genérico.</p>
+      </div>
+      <div class="panel stack">
+        <div class="demo">
+          <p class="demo-label">Alertas en contexto</p>
+          <div class="stack stack--tight">
+            <div class="alert alert--error" role="alert">
+              <svg class="ico alert__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.5 21 20H3z"/><path d="M12 10v4.5M12 17.4v.1"/></svg>
+              <div>
+                <p class="alert__title">Ese horario ya está ocupado</p>
+                <p class="alert__body">El Dr. Aguirre tiene un turno de 10:30 a 11:30 en el Sillón 2. Elegí otra hora o cambiá de profesional.</p>
+              </div>
+              <button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Descartar aviso">
+                <svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+
+            <div class="alert alert--warning" role="status">
+              <svg class="ico alert__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v5M12 16v.1"/></svg>
+              <div>
+                <p class="alert__title">Falta asignar sillón</p>
+                <p class="alert__body">Todo turno necesita sillón o box. Sin sillón, el alta no se valida.</p>
+              </div>
+            </div>
+
+            <div class="alert alert--success" role="status">
+              <svg class="ico alert__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4.5 12.5 5 5L20 6.5"/></svg>
+              <div>
+                <p class="alert__title">Turno creado</p>
+                <p class="alert__body">Marta Quiroga, 09:00, Sillón 1, Dra. Ferreyra. Queda pendiente hasta que el paciente confirme.</p>
+              </div>
+            </div>
+
+            <div class="alert alert--info" role="status">
+              <svg class="ico alert__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 7.7v.1"/></svg>
+              <div>
+                <p class="alert__title">Cancelar libera el horario</p>
+                <p class="alert__body">Un turno cancelado o ausente no cuenta para solapamientos: el sillón se puede volver a usar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Toast</p>
+          <div class="toast" role="status">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4.5 12.5 5 5L20 6.5"/></svg>
+            <p class="toast__msg" style="margin:0"><b>Turno confirmado</b>Julián Pérez · 09:30 · Sillón 2</p>
+            <button class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Cerrar aviso">
+              <svg class="ico ico--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VACÍO Y CARGA ================= -->
+    <section class="block" aria-labelledby="vacio-carga">
+      <div class="block__head">
+        <h2 id="vacio-carga">Vacío y carga</h2>
+        <p>El estado vacío propone el siguiente paso. El esqueleto conserva la geometría de la tabla para que nada salte al llegar los datos.</p>
+      </div>
+      <div class="panel stack">
+        <div class="demo">
+          <p class="demo-label">Día sin turnos</p>
+          <div class="empty">
+            <span class="empty__icon">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4M9.5 14.5h5"/></svg>
+            </span>
+            <h3 class="empty__title">No hay turnos para el miércoles 29</h3>
+            <p class="empty__body">La agenda está libre de 09:00 a 18:00. Cargá el primero o revisá si falta asignar un profesional.</p>
+            <button class="btn btn--primary" type="button">Cargar un turno</button>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-label">Cargando agenda</p>
+          <div class="table-card" aria-busy="true" aria-live="polite">
+            <div class="stack stack--tight" style="padding: var(--space-3) var(--space-4)">
+              <div class="row" style="gap: var(--space-4)"><span class="sk sk--time"></span><span class="sk sk--name"></span><span class="sk sk--chip"></span></div>
+              <div class="row" style="gap: var(--space-4)"><span class="sk sk--time"></span><span class="sk sk--name" style="width: 48%"></span><span class="sk sk--chip"></span></div>
+              <div class="row" style="gap: var(--space-4)"><span class="sk sk--time"></span><span class="sk sk--name" style="width: 72%"></span><span class="sk sk--chip"></span></div>
+              <div class="row" style="gap: var(--space-4)"><span class="sk sk--time"></span><span class="sk sk--name" style="width: 40%"></span><span class="sk sk--chip"></span></div>
+            </div>
+          </div>
+          <p class="sr-only">Cargando los turnos del día.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= USO ================= -->
+    <section class="block" aria-labelledby="uso">
+      <div class="block__head">
+        <h2 id="uso">Cómo se consume</h2>
+        <p>La fundación es portable: no depende de un framework de CSS ni de una cuenta externa.</p>
+      </div>
+      <div class="panel">
+        <div class="stack stack--tight" style="font-size: var(--text-sm)">
+          <p style="margin:0"><code>tokens.css</code> — importar una vez en el punto de entrada del frontend (o copiar sus variables a un archivo de tema). Es la fuente de verdad de color, tipografía, espaciado, radios, sombras, foco y motion.</p>
+          <p style="margin:0"><code>brand.js</code> — completa todo <code>[data-brand-name]</code>. Cambiar el nombre del producto es editar una constante.</p>
+          <p style="margin:0"><code>assets/logo.svg</code> — ruta estable del logo. Hoy es un placeholder con la leyenda PROV.</p>
+          <p style="margin:0"><code>components.html</code> — este archivo: referencia visual y de estados, no se compila ni se publica.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap site-foot__inner">
+    <p style="margin:0"><b>Fundación visual</b> · Modo system-only · Revisión 1 · Aprobación pendiente</p>
+    <p style="margin:0">Proyecto turnos-odontologia · es-AR · Datos de ejemplo ficticios · Sin fuentes remotas ni dependencias externas</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -8,3 +8,6 @@ venv/
 dist/
 node_modules/
 .env
+
+# Estado de fundación: el backup local del JSON no se versiona
+.active-orchestrator-state.json.bak

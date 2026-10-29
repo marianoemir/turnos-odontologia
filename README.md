@@ -12,13 +12,6 @@ Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundati
 
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
 
-[![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
-
-[![Video de defensa](https://img.youtube.com/vi/0sj4smXVclY/hqdefault.jpg)](https://youtu.be/0sj4smXVclY)
-
-## 🎥 [Ver el video de defensa → https://youtu.be/0sj4smXVclY](https://youtu.be/0sj4smXVclY)
-
-
 ## Requisitos
 
 - **Git**.
@@ -189,6 +182,8 @@ El solape se rechaza en dos niveles: el servicio valida primero y devuelve el `4
 ## Variables de entorno
 
 Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola.
+
+> **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. El servicio se incorpora con el primer change que la use (`C-07 recordatorios-confirmacion`); hasta entonces `REDIS_URL` es solo una variable reservada y no hace falta tener Redis corriendo.
 
 ## Estructura del repositorio
 

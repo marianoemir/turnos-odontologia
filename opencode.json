@@ -1,0 +1,45 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "command": {
+    "active-orchestrator:init": {
+      "description": "Active Orchestrator — flujo completo de fundación (openspec init → discovery? → KB → roadmap → skills → reglas)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `init` de la skill `active-orchestrator`.\n\nPasos:\n1. Cargá la skill con la tool `skill` (id: `active-orchestrator`).\n2. Leé `.active-orchestrator-state.json` para saber en qué `step` está el proyecto y retomá desde ahí (es idempotente: no re-corre fases ya completas).\n3. Seguí la skill al pie de la letra: Step 0 (detección de entrypoint) → Step 1 → fases en el orden de §4.2, con checkpoint en cada frontera de fase.\n4. Nunca reimplementes la lógica de una fase: despachá a su sub-skill (discovery-research, kb-creator, roadmap-generator, find-skill, skill-registry, agent-instruction).\n\nEntrypoint invocado: `/active-orchestrator:init`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:discovery": {
+      "description": "Active Orchestrator — solo Discovery/Investigación (standalone)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `discovery` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá directamente `discovery-research` (standalone, sin phase-selection). Al terminar, persistí el resultado en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:discovery`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:kb": {
+      "description": "Active Orchestrator — solo Knowledge Base (kb-creator)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `kb` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá directamente `kb-creator` (solo la fase de KB). Al terminar, persistí el resultado en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:kb`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:rules": {
+      "description": "Active Orchestrator — solo reglas del proyecto (agent-instruction → AGENTS.md/CLAUDE.md)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `rules` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá directamente `agent-instruction` (re-generación de AGENTS.md/CLAUDE.md). Al terminar, persistí el resultado en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:rules`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:openspec": {
+      "description": "Active Orchestrator — solo openspec init",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `openspec` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y corré únicamente el Step 1 (`openspec init`), sin avanzar a las demás fases. Al terminar, persistí el `step` en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:openspec`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:devops": {
+      "description": "Active Orchestrator — solo scaffold de DevOps (devops-scaffolder, opcional)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `devops` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá `devops-scaffolder` (fase opcional, full mode). Si la sub-skill no está instalada, degradá con gracia y avisá al usuario cómo instalarla.\n\nEntrypoint invocado: `/active-orchestrator:devops`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:find-skill": {
+      "description": "Active Orchestrator — solo descubrimiento de skills (find-skill)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `find-skill` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá directamente `find-skill`. Al terminar, persistí el resultado en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:find-skill`.\n\nArgumentos del usuario: $ARGUMENTS"
+    },
+    "active-orchestrator:registry": {
+      "description": "Active Orchestrator — reconstruir .atl/skill-registry.md (skill-registry)",
+      "agent": "sdd-orchestrator",
+      "template": "Ejecutá el entrypoint `registry` de la skill `active-orchestrator`.\n\nCargá la skill con la tool `skill` (id: `active-orchestrator`) y despachá directamente `skill-registry` para reconstruir `.atl/skill-registry.md`. Al terminar, persistí el resultado en `.active-orchestrator-state.json`.\n\nEntrypoint invocado: `/active-orchestrator:registry`.\n\nArgumentos del usuario: $ARGUMENTS"
+    }
+  }
+}
