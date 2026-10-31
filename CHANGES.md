@@ -246,12 +246,14 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-04] `cancelar-reprogramar`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[ ]` pendiente (`openspec/changes/c-04-cancelar-reprogramar`)
 - **Scope**: US-002 — libera y reutiliza horario (RN-TU-01/02, RN-ES-01)
-  - `POST /turnos/{id}/cancelar`: pendiente/confirmado → cancelado; 409 si atendido/ausente/cancelado
-  - `POST /turnos/{id}/reprogramar`: valida nuevo inicio igual que crear; si falla conserva original intacto (RN-TU-02)
-  - Cancelado/ausente excluidos de solape (verificar con test: hueco reutilizable tras cancelar)
-  - Tests: cancelar libera (crear mismo slot ok), reprogramar ok, reprogramar con conflicto 409 + original intacto, transición inválida 409
+  - `POST /turnos/{id}/cancelar`: pendiente/confirmado → cancelado (200); 409 si atendido/ausente/cancelado; 404 si el turno no existe. Cancelar es cambio de estado, nunca hard delete
+  - `POST /turnos/{id}/reprogramar`: cambia **solo** `inicio` y recalcula `fin = inicio + duracion_min`; valida igual que crear (horario/bloqueo/solape) excluyendo el propio turno (`ServicioTurnos.validar(..., excluir_turno_id=...)`); si falla conserva original intacto (RN-TU-02); 409 también en estado final
+  - Red defensiva: violación de `ex_turnos_profesional_sin_solape` / `ex_turnos_sillon_sin_solape` (SQLSTATE `23P01`) mapeada a 409, nunca 500
+  - Cancelado/ausente excluidos de solape por las `EXCLUDE`/índices parciales de la 002 (test: hueco reutilizable tras cancelar, mismo `[inicio,fin)`)
+  - Sin migración Alembic (el esquema de 002 ya soporta todo)
+  - Tests: cancelar libera (crear mismo slot ok), reprogramar ok, reprogramar con conflicto 409 + original intacto, borde `inicio==fin` aceptado / intervalo idéntico 409, transición inválida 409, `23P01`→409
 - **Dependencias**: C-03
 - **Governance**: MEDIO
 - **Leer antes**:
