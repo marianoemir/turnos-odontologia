@@ -212,6 +212,106 @@ Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni sec
 
 > **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. El servicio se incorpora con el primer change que la use (`C-07 recordatorios-confirmacion`); hasta entonces `REDIS_URL` es solo una variable reservada y no hace falta tener Redis corriendo.
 
+## Integración MCP: Postgres MCP Pro
+
+El agente (OpenCode) consulta el esquema real de la base de turnos mediante el MCP **Postgres MCP Pro** (`crystaldba/postgres-mcp`), en modo `restricted` (solo lectura). Es una **integración**, no una skill. Todos los datos son ficticios.
+
+### Para qué sirve y límites
+
+- **Para qué:** ver tablas, columnas, restricciones e índices reales antes de diseñar un change (por ejemplo C-04 `cancelar-reprogramar`).
+- **Herramientas que usamos en OpenCode:** `postgres_list_objects`, `postgres_get_object_details`, `postgres_execute_sql`.
+- **Regla para el agente:** toda consulta a la base va **solo por el MCP**. Está prohibido usar `docker compose exec` o `psql`. Si el MCP rechaza una consulta, se informa y no se busca un atajo.
+- **Límites:** `restricted` valida el SQL y limita el tiempo, pero **no es un sandbox**. `postgres_get_object_details` puede devolver `constraints` vacío; en ese caso se consulta `pg_constraint` con `postgres_execute_sql`.
+
+### Requisitos
+
+- Docker Desktop abierto.
+- OpenCode (probado con 1.19.0) abierto en la **raíz del repo**.
+- La base del proyecto levantada: `docker compose up -d postgres`.
+
+### Variable de entorno
+
+| Variable | Qué es | Dónde va |
+|---|---|---|
+| `POSTGRES_PORT` | Puerto del host para Postgres (por defecto 5432) | `.env` local (ignorado por git) |
+| `DATABASE_URI` | URI que usa el MCP para conectarse | Variable de entorno de usuario. **Nunca** en archivos del repo |
+
+Formato de `DATABASE_URI` (la clave es la ficticia del proyecto):
+
+```
+postgresql://odontologia:<clave-ficticia>@host.docker.internal:5433/turnos
+```
+
+En PowerShell, guardarla de forma persistente y **reabrir** la consola y la app de OpenCode (solo la ven los procesos abiertos después):
+
+```powershell
+setx DATABASE_URI "postgresql://odontologia:<clave-ficticia>@host.docker.internal:5433/turnos"
+```
+
+### Configuración (sin secretos)
+
+Bloque en `opencode.json`:
+
+```json
+"mcp": {
+  "postgres": {
+    "type": "local",
+    "command": ["docker", "run", "-i", "--rm", "-e", "DATABASE_URI",
+                "crystaldba/postgres-mcp", "--access-mode=restricted"],
+    "environment": { "DATABASE_URI": "{env:DATABASE_URI}" },
+    "enabled": true
+  }
+}
+```
+
+La URI se toma de la variable de entorno. Los otros MCP que muestra `opencode mcp list` (`context7`, `engram`, `playwright`, `mermaid`) vienen de la configuración global de OpenCode y no se tocan.
+
+### Pasos
+
+1. Levantar la base y verificar el puerto:
+   ```powershell
+   docker compose up -d postgres
+   docker compose ps
+   ```
+   Esperado: `0.0.0.0:5433->5432` y estado `healthy`.
+2. Descargar la imagen del MCP:
+   ```powershell
+   docker pull crystaldba/postgres-mcp
+   ```
+3. Definir `DATABASE_URI` (ver arriba) y reabrir consola y app.
+4. Comprobar que la variable existe, sin imprimir su valor:
+   ```powershell
+   if ($env:DATABASE_URI) {"definida"} else {"vacia"}
+   ```
+
+### Comprobación
+
+```powershell
+opencode mcp list
+```
+
+Esperado: `postgres connected`. Después, en una sesión nueva del agente, pedir:
+
+```
+Usando ÚNICAMENTE postgres_execute_sql, ejecutá: SELECT count(*) FROM public.pacientes; Mostrame el resultado tal cual.
+```
+
+Esperado: un número (con el seed ficticio, 3). Si el agente dice que no existen las herramientas `postgres_*`, cerrar la app por completo y reabrirla.
+
+### Problema de instalación resuelto: puerto 5432 ocupado
+
+- **Síntoma:** al conectar, `autentificación password falló` aunque la clave era correcta.
+- **Causa:** otro proceso local ya ocupaba el puerto 5432 del host (probablemente un PostgreSQL de Windows; no se identificó), así que la conexión no llegaba al contenedor del proyecto.
+- **Solución:** el puerto del host es configurable en `docker-compose.yml` con `${POSTGRES_PORT:-5432}`. En el `.env` local se fija `POSTGRES_PORT=5433` y la `DATABASE_URI` apunta a `5433`. Se verifica con `docker compose ps`.
+
+Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connection closed` suele indicar Docker o la base apagados, o `DATABASE_URI` ausente (**causa no verificada**); y contenedores huérfanos de `crystaldba/postgres-mcp` que se limpian con `docker rm -f <id>` (sin tocar `turnos-odontologia-postgres-1`).
+
+### Seguridad
+
+- No commitear credenciales ni capturas donde se vea la URI.
+- Hay una vulnerabilidad registrada (CVE-2026-85620) sobre la versión 0.3.0 que permitía saltear el modo restringido. No pudimos confirmar la versión de nuestra imagen; por eso se usa solo con datos ficticios en una base local. Recomendación de los autores: usar un usuario de base de solo lectura (pendiente de decidir en este proyecto).
+
+
 ## Estructura del repositorio
 
 - `backend/app/turnos/` — dominio de turnos: modelo, servicio y `POST /turnos` (C-03).
