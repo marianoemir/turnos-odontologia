@@ -98,3 +98,19 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (
 ```
 
 Aplicar TODAS las reglas duras en cada paso. Ante conflicto entre la KB y este archivo, las reglas duras prevalecen.
+
+## Integración MCP: postgres (Postgres MCP Pro)
+
+- **Propósito:** inspeccionar el esquema real de la base local de turnos
+  (datos ficticios) al preparar changes, en vez de suponer constraints.
+- **Herramientas verificadas:** `postgres_list_objects`,
+  `postgres_get_object_details`, `postgres_execute_sql`.
+- **Cuándo usarlo:** al explorar o escribir `design.md` y specs de un change
+  que toque tablas, antes de asumir restricciones o índices.
+- **Límites de acceso:** modo `restricted` (solo lectura). Toda consulta a la
+  base se hace únicamente con el MCP `postgres`. Está prohibido usar la
+  terminal (`docker compose exec`, `psql` u otra vía) para consultar o
+  modificar datos. Si el MCP rechaza una operación, informarlo tal cual y no
+  buscar un atajo.
+- **Requisito:** variable de entorno `DATABASE_URI` (nunca se guarda en el
+  repositorio).
