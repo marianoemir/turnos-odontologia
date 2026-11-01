@@ -11,6 +11,8 @@ import uuid
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
+
 from backend.app.agenda.models import (
     Bloqueo,
     HorarioAtencion,
@@ -87,6 +89,67 @@ class ServicioTurnos:
         return turno
 
     @staticmethod
+    def cancelar(session, turno_id: uuid.UUID) -> Turno:
+        turno = session.get(Turno, turno_id)
+        if turno is None:
+            raise TurnoNoEncontrado("turno", turno_id)
+        if turno.estado in ("atendido", "ausente", "cancelado"):
+            raise ConflictoTurno(
+                "transicion",
+                f"un turno {turno.estado} no se puede cancelar",
+            )
+        turno.estado = "cancelado"
+        session.flush()
+        return turno
+
+    @staticmethod
+    def reprogramar(
+        session, turno_id: uuid.UUID, *, inicio: datetime
+    ) -> Turno:
+        turno = session.get(Turno, turno_id)
+        if turno is None:
+            raise TurnoNoEncontrado("turno", turno_id)
+        if turno.estado in ("atendido", "ausente", "cancelado"):
+            raise ConflictoTurno(
+                "transicion",
+                f"un turno {turno.estado} no se puede reprogramar",
+            )
+        fin = ServicioTurnos.validar(
+            session,
+            paciente_id=turno.paciente_id,
+            profesional_id=turno.profesional_id,
+            sillon_id=turno.sillon_id,
+            prestacion_id=turno.prestacion_id,
+            inicio=inicio,
+            excluir_turno_id=turno.id,
+        )
+        try:
+            with session.begin_nested():
+                turno.inicio = inicio
+                turno.fin = fin
+        except IntegrityError as exc:
+            raise ServicioTurnos._traducir_integridad(exc) from exc
+        return turno
+
+    @staticmethod
+    def _traducir_integridad(exc) -> ConflictoTurno:
+        orig = exc.orig
+        if getattr(orig, "sqlstate", None) != "23P01":
+            raise exc
+        constraint = orig.diag.constraint_name
+        if constraint == "ex_turnos_profesional_sin_solape":
+            return ConflictoTurno(
+                "profesional",
+                "el profesional ya tiene un turno activo en ese intervalo",
+            )
+        if constraint == "ex_turnos_sillon_sin_solape":
+            return ConflictoTurno(
+                "sillon",
+                "el sillon ya tiene un turno activo en ese intervalo",
+            )
+        raise exc
+
+    @staticmethod
     def validar(
         session,
         *,
@@ -95,6 +158,7 @@ class ServicioTurnos:
         sillon_id: uuid.UUID,
         prestacion_id: uuid.UUID,
         inicio: datetime,
+        excluir_turno_id: uuid.UUID | None = None,
     ) -> datetime:
         if inicio.tzinfo is None or inicio.tzinfo.utcoffset(inicio) is None:
             raise TurnoInvalido("inicio debe tener zona horaria")
@@ -128,32 +192,34 @@ class ServicioTurnos:
                 "bloqueo",
                 f"bloqueo aplicable: {bloqueo.motivo}",
             )
-        solape_prof = (
-            session.query(Turno)
-            .filter(
-                Turno.profesional_id == profesional_id,
-                Turno.estado.in_(ESTADOS_ACTIVOS),
-                Turno.inicio < fin,
-                Turno.fin > inicio,
-            )
-            .first()
+        solape_prof_q = session.query(Turno).filter(
+            Turno.profesional_id == profesional_id,
+            Turno.estado.in_(ESTADOS_ACTIVOS),
+            Turno.inicio < fin,
+            Turno.fin > inicio,
         )
+        if excluir_turno_id is not None:
+            solape_prof_q = solape_prof_q.filter(
+                Turno.id != excluir_turno_id
+            )
+        solape_prof = solape_prof_q.first()
         if solape_prof is not None:
             raise ConflictoTurno(
                 "profesional",
                 "el profesional ya tiene un turno activo que "
                 f"intersecta [{inicio}, {fin})",
             )
-        solape_sillon = (
-            session.query(Turno)
-            .filter(
-                Turno.sillon_id == sillon_id,
-                Turno.estado.in_(ESTADOS_ACTIVOS),
-                Turno.inicio < fin,
-                Turno.fin > inicio,
-            )
-            .first()
+        solape_sillon_q = session.query(Turno).filter(
+            Turno.sillon_id == sillon_id,
+            Turno.estado.in_(ESTADOS_ACTIVOS),
+            Turno.inicio < fin,
+            Turno.fin > inicio,
         )
+        if excluir_turno_id is not None:
+            solape_sillon_q = solape_sillon_q.filter(
+                Turno.id != excluir_turno_id
+            )
+        solape_sillon = solape_sillon_q.first()
         if solape_sillon is not None:
             raise ConflictoTurno(
                 "sillon",

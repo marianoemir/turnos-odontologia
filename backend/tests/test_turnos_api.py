@@ -202,3 +202,168 @@ def test_health_sigue_sin_db(client):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def _dt(texto):
+    from datetime import datetime
+
+    return datetime.fromisoformat(texto)
+
+
+def _turno_en_estado(client, db_session, ids, estado):
+    """Crea un turno por API y lo deja en `estado` por DB directa."""
+    import uuid
+
+    turno_id = uuid.UUID(client.post("/turnos", json=_body(ids)).json()["id"])
+    db_session.query(Turno).filter_by(id=turno_id).update({"estado": estado})
+    db_session.flush()
+    return turno_id
+
+
+def test_cancelar_da_200_y_libera_slot(client, ids):
+    creado = client.post("/turnos", json=_body(ids))
+    assert creado.status_code == 201
+
+    r = client.post(f"/turnos/{creado.json()['id']}/cancelar")
+
+    assert r.status_code == 200
+    assert r.json()["estado"] == "cancelado"
+    segundo = client.post("/turnos", json=_body(ids))
+    assert segundo.status_code == 201
+
+
+def test_cancelar_confirmado_da_200(client, db_session, ids):
+    turno_id = _turno_en_estado(client, db_session, ids, "confirmado")
+
+    r = client.post(f"/turnos/{turno_id}/cancelar")
+
+    assert r.status_code == 200
+    assert r.json()["estado"] == "cancelado"
+
+
+def test_cancelar_atendido_da_409(client, db_session, ids):
+    turno_id = _turno_en_estado(client, db_session, ids, "atendido")
+
+    r = client.post(f"/turnos/{turno_id}/cancelar")
+
+    assert r.status_code == 409
+    assert r.json()["detail"]["causa"] == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno_id).estado == "atendido"
+
+
+def test_cancelar_inexistente_da_404(client, ids):
+    import uuid
+
+    r = client.post(f"/turnos/{uuid.uuid4()}/cancelar")
+
+    assert r.status_code == 404
+    assert r.json()["detail"].startswith("turno no existe")
+
+
+def test_reprogramar_da_200_fin_recalculado(client, ids):
+    turno_id = client.post("/turnos", json=_body(ids)).json()["id"]
+
+    r = client.post(
+        f"/turnos/{turno_id}/reprogramar",
+        json={"inicio": "2026-10-12T11:00:00-03:00"},
+    )
+
+    assert r.status_code == 200
+    assert _dt(r.json()["inicio"]) == _dt("2026-10-12T11:00:00-03:00")
+    assert _dt(r.json()["fin"]) == _dt("2026-10-12T11:30:00-03:00")
+    assert r.json()["estado"] == "pendiente"
+
+
+def test_reprogramar_solape_da_409_original_intacto(client, db_session, ids):
+    import uuid
+
+    a = client.post("/turnos", json=_body(ids)).json()["id"]
+    b = client.post(
+        "/turnos",
+        json=_body(
+            ids,
+            inicio="2026-10-12T11:00:00-03:00",
+            sillon_id=str(ids["sillon2"]),
+        ),
+    )
+    assert b.status_code == 201
+
+    r = client.post(
+        f"/turnos/{a}/reprogramar",
+        json={"inicio": "2026-10-12T11:15:00-03:00"},
+    )
+
+    assert r.status_code == 409
+    assert r.json()["detail"]["causa"] == "profesional"
+    assert r.json()["detail"]["detalle"]
+    db_session.expire_all()
+    assert db_session.get(Turno, uuid.UUID(a)).inicio == _dt(LUNES_10)
+
+
+def test_reprogramar_sin_inicio_da_422(client, db_session, ids):
+    import uuid
+
+    a = client.post("/turnos", json=_body(ids)).json()["id"]
+
+    r = client.post(f"/turnos/{a}/reprogramar", json={})
+
+    assert r.status_code == 422
+    db_session.expire_all()
+    assert db_session.get(Turno, uuid.UUID(a)).inicio == _dt(LUNES_10)
+
+
+def test_reprogramar_inicio_naive_da_422(client, db_session, ids):
+    import uuid
+
+    a = client.post("/turnos", json=_body(ids)).json()["id"]
+
+    r = client.post(
+        f"/turnos/{a}/reprogramar", json={"inicio": "2026-10-12T11:00:00"}
+    )
+
+    assert r.status_code == 422
+    db_session.expire_all()
+    assert db_session.get(Turno, uuid.UUID(a)).inicio == _dt(LUNES_10)
+
+
+def test_reprogramar_23p01_da_409_no_500(
+    client, db_session, ids, monkeypatch
+):
+    import uuid
+    from datetime import timedelta
+
+    from backend.app.turnos.service import ServicioTurnos
+
+    a = client.post("/turnos", json=_body(ids)).json()["id"]
+    b = client.post(
+        "/turnos",
+        json=_body(
+            ids,
+            inicio="2026-10-12T11:00:00-03:00",
+            sillon_id=str(ids["sillon2"]),
+        ),
+    )
+    assert b.status_code == 201
+
+    def _validar_sin_solape(session, *, prestacion_id, inicio, **_):
+        prestacion = session.get(Prestacion, prestacion_id)
+        return inicio + timedelta(minutes=prestacion.duracion_min)
+
+    monkeypatch.setattr(
+        ServicioTurnos, "validar", staticmethod(_validar_sin_solape)
+    )
+
+    r = client.post(
+        f"/turnos/{a}/reprogramar",
+        json={"inicio": "2026-10-12T11:15:00-03:00"},
+    )
+
+    assert r.status_code == 409
+    assert r.json()["detail"]["causa"] == "profesional"
+    db_session.expire_all()
+    turno = db_session.get(Turno, uuid.UUID(a))
+    assert (turno.inicio, turno.fin) == (
+        _dt(LUNES_10),
+        _dt(LUNES_10) + timedelta(minutes=30),
+    )

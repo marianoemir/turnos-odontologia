@@ -78,6 +78,71 @@ def _crear(db_session, ids, inicio=LUNES_10, **mas):
     return ServicioTurnos.crear(db_session, **kwargs)
 
 
+def _insertar_turno(
+    db_session,
+    ids,
+    *,
+    estado,
+    inicio,
+    fin,
+    profesional_id=None,
+    sillon_id=None,
+):
+    """Inserta un turno en un estado arbitrario sin pasar por el servicio."""
+    from sqlalchemy import text as _text
+
+    nuevo_id = db_session.execute(
+        _text(
+            "INSERT INTO turnos (id, paciente_id, profesional_id, "
+            "sillon_id, prestacion_id, inicio, fin, estado) "
+            "VALUES (gen_random_uuid(), :pac, :prof, :sil, :pres, "
+            ":inicio, :fin, :estado) RETURNING id"
+        ),
+        {
+            "pac": ids["paciente"],
+            "prof": profesional_id or ids["profesional"],
+            "sil": sillon_id or ids["sillon"],
+            "pres": ids["consulta30"],
+            "inicio": inicio,
+            "fin": fin,
+            "estado": estado,
+        },
+    ).scalar_one()
+    db_session.flush()
+    return db_session.get(Turno, nuevo_id)
+
+
+def test_helper_inserta_estado_confirmado(db_session):
+    """RED de la task 1.2: el helper aun no existe."""
+    ids = _ids(db_session)
+
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="confirmado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    assert turno.estado == "confirmado"
+
+
+def test_helper_inserta_estado_atendido(db_session):
+    """TRIANGULATE de la task 1.2: acepta estados distintos."""
+    ids = _ids(db_session)
+
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="atendido",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    assert turno.estado == "atendido"
+    assert db_session.query(Turno).count() == 1
+
+
 def test_fin_igual_inicio_mas_duracion(db_session):
     ids = _ids(db_session)
 
@@ -396,3 +461,383 @@ def test_409_no_crea_nada(db_session):
         with pytest.raises(ConflictoTurno):
             _crear(db_session, ids, **caso)
         assert db_session.query(Turno).count() == 1
+
+
+def test_validar_sin_excluir_se_auto_colisiona(db_session):
+    """Caracteriza el bug que motiva excluir_turno_id.
+
+    Sin excluir el turno editado, validar choca contra el mismo turno.
+    """
+    ids = _ids(db_session)
+    _crear(db_session, ids)  # 10:00-10:30
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.validar(
+            db_session,
+            paciente_id=ids["paciente"],
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+            prestacion_id=ids["consulta30"],
+            inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+        )
+
+    assert exc.value.causa == "profesional"
+
+
+def test_validar_excluye_el_turno_editado(db_session):
+    """RED/GREEN de la task 2.2: excluir el propio turno por id."""
+    import inspect
+
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)  # 10:00-10:30
+
+    fin = ServicioTurnos.validar(
+        db_session,
+        paciente_id=ids["paciente"],
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+        prestacion_id=ids["consulta30"],
+        inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+        excluir_turno_id=turno.id,
+    )
+
+    assert fin == datetime(2026, 10, 12, 10, 45, tzinfo=TZ)
+    assert "excluir_turno_id" in inspect.signature(
+        ServicioTurnos.validar
+    ).parameters
+
+    # TRIANGULATE: excluir un id ajeno no evita el solape real.
+    import uuid as _uuid
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.validar(
+            db_session,
+            paciente_id=ids["paciente"],
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+            prestacion_id=ids["consulta30"],
+            inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+            excluir_turno_id=_uuid.uuid4(),
+        )
+
+    assert exc.value.causa == "profesional"
+
+
+def test_cancelar_pendiente_da_cancelado_y_conserva_intervalo(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    fin_original = turno.fin
+
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    turno = db_session.get(Turno, turno.id)
+    assert turno.estado == "cancelado"
+    assert turno.inicio == LUNES_10
+    assert turno.fin == fin_original
+    assert db_session.query(Turno).count() == 1
+
+
+def test_cancelar_confirmado_ok(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="confirmado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert db_session.get(Turno, turno.id).estado == "cancelado"
+
+
+def test_cancelar_atendido_da_409(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="atendido",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno.id).estado == "atendido"
+
+
+def test_cancelar_cancelado_da_409(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="cancelado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno.id).estado == "cancelado"
+
+
+def test_cancelar_turno_inexistente_da_404(db_session):
+    import uuid
+
+    inexistente = uuid.uuid4()
+
+    with pytest.raises(TurnoNoEncontrado) as exc:
+        ServicioTurnos.cancelar(db_session, inexistente)
+
+    assert exc.value.recurso == "turno"
+    assert exc.value.ref_id == inexistente
+    assert db_session.query(Turno).count() == 0
+
+
+def test_cancelar_libera_el_slot_da_201(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    nuevo = _crear(db_session, ids)
+
+    assert nuevo.estado == "pendiente"
+    assert nuevo.id != turno.id
+    assert db_session.query(Turno).count() == 2
+
+
+def test_reprogramar_recalcula_fin_y_conserva_el_resto(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    nuevo_inicio = datetime(2026, 10, 12, 11, 0, tzinfo=TZ)
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, turno.id, inicio=nuevo_inicio
+    )
+
+    assert resultado.id == turno.id
+    assert resultado.inicio == nuevo_inicio
+    assert resultado.fin == datetime(2026, 10, 12, 11, 30, tzinfo=TZ)
+    assert resultado.paciente_id == ids["paciente"]
+    assert resultado.profesional_id == ids["profesional"]
+    assert resultado.sillon_id == ids["sillon"]
+    assert resultado.prestacion_id == ids["consulta30"]
+    assert resultado.estado == "pendiente"
+
+
+def test_reprogramar_libera_el_inicio_original(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    ServicioTurnos.reprogramar(
+        db_session,
+        turno.id,
+        inicio=datetime(2026, 10, 12, 11, 0, tzinfo=TZ),
+    )
+
+    nuevo = _crear(db_session, ids)
+
+    assert nuevo.inicio == LUNES_10
+    assert db_session.query(Turno).count() == 2
+
+
+@pytest.mark.parametrize("estado", ["cancelado", "atendido", "ausente"])
+def test_reprogramar_estado_final_da_409(db_session, estado):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado=estado,
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(
+            db_session,
+            turno.id,
+            inicio=datetime(2026, 10, 12, 11, 0, tzinfo=TZ),
+        )
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    recargado = db_session.get(Turno, turno.id)
+    assert recargado.estado == estado
+    assert recargado.inicio == LUNES_10
+
+
+def test_reprogramar_turno_inexistente_da_404(db_session):
+    import uuid
+
+    with pytest.raises(TurnoNoEncontrado) as exc:
+        ServicioTurnos.reprogramar(db_session, uuid.uuid4(), inicio=LUNES_10)
+
+    assert exc.value.recurso == "turno"
+    assert db_session.query(Turno).count() == 0
+
+
+def _lunes(hora, minuto=0):
+    return datetime(2026, 10, 12, hora, minuto, tzinfo=TZ)
+
+
+def test_reprogramar_solape_profesional_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11), sillon_id=ids["sillon2"])
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11, 15))
+
+    assert exc.value.causa == "profesional"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_solape_sillon_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(
+        db_session,
+        ids,
+        inicio=_lunes(11),
+        profesional_id=ids["profesional2"],
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11, 15))
+
+    assert exc.value.causa == "sillon"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_adyacencia_inicio_igual_fin_ok(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11))
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, a.id, inicio=_lunes(11, 30)
+    )
+
+    assert resultado.inicio == _lunes(11, 30)
+    assert resultado.fin == _lunes(12)
+
+
+def test_reprogramar_intervalo_identico_da_409(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11))
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11))
+
+    assert exc.value.causa == "profesional"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_fuera_de_horario_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    sabado = datetime(2026, 10, 17, 10, 0, tzinfo=TZ)
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=sabado)
+
+    assert exc.value.causa == "horario"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_sobre_bloqueo_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    navidad = datetime(2026, 12, 25, 10, 0, tzinfo=TZ)
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=navidad)
+
+    assert exc.value.causa == "bloqueo"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_solapando_su_propio_intervalo_ok(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, a.id, inicio=_lunes(10, 15)
+    )
+
+    assert resultado.inicio == _lunes(10, 15)
+    assert resultado.fin == _lunes(10, 45)
+
+
+def _provocar_integrity_error(db_session, turno_id, inicio, fin):
+    """UPDATE directo en un savepoint; devuelve el IntegrityError real."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError) as exc, db_session.begin_nested():
+        db_session.execute(
+            text("UPDATE turnos SET inicio = :i, fin = :f WHERE id = :id"),
+            {"i": inicio, "f": fin, "id": turno_id},
+        )
+    return exc.value
+
+
+def test_traducir_23p01_profesional_a_conflicto(db_session):
+    ids = _ids(db_session)
+    _crear(db_session, ids)
+    b = _crear(db_session, ids, inicio=_lunes(11), sillon_id=ids["sillon2"])
+
+    error = _provocar_integrity_error(
+        db_session, b.id, _lunes(10, 15), _lunes(10, 45)
+    )
+
+    assert error.orig.sqlstate == "23P01"
+    assert error.orig.diag.constraint_name == "ex_turnos_profesional_sin_solape"
+    traducida = ServicioTurnos._traducir_integridad(error)
+    assert traducida.causa == "profesional"
+    assert db_session.query(Turno).count() == 2
+
+
+def test_traducir_23p01_sillon_a_conflicto(db_session):
+    ids = _ids(db_session)
+    _crear(db_session, ids)
+    b = _crear(
+        db_session,
+        ids,
+        inicio=_lunes(11),
+        profesional_id=ids["profesional2"],
+    )
+
+    error = _provocar_integrity_error(
+        db_session, b.id, _lunes(10, 15), _lunes(10, 45)
+    )
+
+    assert error.orig.sqlstate == "23P01"
+    assert error.orig.diag.constraint_name == "ex_turnos_sillon_sin_solape"
+    traducida = ServicioTurnos._traducir_integridad(error)
+    assert traducida.causa == "sillon"
+
+
+def test_traducir_23514_no_se_convierte_en_409(db_session):
+    from sqlalchemy.exc import IntegrityError
+
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+
+    error = _provocar_integrity_error(db_session, a.id, _lunes(11), _lunes(11))
+
+    assert error.orig.sqlstate == "23514"
+    with pytest.raises(IntegrityError):
+        ServicioTurnos._traducir_integridad(error)

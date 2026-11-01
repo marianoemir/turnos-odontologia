@@ -32,3 +32,9 @@ class TurnoOut(BaseModel):
     fin: datetime
     estado: str
     creado_por: str | None = None
+
+
+class TurnoReprogramar(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    inicio: AwareDatetime
