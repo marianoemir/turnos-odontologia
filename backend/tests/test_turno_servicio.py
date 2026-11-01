@@ -521,3 +521,93 @@ def test_validar_excluye_el_turno_editado(db_session):
         )
 
     assert exc.value.causa == "profesional"
+
+
+def test_cancelar_pendiente_da_cancelado_y_conserva_intervalo(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    fin_original = turno.fin
+
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    turno = db_session.get(Turno, turno.id)
+    assert turno.estado == "cancelado"
+    assert turno.inicio == LUNES_10
+    assert turno.fin == fin_original
+    assert db_session.query(Turno).count() == 1
+
+
+def test_cancelar_confirmado_ok(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="confirmado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert db_session.get(Turno, turno.id).estado == "cancelado"
+
+
+def test_cancelar_atendido_da_409(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="atendido",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno.id).estado == "atendido"
+
+
+def test_cancelar_cancelado_da_409(db_session):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="cancelado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.cancelar(db_session, turno.id)
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno.id).estado == "cancelado"
+
+
+def test_cancelar_turno_inexistente_da_404(db_session):
+    import uuid
+
+    inexistente = uuid.uuid4()
+
+    with pytest.raises(TurnoNoEncontrado) as exc:
+        ServicioTurnos.cancelar(db_session, inexistente)
+
+    assert exc.value.recurso == "turno"
+    assert exc.value.ref_id == inexistente
+    assert db_session.query(Turno).count() == 0
+
+
+def test_cancelar_libera_el_slot_da_201(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    ServicioTurnos.cancelar(db_session, turno.id)
+
+    nuevo = _crear(db_session, ids)
+
+    assert nuevo.estado == "pendiente"
+    assert nuevo.id != turno.id
+    assert db_session.query(Turno).count() == 2

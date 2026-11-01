@@ -22,11 +22,11 @@
 
 ## 3. `ServicioTurnos.cancelar` (design.md D3/D5/D6)
 
-- [ ] 3.1 RED→GREEN: `test_cancelar_pendiente_da_cancelado_y_conserva_intervalo` — crea un turno 10:00–10:30, cancela, espera `estado == "cancelado"`, `inicio`/`fin` sin cambios y la fila sigue existiendo — **Verificación:** capa servicio; `assert turno.estado == "cancelado"`, `assert turno.inicio == LUNES_10`, `assert db_session.query(Turno).count() == 1`
-- [ ] 3.2 RED→GREEN: `test_cancelar_confirmado_ok` — turno insertado en `confirmado` por el helper de 1.2, cancelado → `cancelado` — **Verificación:** capa servicio; `assert turno.estado == "cancelado"` (turno `confirmado` creado por inserción directa, no por API)
-- [ ] 3.3 RED→GREEN: `test_cancelar_atendido_da_409` y `test_cancelar_cancelado_da_409` — `pytest.raises(ConflictoTurno)` y el estado en DB no cambia — **Verificación:** capa servicio; `assert exc.value.causa == "transicion"` + `assert db_session.get(Turno, id).estado == "atendido"` / `== "cancelado"`
-- [ ] 3.4 RED→GREEN: `test_cancelar_turno_inexistente_da_404` — `pytest.raises(TurnoNoEncontrado)` con `recurso == "turno"` y `ref_id == uuid4()` — **Verificación:** capa servicio; `assert db_session.query(Turno).count() == 0`
-- [ ] 3.5 RED→GREEN: `test_cancelar_libera_el_slot_da_201` (RN-TU-01, prueba de que las `EXCLUDE` parciales excluyen `cancelado`) — crea 10:00–10:30, cancela, vuelve a crear el **mismo** intervalo con `ServicioTurnos.crear` — **Verificación:** capa servicio; `assert nuevo.estado == "pendiente"` y `assert db_session.query(Turno).count() == 2` (una `cancelado` + una `pendiente`), sin `IntegrityError`
+- [x] 3.1 RED→GREEN: `test_cancelar_pendiente_da_cancelado_y_conserva_intervalo` — crea un turno 10:00–10:30, cancela, espera `estado == "cancelado"`, `inicio`/`fin` sin cambios y la fila sigue existiendo — **Verificación:** capa servicio; `assert turno.estado == "cancelado"`, `assert turno.inicio == LUNES_10`, `assert db_session.query(Turno).count() == 1`
+- [x] 3.2 RED→GREEN: `test_cancelar_confirmado_ok` — turno insertado en `confirmado` por el helper de 1.2, cancelado → `cancelado` — **Verificación:** capa servicio; `assert turno.estado == "cancelado"` (turno `confirmado` creado por inserción directa, no por API)
+- [x] 3.3 RED→GREEN: `test_cancelar_atendido_da_409` y `test_cancelar_cancelado_da_409` — `pytest.raises(ConflictoTurno)` y el estado en DB no cambia — **Verificación:** capa servicio; `assert exc.value.causa == "transicion"` + `assert db_session.get(Turno, id).estado == "atendido"` / `== "cancelado"`
+- [x] 3.4 RED→GREEN: `test_cancelar_turno_inexistente_da_404` — `pytest.raises(TurnoNoEncontrado)` con `recurso == "turno"` y `ref_id == uuid4()` — **Verificación:** capa servicio; `assert db_session.query(Turno).count() == 0`
+- [x] 3.5 RED→GREEN: `test_cancelar_libera_el_slot_da_201` (RN-TU-01, prueba de que las `EXCLUDE` parciales excluyen `cancelado`) — crea 10:00–10:30, cancela, vuelve a crear el **mismo** intervalo con `ServicioTurnos.crear` — **Verificación:** capa servicio; `assert nuevo.estado == "pendiente"` y `assert db_session.query(Turno).count() == 2` (una `cancelado` + una `pendiente`), sin `IntegrityError`
 
 ## 4. `ServicioTurnos.reprogramar` (design.md D2/D3)
 

@@ -87,6 +87,20 @@ class ServicioTurnos:
         return turno
 
     @staticmethod
+    def cancelar(session, turno_id: uuid.UUID) -> Turno:
+        turno = session.get(Turno, turno_id)
+        if turno is None:
+            raise TurnoNoEncontrado("turno", turno_id)
+        if turno.estado in ("atendido", "ausente", "cancelado"):
+            raise ConflictoTurno(
+                "transicion",
+                f"un turno {turno.estado} no se puede cancelar",
+            )
+        turno.estado = "cancelado"
+        session.flush()
+        return turno
+
+    @staticmethod
     def validar(
         session,
         *,
