@@ -21,8 +21,8 @@
 ## 2. Lectura básica (`design.md` D1, D3)
 
 - [x] 2.1 RED→GREEN `test_orden_por_inicio`: dos turnos del mismo profesional el 2026-01-12 (por ejemplo 10:00 y 14:00), insertados primero el de las 14:00 y después el de las 10:00; luego `GET /agenda?profesional=P&fecha=2026-01-12`. En GREEN se agregan a `backend/app/agenda/` (ya existe de C-02) `schemas.py` con `AgendaItemOut`, `service.py` con `ServicioAgenda.agenda_del_dia` y `router.py`, y se monta el router en `main.py` — **Verificación:** RED por `404` de ruta inexistente, no por error de import del test; GREEN con `assert r.status_code == 200` y `assert [i["id"] for i in r.json()] == [str(id_10h), str(id_14h)]`; mutación: quitar el `ORDER BY` debe hacer fallar el test
-- [ ] 2.2 RED→GREEN `test_campos_completos`: un turno con paciente, prestación y sillón conocidos — **Verificación:** `item = r.json()[0]`; `set(item) == {"id","inicio","fin","estado","paciente_nombre","prestacion_nombre","sillon_nombre"}` y los tres nombres coinciden con los de la base (no solo que las claves existan)
-- [ ] 2.3 RED→GREEN `test_dia_vacio`: profesional existente, fecha sin turnos — **Verificación:** `assert r.status_code == 200` y `assert r.json() == []`
+- [x] 2.2 RED→GREEN `test_campos_completos`: un turno con paciente, prestación y sillón conocidos — **Verificación:** `item = r.json()[0]`; `set(item) == {"id","inicio","fin","estado","paciente_nombre","prestacion_nombre","sillon_nombre"}` y los tres nombres coinciden con los de la base (no solo que las claves existan)
+- [x] 2.3 RED→GREEN `test_dia_vacio`: profesional existente, fecha sin turnos — **Verificación:** `assert r.status_code == 200` y `assert r.json() == []`
 
 ## 3. Filtros (`design.md` D1, D2)
 

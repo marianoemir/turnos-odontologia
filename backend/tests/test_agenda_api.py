@@ -119,3 +119,47 @@ def test_orden_por_inicio(client, db_session, ids):
 
     assert r.status_code == 200
     assert [i["id"] for i in r.json()] == [str(id_10h), str(id_14h)]
+
+
+def test_campos_completos(client, db_session, ids):
+    inicio = datetime(2026, 1, 12, 10, 0, tzinfo=BA)
+    id_turno = _insertar_turno(
+        db_session, ids, inicio=inicio, estado="confirmado"
+    )
+
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+    item = r.json()[0]
+    assert set(item) == {
+        "id",
+        "inicio",
+        "fin",
+        "estado",
+        "paciente_nombre",
+        "prestacion_nombre",
+        "sillon_nombre",
+    }
+    assert item["id"] == str(id_turno)
+    assert item["estado"] == "confirmado"
+    assert datetime.fromisoformat(item["inicio"]) == inicio
+    assert datetime.fromisoformat(item["fin"]) == inicio + timedelta(
+        minutes=30
+    )
+    paciente = db_session.get(Paciente, ids["paciente"])
+    assert item["paciente_nombre"] == paciente.nombre
+    assert item["prestacion_nombre"] == "Consulta"
+    assert item["sillon_nombre"] == "Sillon 1"
+
+
+def test_dia_vacio(client, db_session, ids):
+    # Hay un turno el dia 12; el dia 13 del mismo profesional esta vacio.
+    _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 12, 10, 0, tzinfo=BA)
+    )
+
+    r = _agenda(client, ids["profesional"], "2026-01-13")
+
+    assert r.status_code == 200
+    assert r.json() == []
