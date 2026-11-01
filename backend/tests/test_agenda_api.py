@@ -163,3 +163,19 @@ def test_dia_vacio(client, db_session, ids):
 
     assert r.status_code == 200
     assert r.json() == []
+
+def test_cancelado_no_aparece(client, db_session, ids):
+    id_pendiente = _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 12, 10, 0, tzinfo=BA)
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        inicio=datetime(2026, 1, 12, 11, 0, tzinfo=BA),
+        estado="cancelado",
+    )
+
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+
+    assert r.status_code == 200
+    assert [i["id"] for i in r.json()] == [str(id_pendiente)]

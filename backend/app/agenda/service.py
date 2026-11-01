@@ -38,6 +38,7 @@ class ServicioAgenda:
                 Turno.profesional_id == profesional_id,
                 Turno.inicio >= desde,
                 Turno.inicio < hasta,
+                cast(Turno.estado, String) != "cancelado",
             )
             .order_by(Turno.inicio)
         )
