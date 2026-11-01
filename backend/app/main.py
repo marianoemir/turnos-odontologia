@@ -2,10 +2,12 @@
 
 from fastapi import FastAPI
 
+from backend.app.agenda.router import router as agenda_router
 from backend.app.turnos.router import router as turnos_router
 
 app = FastAPI()
 app.include_router(turnos_router)
+app.include_router(agenda_router)
 
 
 @app.get("/health")

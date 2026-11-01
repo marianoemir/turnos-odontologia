@@ -47,7 +47,7 @@ openspec/changes/c-05-agenda-del-dia/
       spec.md
 
 backend/app/agenda/
-  __init__.py (nuevo, vacío)
+  __init__.py (existente, de C-02)
   router.py (GET /agenda)
   schemas.py (AgendaItemOut)
   service.py (ServicioAgenda, consulta SQL con filtro y orden)
