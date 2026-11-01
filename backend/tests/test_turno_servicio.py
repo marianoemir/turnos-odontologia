@@ -611,3 +611,72 @@ def test_cancelar_libera_el_slot_da_201(db_session):
     assert nuevo.estado == "pendiente"
     assert nuevo.id != turno.id
     assert db_session.query(Turno).count() == 2
+
+
+def test_reprogramar_recalcula_fin_y_conserva_el_resto(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    nuevo_inicio = datetime(2026, 10, 12, 11, 0, tzinfo=TZ)
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, turno.id, inicio=nuevo_inicio
+    )
+
+    assert resultado.id == turno.id
+    assert resultado.inicio == nuevo_inicio
+    assert resultado.fin == datetime(2026, 10, 12, 11, 30, tzinfo=TZ)
+    assert resultado.paciente_id == ids["paciente"]
+    assert resultado.profesional_id == ids["profesional"]
+    assert resultado.sillon_id == ids["sillon"]
+    assert resultado.prestacion_id == ids["consulta30"]
+    assert resultado.estado == "pendiente"
+
+
+def test_reprogramar_libera_el_inicio_original(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    ServicioTurnos.reprogramar(
+        db_session,
+        turno.id,
+        inicio=datetime(2026, 10, 12, 11, 0, tzinfo=TZ),
+    )
+
+    nuevo = _crear(db_session, ids)
+
+    assert nuevo.inicio == LUNES_10
+    assert db_session.query(Turno).count() == 2
+
+
+@pytest.mark.parametrize("estado", ["cancelado", "atendido", "ausente"])
+def test_reprogramar_estado_final_da_409(db_session, estado):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado=estado,
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(
+            db_session,
+            turno.id,
+            inicio=datetime(2026, 10, 12, 11, 0, tzinfo=TZ),
+        )
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    recargado = db_session.get(Turno, turno.id)
+    assert recargado.estado == estado
+    assert recargado.inicio == LUNES_10
+
+
+def test_reprogramar_turno_inexistente_da_404(db_session):
+    import uuid
+
+    with pytest.raises(TurnoNoEncontrado) as exc:
+        ServicioTurnos.reprogramar(db_session, uuid.uuid4(), inicio=LUNES_10)
+
+    assert exc.value.recurso == "turno"
+    assert db_session.query(Turno).count() == 0

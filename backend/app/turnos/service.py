@@ -101,6 +101,32 @@ class ServicioTurnos:
         return turno
 
     @staticmethod
+    def reprogramar(
+        session, turno_id: uuid.UUID, *, inicio: datetime
+    ) -> Turno:
+        turno = session.get(Turno, turno_id)
+        if turno is None:
+            raise TurnoNoEncontrado("turno", turno_id)
+        if turno.estado in ("atendido", "ausente", "cancelado"):
+            raise ConflictoTurno(
+                "transicion",
+                f"un turno {turno.estado} no se puede reprogramar",
+            )
+        fin = ServicioTurnos.validar(
+            session,
+            paciente_id=turno.paciente_id,
+            profesional_id=turno.profesional_id,
+            sillon_id=turno.sillon_id,
+            prestacion_id=turno.prestacion_id,
+            inicio=inicio,
+            excluir_turno_id=turno.id,
+        )
+        turno.inicio = inicio
+        turno.fin = fin
+        session.flush()
+        return turno
+
+    @staticmethod
     def validar(
         session,
         *,
