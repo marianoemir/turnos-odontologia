@@ -246,7 +246,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-04] `cancelar-reprogramar`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-01)
 - **Scope**: US-002 — libera y reutiliza horario (RN-TU-01/02, RN-ES-01)
   - `POST /turnos/{id}/cancelar`: pendiente/confirmado → cancelado; 409 si atendido/ausente/cancelado
   - `POST /turnos/{id}/reprogramar`: valida nuevo inicio igual que crear; si falla conserva original intacto (RN-TU-02)
