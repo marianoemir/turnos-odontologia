@@ -58,9 +58,9 @@
 
 ## 7. Integración
 
-- [ ] 7.1 Suite completa con PG real y 0 skips — **Verificación:** `CI=true pytest backend/tests -q` verde; el total debe ser **80 + los tests nuevos de C-04** (baseline medido: 80 passed), 0 skipped (fail-fast sin Postgres activo)
-- [ ] 7.2 Lint y contrato OpenSpec — **Verificación:** `ruff check backend/` verde y `openspec validate c-04-cancelar-reprogramar --strict` verde
-- [ ] 7.3 Sin migración ni cambios de esquema — **Verificación:** `git status backend/alembic/ backend/app/turnos/models.py backend/app/agenda/ backend/app/seed/` vacío
+- [x] 7.1 Suite completa con PG real y 0 skips — **Verificación:** `CI=true pytest backend/tests -q` verde; el total debe ser **80 + los tests nuevos de C-04** (baseline medido: 80 passed), 0 skipped (fail-fast sin Postgres activo)
+- [x] 7.2 Lint y contrato OpenSpec — **Verificación:** `ruff check backend/` verde y `openspec validate c-04-cancelar-reprogramar --strict` verde
+- [x] 7.3 Sin migración ni cambios de esquema — **Verificación:** `git status backend/alembic/ backend/app/turnos/models.py backend/app/agenda/ backend/app/seed/` vacío
 
 ## Matriz de trazabilidad escenario → verificación
 
