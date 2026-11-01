@@ -127,6 +127,24 @@ class ServicioTurnos:
         return turno
 
     @staticmethod
+    def _traducir_integridad(exc) -> ConflictoTurno:
+        orig = exc.orig
+        if getattr(orig, "sqlstate", None) != "23P01":
+            raise exc
+        constraint = orig.diag.constraint_name
+        if constraint == "ex_turnos_profesional_sin_solape":
+            return ConflictoTurno(
+                "profesional",
+                "el profesional ya tiene un turno activo en ese intervalo",
+            )
+        if constraint == "ex_turnos_sillon_sin_solape":
+            return ConflictoTurno(
+                "sillon",
+                "el sillon ya tiene un turno activo en ese intervalo",
+            )
+        raise exc
+
+    @staticmethod
     def validar(
         session,
         *,

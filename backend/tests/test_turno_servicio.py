@@ -779,3 +779,65 @@ def test_reprogramar_solapando_su_propio_intervalo_ok(db_session):
 
     assert resultado.inicio == _lunes(10, 15)
     assert resultado.fin == _lunes(10, 45)
+
+
+def _provocar_integrity_error(db_session, turno_id, inicio, fin):
+    """UPDATE directo en un savepoint; devuelve el IntegrityError real."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError) as exc, db_session.begin_nested():
+        db_session.execute(
+            text("UPDATE turnos SET inicio = :i, fin = :f WHERE id = :id"),
+            {"i": inicio, "f": fin, "id": turno_id},
+        )
+    return exc.value
+
+
+def test_traducir_23p01_profesional_a_conflicto(db_session):
+    ids = _ids(db_session)
+    _crear(db_session, ids)
+    b = _crear(db_session, ids, inicio=_lunes(11), sillon_id=ids["sillon2"])
+
+    error = _provocar_integrity_error(
+        db_session, b.id, _lunes(10, 15), _lunes(10, 45)
+    )
+
+    assert error.orig.sqlstate == "23P01"
+    assert error.orig.diag.constraint_name == "ex_turnos_profesional_sin_solape"
+    traducida = ServicioTurnos._traducir_integridad(error)
+    assert traducida.causa == "profesional"
+    assert db_session.query(Turno).count() == 2
+
+
+def test_traducir_23p01_sillon_a_conflicto(db_session):
+    ids = _ids(db_session)
+    _crear(db_session, ids)
+    b = _crear(
+        db_session,
+        ids,
+        inicio=_lunes(11),
+        profesional_id=ids["profesional2"],
+    )
+
+    error = _provocar_integrity_error(
+        db_session, b.id, _lunes(10, 15), _lunes(10, 45)
+    )
+
+    assert error.orig.sqlstate == "23P01"
+    assert error.orig.diag.constraint_name == "ex_turnos_sillon_sin_solape"
+    traducida = ServicioTurnos._traducir_integridad(error)
+    assert traducida.causa == "sillon"
+
+
+def test_traducir_23514_no_se_convierte_en_409(db_session):
+    from sqlalchemy.exc import IntegrityError
+
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+
+    error = _provocar_integrity_error(db_session, a.id, _lunes(11), _lunes(11))
+
+    assert error.orig.sqlstate == "23514"
+    with pytest.raises(IntegrityError):
+        ServicioTurnos._traducir_integridad(error)
