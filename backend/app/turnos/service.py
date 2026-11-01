@@ -95,6 +95,7 @@ class ServicioTurnos:
         sillon_id: uuid.UUID,
         prestacion_id: uuid.UUID,
         inicio: datetime,
+        excluir_turno_id: uuid.UUID | None = None,
     ) -> datetime:
         if inicio.tzinfo is None or inicio.tzinfo.utcoffset(inicio) is None:
             raise TurnoInvalido("inicio debe tener zona horaria")
@@ -128,32 +129,34 @@ class ServicioTurnos:
                 "bloqueo",
                 f"bloqueo aplicable: {bloqueo.motivo}",
             )
-        solape_prof = (
-            session.query(Turno)
-            .filter(
-                Turno.profesional_id == profesional_id,
-                Turno.estado.in_(ESTADOS_ACTIVOS),
-                Turno.inicio < fin,
-                Turno.fin > inicio,
-            )
-            .first()
+        solape_prof_q = session.query(Turno).filter(
+            Turno.profesional_id == profesional_id,
+            Turno.estado.in_(ESTADOS_ACTIVOS),
+            Turno.inicio < fin,
+            Turno.fin > inicio,
         )
+        if excluir_turno_id is not None:
+            solape_prof_q = solape_prof_q.filter(
+                Turno.id != excluir_turno_id
+            )
+        solape_prof = solape_prof_q.first()
         if solape_prof is not None:
             raise ConflictoTurno(
                 "profesional",
                 "el profesional ya tiene un turno activo que "
                 f"intersecta [{inicio}, {fin})",
             )
-        solape_sillon = (
-            session.query(Turno)
-            .filter(
-                Turno.sillon_id == sillon_id,
-                Turno.estado.in_(ESTADOS_ACTIVOS),
-                Turno.inicio < fin,
-                Turno.fin > inicio,
-            )
-            .first()
+        solape_sillon_q = session.query(Turno).filter(
+            Turno.sillon_id == sillon_id,
+            Turno.estado.in_(ESTADOS_ACTIVOS),
+            Turno.inicio < fin,
+            Turno.fin > inicio,
         )
+        if excluir_turno_id is not None:
+            solape_sillon_q = solape_sillon_q.filter(
+                Turno.id != excluir_turno_id
+            )
+        solape_sillon = solape_sillon_q.first()
         if solape_sillon is not None:
             raise ConflictoTurno(
                 "sillon",

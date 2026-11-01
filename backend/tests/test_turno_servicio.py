@@ -78,6 +78,71 @@ def _crear(db_session, ids, inicio=LUNES_10, **mas):
     return ServicioTurnos.crear(db_session, **kwargs)
 
 
+def _insertar_turno(
+    db_session,
+    ids,
+    *,
+    estado,
+    inicio,
+    fin,
+    profesional_id=None,
+    sillon_id=None,
+):
+    """Inserta un turno en un estado arbitrario sin pasar por el servicio."""
+    from sqlalchemy import text as _text
+
+    nuevo_id = db_session.execute(
+        _text(
+            "INSERT INTO turnos (id, paciente_id, profesional_id, "
+            "sillon_id, prestacion_id, inicio, fin, estado) "
+            "VALUES (gen_random_uuid(), :pac, :prof, :sil, :pres, "
+            ":inicio, :fin, :estado) RETURNING id"
+        ),
+        {
+            "pac": ids["paciente"],
+            "prof": profesional_id or ids["profesional"],
+            "sil": sillon_id or ids["sillon"],
+            "pres": ids["consulta30"],
+            "inicio": inicio,
+            "fin": fin,
+            "estado": estado,
+        },
+    ).scalar_one()
+    db_session.flush()
+    return db_session.get(Turno, nuevo_id)
+
+
+def test_helper_inserta_estado_confirmado(db_session):
+    """RED de la task 1.2: el helper aun no existe."""
+    ids = _ids(db_session)
+
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="confirmado",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    assert turno.estado == "confirmado"
+
+
+def test_helper_inserta_estado_atendido(db_session):
+    """TRIANGULATE de la task 1.2: acepta estados distintos."""
+    ids = _ids(db_session)
+
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado="atendido",
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    assert turno.estado == "atendido"
+    assert db_session.query(Turno).count() == 1
+
+
 def test_fin_igual_inicio_mas_duracion(db_session):
     ids = _ids(db_session)
 
@@ -396,3 +461,63 @@ def test_409_no_crea_nada(db_session):
         with pytest.raises(ConflictoTurno):
             _crear(db_session, ids, **caso)
         assert db_session.query(Turno).count() == 1
+
+
+def test_validar_sin_excluir_se_auto_colisiona(db_session):
+    """Caracteriza el bug que motiva excluir_turno_id.
+
+    Sin excluir el turno editado, validar choca contra el mismo turno.
+    """
+    ids = _ids(db_session)
+    _crear(db_session, ids)  # 10:00-10:30
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.validar(
+            db_session,
+            paciente_id=ids["paciente"],
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+            prestacion_id=ids["consulta30"],
+            inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+        )
+
+    assert exc.value.causa == "profesional"
+
+
+def test_validar_excluye_el_turno_editado(db_session):
+    """RED/GREEN de la task 2.2: excluir el propio turno por id."""
+    import inspect
+
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)  # 10:00-10:30
+
+    fin = ServicioTurnos.validar(
+        db_session,
+        paciente_id=ids["paciente"],
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+        prestacion_id=ids["consulta30"],
+        inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+        excluir_turno_id=turno.id,
+    )
+
+    assert fin == datetime(2026, 10, 12, 10, 45, tzinfo=TZ)
+    assert "excluir_turno_id" in inspect.signature(
+        ServicioTurnos.validar
+    ).parameters
+
+    # TRIANGULATE: excluir un id ajeno no evita el solape real.
+    import uuid as _uuid
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.validar(
+            db_session,
+            paciente_id=ids["paciente"],
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+            prestacion_id=ids["consulta30"],
+            inicio=datetime(2026, 10, 12, 10, 15, tzinfo=TZ),
+            excluir_turno_id=_uuid.uuid4(),
+        )
+
+    assert exc.value.causa == "profesional"
