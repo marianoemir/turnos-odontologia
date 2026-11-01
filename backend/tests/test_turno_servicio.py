@@ -680,3 +680,102 @@ def test_reprogramar_turno_inexistente_da_404(db_session):
 
     assert exc.value.recurso == "turno"
     assert db_session.query(Turno).count() == 0
+
+
+def _lunes(hora, minuto=0):
+    return datetime(2026, 10, 12, hora, minuto, tzinfo=TZ)
+
+
+def test_reprogramar_solape_profesional_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11), sillon_id=ids["sillon2"])
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11, 15))
+
+    assert exc.value.causa == "profesional"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_solape_sillon_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(
+        db_session,
+        ids,
+        inicio=_lunes(11),
+        profesional_id=ids["profesional2"],
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11, 15))
+
+    assert exc.value.causa == "sillon"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_adyacencia_inicio_igual_fin_ok(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11))
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, a.id, inicio=_lunes(11, 30)
+    )
+
+    assert resultado.inicio == _lunes(11, 30)
+    assert resultado.fin == _lunes(12)
+
+
+def test_reprogramar_intervalo_identico_da_409(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    _crear(db_session, ids, inicio=_lunes(11))
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=_lunes(11))
+
+    assert exc.value.causa == "profesional"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_fuera_de_horario_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    sabado = datetime(2026, 10, 17, 10, 0, tzinfo=TZ)
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=sabado)
+
+    assert exc.value.causa == "horario"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_sobre_bloqueo_da_409_original_intacto(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+    navidad = datetime(2026, 12, 25, 10, 0, tzinfo=TZ)
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.reprogramar(db_session, a.id, inicio=navidad)
+
+    assert exc.value.causa == "bloqueo"
+    db_session.expire_all()
+    assert db_session.get(Turno, a.id).inicio == LUNES_10
+
+
+def test_reprogramar_solapando_su_propio_intervalo_ok(db_session):
+    ids = _ids(db_session)
+    a = _crear(db_session, ids)
+
+    resultado = ServicioTurnos.reprogramar(
+        db_session, a.id, inicio=_lunes(10, 15)
+    )
+
+    assert resultado.inicio == _lunes(10, 15)
+    assert resultado.fin == _lunes(10, 45)
