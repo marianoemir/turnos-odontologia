@@ -325,3 +325,45 @@ def test_reprogramar_inicio_naive_da_422(client, db_session, ids):
     assert r.status_code == 422
     db_session.expire_all()
     assert db_session.get(Turno, uuid.UUID(a)).inicio == _dt(LUNES_10)
+
+
+def test_reprogramar_23p01_da_409_no_500(
+    client, db_session, ids, monkeypatch
+):
+    import uuid
+    from datetime import timedelta
+
+    from backend.app.turnos.service import ServicioTurnos
+
+    a = client.post("/turnos", json=_body(ids)).json()["id"]
+    b = client.post(
+        "/turnos",
+        json=_body(
+            ids,
+            inicio="2026-10-12T11:00:00-03:00",
+            sillon_id=str(ids["sillon2"]),
+        ),
+    )
+    assert b.status_code == 201
+
+    def _validar_sin_solape(session, *, prestacion_id, inicio, **_):
+        prestacion = session.get(Prestacion, prestacion_id)
+        return inicio + timedelta(minutes=prestacion.duracion_min)
+
+    monkeypatch.setattr(
+        ServicioTurnos, "validar", staticmethod(_validar_sin_solape)
+    )
+
+    r = client.post(
+        f"/turnos/{a}/reprogramar",
+        json={"inicio": "2026-10-12T11:15:00-03:00"},
+    )
+
+    assert r.status_code == 409
+    assert r.json()["detail"]["causa"] == "profesional"
+    db_session.expire_all()
+    turno = db_session.get(Turno, uuid.UUID(a))
+    assert (turno.inicio, turno.fin) == (
+        _dt(LUNES_10),
+        _dt(LUNES_10) + timedelta(minutes=30),
+    )

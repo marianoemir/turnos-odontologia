@@ -11,6 +11,8 @@ import uuid
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
+
 from backend.app.agenda.models import (
     Bloqueo,
     HorarioAtencion,
@@ -121,9 +123,12 @@ class ServicioTurnos:
             inicio=inicio,
             excluir_turno_id=turno.id,
         )
-        turno.inicio = inicio
-        turno.fin = fin
-        session.flush()
+        try:
+            with session.begin_nested():
+                turno.inicio = inicio
+                turno.fin = fin
+        except IntegrityError as exc:
+            raise ServicioTurnos._traducir_integridad(exc) from exc
         return turno
 
     @staticmethod
