@@ -114,7 +114,9 @@ def test_listar_filtra_por_profesional(db_session):
     filtrado = ServicioListaEspera.listar(
         db_session, profesional_id=ids["profesional"]
     )
-    assert len(filtrado) == 1
+    # Spec "Filtro por profesional": las de ese profesional y las generales.
+    assert {e.profesional_id for e in filtrado} == {ids["profesional"], None}
+    assert len(filtrado) == 2
     assert filtrado[0].profesional_id == ids["profesional"]
 
 

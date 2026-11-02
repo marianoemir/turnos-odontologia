@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import contextlib
 
+from sqlalchemy import or_
+
 from backend.app.agenda.models import Paciente, Prestacion, Profesional
 from backend.app.lista_espera.models import ListaEspera
 from backend.app.turnos.service import (
@@ -46,7 +48,13 @@ class ServicioListaEspera:
     def listar(session, *, profesional_id=None):
         q = session.query(ListaEspera).filter(ListaEspera.estado == "pendiente")
         if profesional_id is not None:
-            q = q.filter(ListaEspera.profesional_id == profesional_id)
+            # Spec "Filtro por profesional": las de ese profesional y las generales.
+            q = q.filter(
+                or_(
+                    ListaEspera.profesional_id == profesional_id,
+                    ListaEspera.profesional_id.is_(None),
+                )
+            )
         return q.order_by(ListaEspera.creado_en.asc()).all()
 
     @staticmethod
