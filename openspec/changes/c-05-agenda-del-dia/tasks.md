@@ -40,9 +40,9 @@
 
 ## 5. Cierre y regresión
 
-- [ ] 5.1 Suite completa, `ruff` y seed — **Verificación:** `python -m pytest -q -rs backend/tests` termina en `127 passed`, 0 skipped; `python -m ruff check backend` sin errores; re-sembrar con `$env:SEED_FICTICIO="true"; python -m backend.app.seed.catalogo` (los tests truncan las tablas)
-- [ ] 5.2 Sin migración ni cambios en modelos o en `turnos` — **Verificación:** `git diff --stat 59841b3 -- backend/alembic/ backend/app/turnos/models.py backend/app/agenda/models.py backend/app/seed/` vacío; `git diff --stat d0124f9 -- backend/app/turnos/` vacío
-- [ ] 5.3 `main.py` solo monta el router — **Verificación:** `git diff backend/app/main.py` muestra únicamente el `import` y el `include_router` de agenda; `GET /health` sigue respondiendo `200`
+- [x] 5.1 Suite completa, `ruff` y seed — **Verificación:** `python -m pytest -q -rs backend/tests` termina en `127 passed`, 0 skipped; `python -m ruff check backend` sin errores; re-sembrar con `$env:SEED_FICTICIO="true"; python -m backend.app.seed.catalogo` (los tests truncan las tablas)
+- [x] 5.2 Sin migración ni cambios en modelos o en `turnos` — **Verificación:** `git diff --stat 59841b3 -- backend/alembic/ backend/app/turnos/models.py backend/app/agenda/models.py backend/app/seed/` vacío; `git diff --stat d0124f9 -- backend/app/turnos/` vacío
+- [x] 5.3 `main.py` solo monta el router — **Verificación:** `git diff backend/app/main.py` muestra únicamente el `import` y el `include_router` de agenda; `GET /health` sigue respondiendo `200`
 
 ## 6. Matriz de trazabilidad escenario → verificación
 
