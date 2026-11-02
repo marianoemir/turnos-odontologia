@@ -54,7 +54,7 @@ def alta(body: ListaEsperaCreate, session: Annotated[Session, Depends(get_db)]):
 
 @router.get("/lista-espera", response_model=list[ListaEsperaOut])
 def listar(
-    profesional: uuid.UUID | None = Query(default=None),
+    profesional: Annotated[uuid.UUID | None, Query()] = None,
     session: Annotated[Session, Depends(get_db)] = None,
 ):
     return ServicioListaEspera.listar(session, profesional_id=profesional)

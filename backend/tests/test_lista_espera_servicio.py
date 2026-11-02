@@ -1,6 +1,6 @@
 """ServicioListaEspera (C-06). Solo ficticios."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -273,7 +273,7 @@ def test_rechazo_sin_oferta_409(db_session):
 def test_responder_inexistente(db_session):
     import uuid
 
-    ids = _ids(db_session)
+    _ids(db_session)
     with pytest.raises(ListaNoEncontrada):
         ServicioListaEspera.responder(
             db_session, uuid.uuid4(), acepta=True

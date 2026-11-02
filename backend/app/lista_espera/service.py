@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-
-from sqlalchemy.orm import Session
+import contextlib
 
 from backend.app.agenda.models import Paciente, Prestacion, Profesional
 from backend.app.lista_espera.models import ListaEspera
@@ -91,10 +88,8 @@ class ServicioListaEspera:
             entrada.estado = "asignado"
             session.flush()
             return entrada
-        try:
+        with contextlib.suppress(ConflictoTurno, TurnoNoEncontrado):
             ServicioTurnos.cancelar(session, entrada.turno_id)
-        except Exception:
-            pass
         entrada.estado = "baja"
         session.flush()
         siguiente = (

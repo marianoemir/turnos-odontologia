@@ -12,9 +12,9 @@ from backend.app.agenda.models import (
 from backend.app.lista_espera.models import ListaEspera
 from backend.app.lista_espera.router import get_db as lista_get_db
 from backend.app.main import app
-from backend.app.turnos.router import get_db as turnos_get_db
 from backend.app.seed.catalogo import seed_catalogo
 from backend.app.turnos.models import Turno
+from backend.app.turnos.router import get_db as turnos_get_db
 
 pytestmark = pytest.mark.integration
 
