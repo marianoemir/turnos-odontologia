@@ -7,6 +7,7 @@ atencion y estados arbitrarios. Las aserciones se hacen sobre la respuesta
 de la API, nunca sobre lo que inserta el propio test.
 """
 
+import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -249,3 +250,12 @@ def test_borde_23_30_ba(client, db_session, ids):
     assert [i["id"] for i in r.json()] == [str(id_turno)]
     r2 = _agenda(client, ids["profesional"], "2026-01-13")
     assert str(id_turno) not in [i["id"] for i in r2.json()]
+
+
+def test_profesional_inexistente_404(client):
+    profesional_inexistente = uuid.uuid4()
+
+    r = _agenda(client, profesional_inexistente, "2026-01-12")
+
+    assert r.status_code == 404
+    assert isinstance(r.json()["detail"], str)

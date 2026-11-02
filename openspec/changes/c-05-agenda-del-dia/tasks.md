@@ -34,7 +34,7 @@
 
 ## 4. Errores (`design.md` D1)
 
-- [ ] 4.1 RED→GREEN `test_404_profesional_inexistente`: `profesional` con `uuid4()` aleatorio — **Verificación:** `assert r.status_code == 404`; el `404` se emite con el mismo patrón (`detail` string) del router de `turnos`, y solo cuando el profesional no existe (un profesional existente sin turnos sigue dando `200 []`, task 2.3)
+- [x] 4.1 RED→GREEN `test_404_profesional_inexistente`: `profesional` con `uuid4()` aleatorio — **Verificación:** `assert r.status_code == 404`; el `404` se emite con el mismo patrón (`detail` string) del router de `turnos`, y solo cuando el profesional no existe (un profesional existente sin turnos sigue dando `200 []`, task 2.3)
 - [ ] 4.2 RED→GREEN `test_422_fecha_malformada`: `fecha=no-es-fecha` con profesional existente — **Verificación:** `assert r.status_code == 422`
 - [ ] 4.3 RED→GREEN `test_422_parametros_ausentes`: un solo test con dos consultas, una sin `fecha` y otra sin `profesional` — **Verificación:** ambas con `assert r.status_code == 422`
 
