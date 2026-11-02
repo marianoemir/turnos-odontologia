@@ -179,3 +179,43 @@ def test_cancelado_no_aparece(client, db_session, ids):
 
     assert r.status_code == 200
     assert [i["id"] for i in r.json()] == [str(id_pendiente)]
+
+def test_atendido_y_ausente_aparecen(client, db_session, ids):
+    id_atendido = _insertar_turno(
+        db_session,
+        ids,
+        inicio=datetime(2026, 1, 12, 10, 0, tzinfo=BA),
+        estado="atendido",
+    )
+    id_ausente = _insertar_turno(
+        db_session,
+        ids,
+        inicio=datetime(2026, 1, 12, 11, 0, tzinfo=BA),
+        estado="ausente",
+    )
+
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+
+    assert r.status_code == 200
+    assert [(i["id"], i["estado"]) for i in r.json()] == [
+        (str(id_atendido), "atendido"),
+        (str(id_ausente), "ausente"),
+    ]
+
+
+def test_turno_de_otro_profesional_no_aparece(client, db_session, ids):
+    id_p1 = _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 12, 10, 0, tzinfo=BA)
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        inicio=datetime(2026, 1, 12, 10, 0, tzinfo=BA),
+        profesional_id=ids["profesional2"],
+        sillon_id=ids["sillon2"],
+    )
+
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+
+    assert r.status_code == 200
+    assert [i["id"] for i in r.json()] == [str(id_p1)]
