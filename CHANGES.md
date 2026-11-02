@@ -263,7 +263,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-05] `agenda-del-dia`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-01)
 - **Scope**: US-003 — lectura de agenda del odontólogo (solo lectura)
   - `GET /agenda?profesional={id}&fecha={yyyy-mm-dd}`: turnos ordenados por inicio con paciente, prestación, sillón, estado
   - 404 profesional inexistente, 422 fecha inválida
