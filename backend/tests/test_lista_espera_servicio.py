@@ -206,6 +206,35 @@ def test_ofrecer_estado_invalido(db_session):
         )
 
 
+def test_ofrecer_ya_ofrecido_no_duplica_turno(db_session):
+    ids = _ids(db_session)
+    entrada = ServicioListaEspera.alta(
+        db_session,
+        paciente_id=ids["paciente"],
+        prestacion_id=ids["consulta30"],
+    )
+    _, turno1 = ServicioListaEspera.ofrecer(
+        db_session,
+        entrada.id,
+        inicio=LUNES_10,
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+    with pytest.raises(ListaEsperaInvalida):
+        ServicioListaEspera.ofrecer(
+            db_session,
+            entrada.id,
+            inicio=LUNES_10.replace(hour=11),
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+        )
+    db_session.expire_all()
+    recargada = db_session.get(ListaEspera, entrada.id)
+    assert recargada.estado == "ofrecido"
+    assert recargada.turno_id == turno1.id
+    assert db_session.query(Turno).count() == 1
+
+
 def test_aceptar_marca_asignado(db_session):
     ids = _ids(db_session)
     entrada = ServicioListaEspera.alta(

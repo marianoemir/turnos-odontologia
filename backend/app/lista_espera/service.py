@@ -62,7 +62,7 @@ class ServicioListaEspera:
         entrada = session.get(ListaEspera, lista_id)
         if entrada is None:
             raise ListaNoEncontrada(lista_id)
-        if entrada.estado not in ("pendiente", "ofrecido"):
+        if entrada.estado != "pendiente":
             raise ListaEsperaInvalida(
                 f"no se puede ofrecer una entrada en estado {entrada.estado}"
             )
