@@ -290,6 +290,32 @@ def test_rechazo_cancela_y_avanza(db_session):
     assert turno.estado == "cancelado"
 
 
+def test_rechazo_no_da_baja_si_falla_la_cancelacion(db_session):
+    ids = _ids(db_session)
+    entrada = ServicioListaEspera.alta(
+        db_session,
+        paciente_id=ids["paciente"],
+        profesional_id=ids["profesional"],
+        prestacion_id=ids["consulta30"],
+    )
+    _, turno = ServicioListaEspera.ofrecer(
+        db_session,
+        entrada.id,
+        inicio=LUNES_10,
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+    turno_id = turno.id
+    turno.estado = "atendido"  # cancelar() rechaza esta transicion
+    db_session.flush()
+    with pytest.raises(ConflictoTurno):
+        ServicioListaEspera.responder(db_session, entrada.id, acepta=False)
+    db_session.expire_all()
+    recargada = db_session.get(ListaEspera, entrada.id)
+    assert recargada.estado == "ofrecido"
+    assert recargada.turno_id == turno_id
+
+
 def test_rechazo_sin_oferta_409(db_session):
     ids = _ids(db_session)
     entrada = ServicioListaEspera.alta(
