@@ -252,10 +252,27 @@ def test_borde_23_30_ba(client, db_session, ids):
     assert str(id_turno) not in [i["id"] for i in r2.json()]
 
 
-def test_profesional_inexistente_404(client):
+def test_404_profesional_inexistente(client):
     profesional_inexistente = uuid.uuid4()
 
     r = _agenda(client, profesional_inexistente, "2026-01-12")
 
     assert r.status_code == 404
     assert isinstance(r.json()["detail"], str)
+
+
+def test_422_fecha_malformada(client, ids):
+    r = client.get(
+        "/agenda",
+        params={"profesional": str(ids["profesional"]), "fecha": "no-es-fecha"},
+    )
+    assert r.status_code == 422
+
+
+def test_422_parametros_ausentes(client, ids):
+    sin_fecha = client.get(
+        "/agenda", params={"profesional": str(ids["profesional"])}
+    )
+    sin_profesional = client.get("/agenda", params={"fecha": "2026-01-12"})
+    assert sin_fecha.status_code == 422
+    assert sin_profesional.status_code == 422
