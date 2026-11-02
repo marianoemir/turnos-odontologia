@@ -52,3 +52,9 @@ migracion Alembic por change, tests de integracion contra Postgres real.
 ## Open Questions
 
 - Ninguna bloqueante. Q5 (criterio de orden) resuelto a FIFO por defecto.
+
+## Nota de rectificación (2026-11-02)
+
+- La sección de preguntas abiertas de este documento afirma que Q5 (criterio de orden) quedó "resuelto a FIFO por defecto". Esa afirmación es incorrecta: contradice las secciones de riesgos de este mismo documento (Q5 pendiente) y `knowledge-base/10_preguntas_abiertas.md`, donde Q5 sigue abierta con el PO como responsable.
+- Corrección: **Q5 sigue abierta.** El orden FIFO por `creado_en` es una decisión provisional de implementación de C-06, no una resolución de Q5. Si el PO define otro criterio (prioridad, seña), se tratará en un change posterior.
+- El texto original de este documento no se modificó; esta nota solo se agrega al final.

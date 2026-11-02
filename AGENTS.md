@@ -50,8 +50,11 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 | Orquestación | SDD / KB / roadmap / reglas | `kb-creator`, `roadmap-generator`, `agent-instruction`, `find-skill`, `active-orchestrator` |
 | Cambios OpenSpec | Proponer / aplicar / archivar / explorar | `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`, `openspec-sync-specs`, `openspec-update-change` |
 | Meta | Crear o mejorar skills | `skill-creator` |
+| Lista de espera (C-06) | Alta, orden y oferta de huecos de lista de espera | `lista-espera-odontologia` |
 
 Cargá la skill correspondiente al contexto ANTES de escribir código.
+
+> **`lista-espera-odontologia`** — Cuándo: al trabajar en la lista de espera (C-06 / US-004, "rellenar cancelaciones", "ofrecer hueco"). Necesita: C-03 archivado (`ServicioTurnos.crear()`), C-04 y las reglas de la KB. Cómo revisar el resultado: tests de alta, orden FIFO, filtro por profesional, oferta, conflicto (409 vs 422), rechazo y aceptación en verde; sin hard delete; datos ficticios. El criterio de orden FIFO es decisión provisional (Q5 abierta).
 
 > Los compact rules de cada skill los resuelve el orquestador desde `.atl/skill-registry.md` (generado por `skill-registry`; versionado en el repo). Esta tabla solo mapea skill→rol.
 

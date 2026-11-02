@@ -50,8 +50,11 @@ La fuente de verdad del dominio vive en `knowledge-base/`. **Leé el archivo rel
 | Orquestación | SDD / KB / roadmap / reglas | `kb-creator`, `roadmap-generator`, `agent-instruction`, `find-skill`, `active-orchestrator` |
 | Cambios OpenSpec | Proponer / aplicar / archivar / explorar | `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`, `openspec-sync-specs`, `openspec-update-change` |
 | Meta | Crear o mejorar skills | `skill-creator` |
+| Lista de espera (C-06) | Alta, orden y oferta de huecos de lista de espera | `lista-espera-odontologia` |
 
 Cargá la skill correspondiente al contexto ANTES de escribir código.
+
+> **`lista-espera-odontologia`** — Cuándo: al trabajar en la lista de espera (C-06 / US-004, "rellenar cancelaciones", "ofrecer hueco"). Necesita: C-03 archivado (`ServicioTurnos.crear()`), C-04 y las reglas de la KB. Cómo revisar el resultado: tests de alta, orden FIFO, filtro por profesional, oferta, conflicto (409 vs 422), rechazo y aceptación en verde; sin hard delete; datos ficticios. El criterio de orden FIFO es decisión provisional (Q5 abierta).
 
 > Los compact rules de cada skill los resuelve el orquestador desde `.atl/skill-registry.md` (generado por `skill-registry`; versionado en el repo). Esta tabla solo mapea skill→rol.
 
@@ -65,7 +68,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (
 - **Camino crítico backend** (5): `C-01 → C-02 → C-03 → C-10 → C-11`.
 - **Camino crítico end-to-end con UI** (8): `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`.
 - **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados del recorte: C-01..C-03 (además, fuera del recorte: C-04 y C-05). Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
-- **En curso**: `C-06` (`lista-de-espera`, depende de C-04). **Próximo del recorte**: `C-12` (`catalogo-recursos-api`). `C-23` (`fix-api-contenedor`) puede intercalarse: depende solo de C-03 y conviene cerrarlo antes de C-13.
+- **En curso**: (ninguno). `C-06` archivado 2026-11-02. **Próximo del recorte**: `C-12` (`catalogo-recursos-api`). `C-23` (`fix-api-contenedor`) puede intercalarse: depende solo de C-03 y conviene cerrarlo antes de C-13.
 - **Frontend**: C-13 `frontend-foundation` (shell/ruteo/contratos) y C-14 `frontend-componentes-base` (componentes + data layer + rol) son la base; C-15..C-22 son un change por capability. Consumen `frontend/design-system/` (`Revision: 1`, `Mode: system-only`). Ningún change de frontend se adelanta al endpoint que consume.
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".

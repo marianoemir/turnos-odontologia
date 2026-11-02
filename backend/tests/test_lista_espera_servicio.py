@@ -114,7 +114,9 @@ def test_listar_filtra_por_profesional(db_session):
     filtrado = ServicioListaEspera.listar(
         db_session, profesional_id=ids["profesional"]
     )
-    assert len(filtrado) == 1
+    # Spec "Filtro por profesional": las de ese profesional y las generales.
+    assert {e.profesional_id for e in filtrado} == {ids["profesional"], None}
+    assert len(filtrado) == 2
     assert filtrado[0].profesional_id == ids["profesional"]
 
 
@@ -204,6 +206,35 @@ def test_ofrecer_estado_invalido(db_session):
         )
 
 
+def test_ofrecer_ya_ofrecido_no_duplica_turno(db_session):
+    ids = _ids(db_session)
+    entrada = ServicioListaEspera.alta(
+        db_session,
+        paciente_id=ids["paciente"],
+        prestacion_id=ids["consulta30"],
+    )
+    _, turno1 = ServicioListaEspera.ofrecer(
+        db_session,
+        entrada.id,
+        inicio=LUNES_10,
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+    with pytest.raises(ListaEsperaInvalida):
+        ServicioListaEspera.ofrecer(
+            db_session,
+            entrada.id,
+            inicio=LUNES_10.replace(hour=11),
+            profesional_id=ids["profesional"],
+            sillon_id=ids["sillon"],
+        )
+    db_session.expire_all()
+    recargada = db_session.get(ListaEspera, entrada.id)
+    assert recargada.estado == "ofrecido"
+    assert recargada.turno_id == turno1.id
+    assert db_session.query(Turno).count() == 1
+
+
 def test_aceptar_marca_asignado(db_session):
     ids = _ids(db_session)
     entrada = ServicioListaEspera.alta(
@@ -257,6 +288,32 @@ def test_rechazo_cancela_y_avanza(db_session):
     # turno ofrecido cancelado
     turno = db_session.get(Turno, entrada.turno_id)
     assert turno.estado == "cancelado"
+
+
+def test_rechazo_no_da_baja_si_falla_la_cancelacion(db_session):
+    ids = _ids(db_session)
+    entrada = ServicioListaEspera.alta(
+        db_session,
+        paciente_id=ids["paciente"],
+        profesional_id=ids["profesional"],
+        prestacion_id=ids["consulta30"],
+    )
+    _, turno = ServicioListaEspera.ofrecer(
+        db_session,
+        entrada.id,
+        inicio=LUNES_10,
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+    turno_id = turno.id
+    turno.estado = "atendido"  # cancelar() rechaza esta transicion
+    db_session.flush()
+    with pytest.raises(ConflictoTurno):
+        ServicioListaEspera.responder(db_session, entrada.id, acepta=False)
+    db_session.expire_all()
+    recargada = db_session.get(ListaEspera, entrada.id)
+    assert recargada.estado == "ofrecido"
+    assert recargada.turno_id == turno_id
 
 
 def test_rechazo_sin_oferta_409(db_session):

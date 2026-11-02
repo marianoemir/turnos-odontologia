@@ -105,3 +105,7 @@ def responder(
         raise HTTPException(status_code=404, detail=exc.detalle) from exc
     except ListaEsperaInvalida as exc:
         raise HTTPException(status_code=409, detail=exc.detalle) from exc
+    except ConflictoTurno as exc:
+        raise HTTPException(
+            status_code=409, detail={"causa": exc.causa, "detalle": exc.detalle}
+        ) from exc

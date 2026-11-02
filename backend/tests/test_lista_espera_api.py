@@ -245,6 +245,29 @@ def test_responder_rechazar_avanza(client, db_session, ids):
     assert e2.estado == "pendiente"
 
 
+def test_responder_rechazar_409_si_falla_la_cancelacion(client, db_session, ids):
+    import uuid
+
+    lista_id = _alta(client, ids, profesional_id=str(ids["profesional"])).json()["id"]
+    r = client.post(
+        f"/lista-espera/{lista_id}/ofrecer",
+        json={
+            "inicio": LUNES_10,
+            "profesional_id": str(ids["profesional"]),
+            "sillon_id": str(ids["sillon"]),
+        },
+    )
+    assert r.status_code in (200, 201)
+    entrada = db_session.get(ListaEspera, uuid.UUID(lista_id))
+    turno = db_session.get(Turno, entrada.turno_id)
+    turno.estado = "atendido"  # cancelar() rechaza esta transicion
+    db_session.flush()
+    r = client.post(f"/lista-espera/{lista_id}/responder", json={"acepta": False})
+    assert r.status_code == 409
+    db_session.expire_all()
+    assert db_session.get(ListaEspera, uuid.UUID(lista_id)).estado == "ofrecido"
+
+
 def test_responder_sin_oferta_409(client, db_session, ids):
     alta = _alta(client, ids)
     lista_id = alta.json()["id"]
