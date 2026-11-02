@@ -283,7 +283,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 > C-06, C-07 y C-08 son paralelos tras C-04. Ninguno entra en el recorte TP.
 
 ### [C-06] `lista-de-espera`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-02)
 - **Scope**: US-004 — rellena cancelaciones (criterio de orden pendiente de Q5, proponer FIFO por defecto)
   - Modelo `ListaEspera`: `paciente_id`, `profesional_id` (nullable), `prestacion_id`, `creado_en`, `estado` (pendiente|ofrecido|asignado|baja)
   - `POST /lista-espera`, `GET /lista-espera?profesional=`, `POST /lista-espera/{id}/ofrecer` (crea turno vía C-03; si acepta → asignado, si rechaza → siguiente)
