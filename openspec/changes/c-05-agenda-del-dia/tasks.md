@@ -14,8 +14,8 @@
 
 ## 1. Base
 
-- [ ] 1.1 Leer `CHANGES.md` (scope de C-05), `knowledge-base/06_funcionalidades.md` US-003 (`CA-1`, `CA-2`), `07_flujos_principales.md` Flujo 3, `05_reglas_de_negocio.md` (`RN-ES-01`, `RN-ES-02`), `03_actores_y_roles.md` (RBAC) y `backend/app/turnos/service.py` (`ZONA`) — **Verificación:** las reglas e IDs citados en `spec.md`, `design.md` y `proposal.md` existen en esos archivos (comprobado con `Select-String`); lo no decidido figura como pregunta abierta
-- [ ] 1.2 Con el MCP `postgres` (`postgres_list_objects`, `postgres_get_object_details`), confirmar que existen `turnos`, `pacientes`, `profesionales`, `prestaciones` y `sillones`, y los índices de `turnos` — **Verificación:** salida del MCP pegada en la conversación; sin `psql` ni `docker compose exec`
+- [x] 1.1 Leer `CHANGES.md` (scope de C-05), `knowledge-base/06_funcionalidades.md` US-003 (`CA-1`, `CA-2`), `07_flujos_principales.md` Flujo 3, `05_reglas_de_negocio.md` (`RN-ES-01`, `RN-ES-02`), `03_actores_y_roles.md` (RBAC) y `backend/app/turnos/service.py` (`ZONA`) — **Verificación:** las reglas e IDs citados en `spec.md`, `design.md` y `proposal.md` existen en esos archivos (comprobado con `Select-String`); lo no decidido figura como pregunta abierta
+- [x] 1.2 Con el MCP `postgres` (`postgres_list_objects`, `postgres_get_object_details`), confirmar que existen `turnos`, `pacientes`, `profesionales`, `prestaciones` y `sillones`, y los índices de `turnos` — **Verificación:** salida del MCP pegada en la conversación; sin `psql` ni `docker compose exec`
 - [x] 1.3 Baseline antes de tocar código — **Verificación:** `python -m pytest -q -rs backend/tests` (venv activo, `CI=true`, `DATABASE_URL` real) termina en `115 passed`, 0 skipped
 
 ## 2. Lectura básica (`design.md` D1, D3)

@@ -48,6 +48,6 @@ Reglas de dominio que aplica: `RN-ES-01` (transiciones de estado) y `RN-ES-02` (
 - `knowledge-base/05_reglas_de_negocio.md` §Dominio: Estados (`RN-ES-01`, `RN-ES-02`).
 - `knowledge-base/03_actores_y_roles.md` §RBAC (`Odontólogo` = R propia agenda; `Recepción` = R todas).
 - `knowledge-base/04_modelo_de_datos.md` §Turno (atributos, índices parciales, `estado` enum).
-- `knowledge-base/10_preguntas_abiertas.md` (Q1 resuelta por el profesor; CA-2 pendiente).
+- `knowledge-base/10_preguntas_abiertas.md` (Q1 resuelta por el profesor; CA-2 no figura ahí: se registra como pregunta abierta en design.md D2).
 - `backend/app/turnos/service.py` línea 27 (`ZONA = ZoneInfo("America/Argentina/Buenos_Aires")`, reutilizada para interpretar `fecha`).
 - `backend/app/turnos/models.py` (índices `ix_turnos_profesional_activo`, `ix_turnos_sillon_activo` con filtro parcial `estado IN ('pendiente','confirmado')`).

@@ -66,7 +66,7 @@ No se toca `knowledge-base/`, `CHANGES.md`, `AGENTS.md`, `CLAUDE.md`, ni `backen
 - `knowledge-base/05_reglas_de_negocio.md` §Dominio: Estados (`RN-ES-01`: transiciones permitidas; `RN-ES-02`: solo pendiente y confirmado cuentan como "activos" para solapamiento — usado para justificar el filtro en la consulta).
 - `knowledge-base/03_actores_y_roles.md` §RBAC — Matriz de permisos (Odontólogo `R (propia)`; Recepción `R (todas)` — usado para justificar que `profesional_id` es el filtro de lectura y que la autorización llega con C-11).
 - `knowledge-base/04_modelo_de_datos.md` §Turno (atributos: `id`, `paciente_id`, `profesional_id`, `sillon_id`, `prestacion_id`, `inicio`, `fin`, `estado`; índices parciales `ix_turnos_profesional_activo`, `ix_turnos_sillon_activo` con filtro de estado).
-- `knowledge-base/10_preguntas_abiertas.md` (Q1 resuelta por el profesor; CA-2 pendiente; no hay definición de zona horaria en la KB, solo en `service.py`).
+- `knowledge-base/10_preguntas_abiertas.md` (Q1 resuelta por el profesor; CA-2 no figura ahí, queda abierta en D2 y en "Preguntas abiertas registradas"; no hay definición de zona horaria en la KB, solo en `service.py`).
 - `backend/app/turnos/service.py` línea 27 (`ZONA = ZoneInfo("America/Argentina/Buenos_Aires")` — reutilizado para interpretar `fecha`).
 - `backend/app/turnos/models.py` (índices `ix_turnos_profesional_activo`, `ix_turnos_sillon_activo` con filtro `WHERE estado IN ('pendiente','confirmado')`).
 - `backend/app/turnos/schemas.py` (`TurnoOut` — no reutilizado porque no tiene nombres de relaciones y está acoplado a creación).
