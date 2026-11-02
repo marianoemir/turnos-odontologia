@@ -219,3 +219,33 @@ def test_turno_de_otro_profesional_no_aparece(client, db_session, ids):
 
     assert r.status_code == 200
     assert [i["id"] for i in r.json()] == [str(id_p1)]
+
+
+def test_borde_00_00_incluido(client, db_session, ids):
+    id_turno = _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 12, 0, 0, tzinfo=BA)
+    )
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+    assert r.status_code == 200
+    assert [i["id"] for i in r.json()] == [str(id_turno)]
+
+
+def test_borde_00_00_siguiente_excluido(client, db_session, ids):
+    id_turno = _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 13, 0, 0, tzinfo=BA)
+    )
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+    assert r.status_code == 200
+    assert str(id_turno) not in [i["id"] for i in r.json()]
+    r2 = _agenda(client, ids["profesional"], "2026-01-13")
+    assert [i["id"] for i in r2.json()] == [str(id_turno)]
+
+
+def test_borde_23_30_ba(client, db_session, ids):
+    id_turno = _insertar_turno(
+        db_session, ids, inicio=datetime(2026, 1, 12, 23, 30, tzinfo=BA)
+    )
+    r = _agenda(client, ids["profesional"], "2026-01-12")
+    assert [i["id"] for i in r.json()] == [str(id_turno)]
+    r2 = _agenda(client, ids["profesional"], "2026-01-13")
+    assert str(id_turno) not in [i["id"] for i in r2.json()]
