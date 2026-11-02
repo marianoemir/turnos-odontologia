@@ -8,13 +8,13 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 
 Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, todavía sin funcionalidad: su desarrollo está planificado en los changes C-13 a C-22). El primer change es solo backend.
 
-Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`.
+Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`. Además, fuera del recorte, están archivados `C-04 cancelar-reprogramar` y `C-05 agenda-del-dia`.
 
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
 
 ## Roadmap
 
-El roadmap completo tiene **23 changes**: implementados y archivados **C-01, C-02 y C-03**; pendientes los **20** restantes. La rectificación del 2026-10-28 agregó:
+El roadmap completo tiene **23 changes**: implementados y archivados **C-01 a C-05**; pendientes los **18** restantes. La rectificación del 2026-10-28 agregó:
 
 - **C-12 `catalogo-recursos-api`** (backend): expone por API el catálogo que C-02 modeló y sembró —pacientes, profesionales, sillones, prestaciones, horarios y bloqueos—, que hasta ahora solo existía en la base.
 - **C-13 a C-22** (frontend): React + TypeScript + Vite, un change por capability del backend. C-13 `frontend-foundation` (shell, ruteo y contratos) y C-14 `frontend-componentes-base` (componentes y capa de datos) son la base; C-15 a C-22 son las pantallas.
@@ -130,7 +130,7 @@ Resultado esperado:
 
 - La migración crea las 7 tablas (si ya existían, informa que está al día).
 - El seed informa `seed ok` con 2 profesionales, 2 sillones, 3 prestaciones, 10 horarios, 1 bloqueo y 3 pacientes ficticios. Es idempotente y no crea turnos.
-- Los tests: **80 passed, 0 skipped**.
+- Los tests: **127 passed, 0 skipped**.
 
 Rollback de la migración, si hace falta:
 
@@ -314,8 +314,8 @@ Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connect
 
 ## Estructura del repositorio
 
-- `backend/app/turnos/` — dominio de turnos: modelo, servicio y `POST /turnos` (C-03).
-- `backend/app/agenda/` — horarios, bloqueos y recursos del catálogo (C-02).
+- `backend/app/turnos/` — dominio de turnos: modelo, servicio, `POST /turnos` (C-03) y cancelar y reprogramar (C-04).
+- `backend/app/agenda/` — horarios, bloqueos y recursos del catálogo (C-02) y `GET /agenda` (C-05).
 - `backend/app/seed/` — datos ficticios.
 - `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).
