@@ -336,7 +336,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 > C-09 es paralelo a todo FASE 1 (solo necesita C-02). C-10 corre paralelo a C-04/C-05. C-11 cierra.
 
 ### [C-09] `hc-odontograma`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-03)
 - **Scope**: HC mínima + odontograma FDI + planes/presupuestos atados a piezas (sin PACS/CDSS: etapas posteriores)
   - Modelos: `HistoriaClinica` (paciente_id único), `Odontograma` (pieza FDI, estado de 18 estados DentalSoft como referencia, profesional+fecha), `PlanTratamiento` (pieza, prestación, estado, presupuesto)
   - Endpoints CRUD HC + odontograma por paciente + plan con cobertura OS aplicada (lectura, sin liquidar)
