@@ -229,6 +229,21 @@ El agente (OpenCode) consulta el esquema real de la base de turnos mediante el M
 - OpenCode (probado con 1.19.0) abierto en la **raíz del repo**.
 - La base del proyecto levantada: `docker compose up -d postgres`.
 
+### Rol de solo lectura (`mcp_readonly`)
+
+El MCP debe conectarse con un rol que solo pueda leer. El rol del proyecto se creó a mano: este script es una **reconstrucción** del 2026-11-02, hecha a partir de los permisos verificados (sin superusuario, sin membresías de rol, `SELECT` en las tablas de `public`). No se comprobó que sea idéntico al original. Se ejecuta como usuario dueño, con la base levantada:
+
+```powershell
+docker compose exec postgres psql -U odontologia -d turnos
+```
+
+```sql
+CREATE ROLE mcp_readonly LOGIN PASSWORD '<clave-ficticia-del-rol>';
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO mcp_readonly;
+```
+
+El `GRANT` no alcanza a las tablas futuras: cada change que crea tablas (por ejemplo `lista_espera`, de C-06) obliga a repetirlo. Se comprueba consultando `information_schema.role_table_grants` con `grantee = 'mcp_readonly'`.
+
 ### Variable de entorno
 
 | Variable | Qué es | Dónde va |
@@ -236,16 +251,16 @@ El agente (OpenCode) consulta el esquema real de la base de turnos mediante el M
 | `POSTGRES_PORT` | Puerto del host para Postgres (por defecto 5432) | `.env` local (ignorado por git) |
 | `DATABASE_URI` | URI que usa el MCP para conectarse | Variable de entorno de usuario. **Nunca** en archivos del repo |
 
-Formato de `DATABASE_URI` (la clave es la ficticia del proyecto):
+Formato de `DATABASE_URI` (usuario `mcp_readonly`, no el dueño de la base):
 
 ```
-postgresql://odontologia:<clave-ficticia>@host.docker.internal:5433/turnos
+postgresql://mcp_readonly:<clave-ficticia-del-rol>@host.docker.internal:5433/turnos
 ```
 
 En PowerShell, guardarla de forma persistente y **reabrir** la consola y la app de OpenCode (solo la ven los procesos abiertos después):
 
 ```powershell
-setx DATABASE_URI "postgresql://odontologia:<clave-ficticia>@host.docker.internal:5433/turnos"
+setx DATABASE_URI "postgresql://mcp_readonly:<clave-ficticia-del-rol>@host.docker.internal:5433/turnos"
 ```
 
 ### Configuración (sin secretos)
