@@ -74,9 +74,10 @@ Pre-digested rules per skill. Delegators copy matching blocks into sub-agent pro
 - Hard rules: never create turno without solape validation via `ServicioTurnos.crear()`; never 200/500 on business conflict (409 vs 422); never hard delete (baja is state change); never close without green tests; only fictitious data.
 - Create module `backend/app/lista_espera/` (models, schemas, service, router), migration `003`, tests; register router in `main.py` and table in `conftest._CATALOGO_TABLES`.
 - Model `ListaEspera`: states pendiente/ofrecido/asignado/baja; FKs RESTRICT; `profesional_id` nullable; FIFO by `creado_en`.
-- Ofrecer creates turno via `ServicioTurnos.crear()`; on conflict revert to pendiente and raise 409.
-- Responder: acepta → asignado; rechaza → cancel turno, estado baja, return next in FIFO.
-- Tests: alta pendiente, FIFO order, filter by profesional, ofrecer creates valid turno, conflict reverts, rechazo passes to next, aceptar marks asignado.
+- Ofrecer creates turno via `ServicioTurnos.crear()`; on conflict revert to pendiente and raise 409. Only `pendiente` entries can be offered (already `ofrecido` → 409).
+- Responder: acepta → asignado; rechaza → cancel turno, estado baja, return next in FIFO. If the cancel fails, propagate it (API 409) and do NOT set baja.
+- Tests: alta pendiente, FIFO order, filter by profesional (includes general entries), ofrecer creates valid turno, conflict reverts, rechazo passes to next, aceptar marks asignado, ofrecer twice does not duplicate turno, failed cancel does not set baja.
+- FIFO by `creado_en` is provisional: Q5 stays open with the PO.
 
 ### openspec-apply-change
 - Announce "Using change: <name>" + how to override; infer/auto-select single active change, else prompt (list via `openspec list --json`)

@@ -124,6 +124,7 @@ class RespuestaPaciente(BaseModel):
 from __future__ import annotations
 import uuid
 from datetime import datetime
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
@@ -165,7 +166,13 @@ class ServicioListaEspera:
     def listar(session, *, profesional_id=None):
         q = session.query(ListaEspera).filter(ListaEspera.estado == "pendiente")
         if profesional_id is not None:
-            q = q.filter(ListaEspera.profesional_id == profesional_id)
+            # Spec "Filtro por profesional": las de ese profesional y las generales.
+            q = q.filter(
+                or_(
+                    ListaEspera.profesional_id == profesional_id,
+                    ListaEspera.profesional_id.is_(None),
+                )
+            )
         return q.order_by(ListaEspera.creado_en.asc()).all()
 
     @staticmethod
@@ -173,7 +180,7 @@ class ServicioListaEspera:
         entrada = session.get(ListaEspera, lista_id)
         if entrada is None:
             raise ListaNoEncontrada(lista_id)
-        if entrada.estado not in ("pendiente", "ofrecido"):
+        if entrada.estado != "pendiente":
             raise ListaEsperaInvalida(
                 f"no se puede ofrecer una entrada en estado {entrada.estado}"
             )
@@ -208,10 +215,9 @@ class ServicioListaEspera:
             session.flush()
             return entrada
         # rechazo: cancela el turno ofrecido y pasa al siguiente en FIFO
-        try:
-            ServicioTurnos.cancelar(session, entrada.turno_id)
-        except Exception:
-            pass
+        # Si cancelar falla (ConflictoTurno), el error se propaga y la entrada
+        # NO pasa a baja. Nunca silenciar la falla con try/except.
+        ServicioTurnos.cancelar(session, entrada.turno_id)
         entrada.estado = "baja"
         session.flush()
         siguiente = (
@@ -322,6 +328,10 @@ def responder(
         raise HTTPException(status_code=404, detail=exc.detalle) from exc
     except ListaEsperaInvalida as exc:
         raise HTTPException(status_code=409, detail=exc.detalle) from exc
+    except ConflictoTurno as exc:  # falla al cancelar el turno ofrecido
+        raise HTTPException(
+            status_code=409, detail={"causa": exc.causa, "detalle": exc.detalle}
+        ) from exc
 ```
 
 ## 5. Registro en `main.py`
@@ -342,16 +352,21 @@ CHECK estado. Index en (profesional_id, creado_en) para FIFO y (paciente_id).
 Marcar `pytestmark = pytest.mark.integration`. Usar `seed_catalogo` + `_ids` pattern
 de `test_turno_servicio.py`. Casos minimos:
 
-- `test_alta_lista_crea_pendiente`: POST alta → estado pendiente, creado_en set.
+- `test_alta_crea_pendiente`: POST alta → estado pendiente, creado_en set.
 - `test_listar_fifo_por_creado_en`: 3 altas → GET devuelve orden creado_en asc.
-- `test_listar_filtra_por_profesional`: profesional_id nullable vs especifico.
+- `test_listar_filtra_por_profesional`: devuelve las del profesional **y las
+  generales** (`profesional_id` nulo).
 - `test_ofrecer_crea_turno_valido`: ofrecer con hueco libre → turno estado
   pendiente, lista estado ofrecido, turno_id set, sin solape.
 - `test_ofrecer_conflicto_revierte_pendiente`: slot ocupado → 409 y lista
   vuelve a pendiente.
-- `test_rechazo_pasa_al_siguiente`: rechazar entrada A → estado baja, siguiente
-  en FIFO es B.
+- `test_rechazo_cancela_y_avanza`: rechazar entrada A → estado baja, turno
+  cancelado, siguiente en FIFO es B.
 - `test_aceptar_marca_asignado`: aceptar → estado asignado.
+- `test_ofrecer_ya_ofrecido_no_duplica_turno`: ofrecer una entrada ya `ofrecido`
+  → `ListaEsperaInvalida` (409) y no se crea un segundo turno.
+- `test_rechazo_no_da_baja_si_falla_la_cancelacion`: si `cancelar` falla, la
+  entrada sigue `ofrecido`; en la API, `responder` devuelve 409 (no 500).
 
 Actualizar `conftest._CATALOGO_TABLES` para incluir `lista_espera` (TRUNCATE).
 
@@ -374,3 +389,18 @@ Actualizar `conftest._CATALOGO_TABLES` para incluir `lista_espera` (TRUNCATE).
 - Reutilizar `ServicioTurnos.crear()` es el unico punto de validacion de solape.
 - No hard delete: bajas son cambio de estado.
 - Datos solo ficticios (seed_catalogo).
+- El orden FIFO por `creado_en` es una decision **provisional**: Q5
+  (`knowledge-base/10_preguntas_abiertas.md`) sigue abierta con el PO.
+
+## Correcciones posteriores (2026-11-02)
+
+El codigo de arriba ya incluye las correcciones hechas despues de archivar C-06
+(detalle en `docs/correcciones/c-06-correcciones.md`):
+
+- **B1:** `listar(profesional_id=X)` incluye tambien las entradas generales.
+- **B4:** `ofrecer` solo acepta entradas `pendiente`; ofrecer una ya ofrecida da 409.
+- **B3:** `responder(acepta=False)` no pasa a `baja` si falla la cancelacion del
+  turno; el router devuelve 409.
+- **Limitaciones abiertas:** B2 (el "siguiente" se calcula pero el endpoint no lo
+  devuelve) y B5 (`ofrecer` no valida que el profesional coincida con el de la
+  entrada ni que haga la prestacion). No resolver sin decision del PO.
