@@ -11,6 +11,8 @@ El proyecto tiene reglas de dominio que viven en la base (no solapamiento de pro
 
 Se prepara un change por herramienta, sin implementar (sin `/opsx:apply`).
 
+> **Actualización 2026-11-02:** este párrafo describe el plan de la ficha, hecha en clase. Después, C-04 se implementó y archivó el 2026-11-01 (`openspec/changes/archive/2026-11-01-c-04-cancelar-reprogramar/`) y C-06 el 2026-11-02 (`openspec/changes/archive/2026-11-02-c-06-lista-de-espera/`).
+
 ## 2. Skill creadora y diseño de la skill propia
 
 **Skill creadora:** `skill-creator`, del repositorio de skills de Anthropic (`github.com/anthropics/skills`): carpeta con `SKILL.md` (frontmatter `name` y `description`) y recursos opcionales, con carga progresiva. Ya está en `.agents/skills/skill-creator/` y registrada en `.atl/skill-registry.md`. OpenCode carga skills desde `.agents/skills/<nombre>/SKILL.md` y exige `name` y `description` en el frontmatter (documentación oficial). **[PENDIENTE]** abrir `github.com/anthropics/skills` y confirmar la fuente de `skill-creator`.
@@ -19,8 +21,8 @@ Se prepara un change por herramienta, sin implementar (sin `/opsx:apply`).
 - *Dominio:* modelo `ListaEspera` (estados `pendiente|ofrecido|asignado|baja`), alta, consulta y ofrecimiento de un hueco, orden FIFO por `creado_en`.
 - *Disparadores:* "lista de espera", "waitlist", "C-06", "US-004".
 - *Regla de oro:* el orden FIFO es un **supuesto justificado**, no una regla (pregunta abierta Q5).
-- *Uso en este TP:* solo para **preparar** C-06 (checklist de tasks y esqueleto de escenarios).
-- **[PENDIENTE]** crearla con `skill-creator`, guardarla en `.agents/skills/`, registrarla y probarla en sesión nueva.
+- *Uso en este TP:* solo para **preparar** C-06 (checklist de tasks y esqueleto de escenarios). **Actualización 2026-11-02:** C-06 se implementó y archivó; el `SKILL.md` es una guía de implementación, no solo de preparación.
+- **Estado al 2026-11-02** (verificado en el repo): la skill está guardada en `.agents/skills/lista-espera-odontologia/` y registrada en `.atl/skill-registry.md`. **[PENDIENTE]** confirmar con Andrés si se generó con `skill-creator` y probarla en una sesión nueva.
 
 ## 3. Comparación de dos MCP (ambos probados en OpenCode, 2026-10-31)
 
@@ -63,8 +65,8 @@ Es una **integración**, no una skill. Detalle y problemas resueltos en el READM
 | `opencode.json` | Bloque `mcp` (sin secretos) |
 | `docker-compose.yml` | `POSTGRES_PORT` configurable |
 | `AGENTS.md` / `CLAUDE.md` (idénticos) | Sección del MCP (propósito, cuándo, límites, regla de no usar `psql`) y sección de la skill |
-| `.atl/skill-registry.md` | Registro de la skill propia **[PENDIENTE]** |
-| `.agents/skills/lista-espera-odontologia/` | Carpeta de la skill **[PENDIENTE]** |
+| `.atl/skill-registry.md` | Registro de la skill propia (hecho, 2026-11-02: fila y compact rules agregadas a mano) |
+| `.agents/skills/lista-espera-odontologia/` | Carpeta de la skill (hecha) |
 | `README.md` | Sección MCP |
 | `CHANGES.md` | Solo la referencia de C-04 y C-06, sin marcarlos implementados |
 | `docs/skills-mcp/` | Ficha, aplicación y evidencias |

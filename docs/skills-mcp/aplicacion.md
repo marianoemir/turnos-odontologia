@@ -13,7 +13,9 @@
 
 **Change preparado (sin implementar): C-04 `cancelar-reprogramar`**, en `openspec/changes/c-04-cancelar-reprogramar/`: `proposal.md`, `design.md`, `specs/turnos/spec.md` (18 escenarios Dado/Cuando/Entonces: esperados, errores de negocio y bordes) y `tasks.md` (33 tasks TDD, cada una con su verificación y una matriz escenario → test). `openspec validate c-04-cancelar-reprogramar --strict` pasa. No se ejecutó `/opsx:apply`, `backend/` quedó sin cambios (`git diff --stat -- backend/` vacío) y C-04 sigue `[ ] pendiente` en `CHANGES.md`. Lo ambiguo no se decidió: quedó como preguntas abiertas PA-1 a PA-6 en `design.md`.
 
-**Skill propia:** **[PENDIENTE]** (a cargo de Andrés: creación con `skill-creator`, guardado en `.agents/skills/`, registro en `.atl/skill-registry.md`, actualización de `AGENTS.md`/`CLAUDE.md` y prueba en sesión nueva).
+> **Actualización 2026-11-02:** la descripción de C-04 de arriba refleja el momento de la preparación. C-04 se implementó y archivó el 2026-11-01 (`openspec/changes/archive/2026-11-01-c-04-cancelar-reprogramar/`) y figura `[x]` en `CHANGES.md`.
+
+**Skill propia (actualización 2026-11-02):** `lista-espera-odontologia` (Andrés) está guardada en `.agents/skills/lista-espera-odontologia/`, registrada en `.atl/skill-registry.md` (ruta relativa, agregada a mano; el registro no se regeneró) y referenciada en `AGENTS.md`/`CLAUDE.md`. Su código de ejemplo se corrigió tras las correcciones B1, B3 y B4 de C-06 (`docs/correcciones/c-06-correcciones.md`). **[PENDIENTE]** evidencia real de uso (solicitud, resultado, aporte), prueba en sesión nueva y confirmar si se generó con `skill-creator`.
 
 ## 2. Evidencias
 
@@ -45,7 +47,12 @@ Nota de honestidad: `mcp-06a` es una corrida corta y aparte, hecha el 2026-10-31
 | `openspec/changes/c-04-cancelar-reprogramar/` | Change preparado con SDD (no implementado) |
 | `CHANGES.md` | Solo la referencia existente de C-04, sin marcarla implementada |
 | `docs/skills-mcp/` | Evidencias y documentación |
-| `README.md` | **[PENDIENTE]** sección MCP: requisitos, `DATABASE_URI`, pasos, comprobación y problema resuelto |
+| `README.md` | Sección "Integración MCP: Postgres MCP Pro": requisitos, `DATABASE_URI`, pasos, comprobación y problema resuelto (hecha) |
+| `.agents/skills/lista-espera-odontologia/` | Skill propia (Andrés); `SKILL.md` corregido el 2026-11-02 con B1, B3 y B4 |
+| `.atl/skill-registry.md` | Fila y compact rules de la skill con ruta relativa (agregadas a mano; el registro no se regeneró) |
+| `.gitignore` | Se quitó `.atl/` para versionar el registro, como dice `AGENTS.md` |
+| `.active-orchestrator-state.json` | `skills_count` 15→16 y la skill en `project_skills` y `skills.installed` |
+| `AGENTS.md` / `CLAUDE.md` (tabla de skills) | Fila y nota de uso de la skill (cuándo, qué necesita, cómo revisar); idénticos |
 
 ## 4. Revisión crítica
 
