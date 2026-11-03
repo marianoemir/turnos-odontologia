@@ -48,6 +48,8 @@ Fuente: casos de uso textuales `docs/discovery/discovery.md` §3 + reglas §7. F
 
 ## Épica 4: Lista de espera (change posterior, no implementar)
 
+> **Nota (2026-11-02):** esta épica ya no es posterior: C-06 `lista-espera` está implementado y archivado (alta, listar, ofrecer y responder en `/lista-espera`). El texto de abajo se conserva como se redactó. La KB sigue sin reglas de negocio propias de lista de espera; el criterio de orden (Q5, `10_preguntas_abiertas.md`) sigue abierto y la implementación usa FIFO de forma provisional.
+
 ### US-004 — Ofrecer cancelado a lista de espera
 **Como** recepcionista
 **Quiero** ofrecer un turno cancelado a un paciente de la lista de espera
