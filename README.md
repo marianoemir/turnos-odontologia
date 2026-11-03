@@ -78,7 +78,7 @@ Notas:
 python -m pytest backend/tests
 ```
 
-Resultado esperado sin PostgreSQL: **24 passed, 56 skipped**. Los tests de integración se saltean porque no encuentran la base. Con la variable `CI=true` la falta de PostgreSQL **falla** en lugar de saltear, para que nunca haya un resultado verde sin haber probado nada.
+Resultado esperado sin PostgreSQL: **24 passed, 131 skipped**. Los tests de integración se saltean porque no encuentran la base. Con la variable `CI=true` la falta de PostgreSQL **falla** en lugar de saltear, para que nunca haya un resultado verde sin haber probado nada.
 
 ## 3. Levantar PostgreSQL
 
