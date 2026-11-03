@@ -8,13 +8,13 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 
 Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, todavía sin funcionalidad: su desarrollo está planificado en los changes C-13 a C-22). El primer change es solo backend.
 
-Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`. Además, fuera del recorte, están archivados `C-04 cancelar-reprogramar` y `C-05 agenda-del-dia`.
+Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`. Además, fuera del recorte, están archivados `C-04 cancelar-reprogramar`, `C-05 agenda-del-dia` y `C-06 lista-de-espera`.
 
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
 
 ## Roadmap
 
-El roadmap completo tiene **23 changes**: implementados y archivados **C-01 a C-05**; pendientes los **18** restantes. La rectificación del 2026-10-28 agregó:
+El roadmap completo tiene **23 changes**: implementados y archivados **C-01 a C-06**; pendientes los **17** restantes. La rectificación del 2026-10-28 agregó:
 
 - **C-12 `catalogo-recursos-api`** (backend): expone por API el catálogo que C-02 modeló y sembró —pacientes, profesionales, sillones, prestaciones, horarios y bloqueos—, que hasta ahora solo existía en la base.
 - **C-13 a C-22** (frontend): React + TypeScript + Vite, un change por capability del backend. C-13 `frontend-foundation` (shell, ruteo y contratos) y C-14 `frontend-componentes-base` (componentes y capa de datos) son la base; C-15 a C-22 son las pantallas.
@@ -106,7 +106,7 @@ bash:
 export DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos"
 ```
 
-> ⚠️ Los tests **truncan** las 7 tablas (`pacientes`, `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos` y `turnos`) de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado con error antes de conectar o truncar. No apuntes los tests a una base con datos que quieras conservar.
+> ⚠️ Los tests **truncan** las 8 tablas (`pacientes`, `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos`, `turnos` y `lista_espera`) de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado con error antes de conectar o truncar. No apuntes los tests a una base con datos que quieras conservar.
 
 ## 4. Migrar, cargar datos ficticios y correr todos los tests
 
@@ -128,9 +128,9 @@ python -m pytest -rs backend/tests
 
 Resultado esperado:
 
-- La migración crea las 7 tablas (si ya existían, informa que está al día).
+- La migración crea las 8 tablas (si ya existían, informa que está al día).
 - El seed informa `seed ok` con 2 profesionales, 2 sillones, 3 prestaciones, 10 horarios, 1 bloqueo y 3 pacientes ficticios. Es idempotente y no crea turnos.
-- Los tests: **127 passed, 0 skipped**.
+- Los tests: **155 passed, 0 skipped**.
 
 Rollback de la migración, si hace falta:
 
