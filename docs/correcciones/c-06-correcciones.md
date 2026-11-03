@@ -41,7 +41,7 @@
 - **B2:** `responder(acepta=False)` calcula el siguiente de la lista, pero el endpoint lo descarta. La spec dice "el siguiente queda disponible" y no define qué significa. Decisión pendiente (propuesta mínima: devolverlo en la respuesta, sin crear turnos automáticos; ofrecerlo sería otro change).
 - **B5:** `ofrecer` no valida que el profesional ofrecido coincida con el de la entrada ni que realice la prestación. Falta revisar qué ya valida `ServicioTurnos.crear()` antes de decidir.
 - **Q5 (criterio de orden):** sigue abierta con el PO como responsable; FIFO por `creado_en` es provisional.
-- **Reglas `RN-*` sin verificar contra la KB:** la skill cita `RN-AG-02/03/04` y el proposal `RN-TU-01`; la spec no cita ninguna.
-- **Tasks sin mapeo escenario → test:** `tasks.md` dice "verificar en verde" sin indicar qué test cubre cada escenario. La spec tiene 11 escenarios.
+- **Reglas `RN-*` contra la KB (verificado, ver `c-06-mapeo-escenarios.md` §3):** los IDs citados existen; la cita de `RN-TU-01` en el proposal es tangencial; la KB no tiene reglas propias de lista de espera; `RN-07` quedó sin verificar.
+- **Tasks sin mapeo escenario → test:** Resuelto con el anexo `c-06-mapeo-escenarios.md` (§1 y §2): la spec tiene 10 escenarios, no 11. El `tasks.md` archivado sigue sin nombrar escenarios. El mapeo se hizo por nombre de test, sin revisar cada aserción.
 - **README:** no tiene ejemplos de lista de espera.
 - Los cambios de B3 y B4 no figuran en la spec archivada. Si el equipo los quiere como parte del contrato, corresponde un change nuevo que los incorpore, no editar el archivado.
