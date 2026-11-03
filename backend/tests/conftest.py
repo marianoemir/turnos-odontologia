@@ -116,7 +116,8 @@ def _db_engine(_db_url_or_skip, request):
 
 _CATALOGO_TABLES = (
     "pacientes, profesionales, sillones, "
-    "prestaciones, horarios, bloqueos, turnos, lista_espera"
+    "prestaciones, horarios, bloqueos, turnos, lista_espera, "
+    "entrada_hc, odontograma, plan_item, plan_tratamiento, historia_clinica"
 )
 
 
