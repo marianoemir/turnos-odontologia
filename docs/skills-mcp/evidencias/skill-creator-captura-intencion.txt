@@ -1,0 +1,17 @@
+1. ¿Qué debe hacer el skill?
+Implementar el change C-06 (lista-de-espera) siguiendo la KB y las reglas duras del TP:
+- Modelo SQLAlchemy ListaEspera (paciente_id, profesional_id nullable, prestacion_id, creado_en, estado con enum pendiente|ofrecido|asignado|baja).
+- Endpoints: POST /lista-espera, GET /lista-espera?profesional=, POST /lista-espera/{id}/ofrecer (crea turno vía ServicioTurnos.crear() de C-03; si acepta → asignado, si rechaza → siguiente).
+- Lógica FIFO (orden por creado_en) para ofrecer huecos tras cancelaciones (C-04).
+- Migración Alembic nueva + tests pytest (alta en lista, ofrecer hueco crea turno válido, rechazo pasa al siguiente, orden FIFO).
+2. ¿Cuándo debería dispararse? (descripción "pushy" para que no sub-dispare)
+Frases/contextos como: "implementar lista de espera", "agregar lista de espera", "rellenar cancelaciones", "ofrecer hueco a paciente en lista", "waitlist", "lista de espera odontología", "C-06", "US-004". También cuando el usuario trabaja en el backend FastAPI de turnos y menciona reutilizar ServicioTurnos.crear() para asignar un turno desde la lista.
+3. Formato de salida esperado:
+Código completo en el estilo del repo: modelos SQLAlchemy, schemas Pydantic, router FastAPI, servicio con lógica FIFO, migración Alembic, y tests pytest. Plus un checklist de tasks (como el tasks.md de OpenSpec) marcando qué se implementó.
+4. ¿Test cases?
+Sí. Propongo 3 prompts de prueba realistas:
+- T1: "Implementá la lista de espera con POST/GET y el endpoint ofrecer que crea un turno válido vía ServicioTurnos." (happy path)
+- T2: "Agregá el manejo de rechazo: si el paciente rechaza el hueco ofrecido, pasa al siguiente en FIFO." (edge case)
+- T3: "Hacé los tests de orden FIFO y de que ofrecer crea un turno sin solape." (tests)
+5. Nombre del skill:
+lista-espera-odontologia (kebab-case, descriptivo, evita colisión con skills genéricas).
