@@ -17,6 +17,15 @@
 > - **C-13 ampliado** (sin renumerar): se le agregan la limpieza del scaffold de Vite (`index.html`, `README.md`, assets del template) y un job `frontend` de CI (`npm ci`, `npm run lint`, `tsc -b`, `npm run build`).
 > - **Higiene del repo**: un solo badge de video en el README, `VITE_API_BASE_URL` unificado en `frontend/.env.example`, nota de que Redis entra con C-07, y `.gitattributes` con `eol=lf` para `*.sh` y `Dockerfile`.
 
+> **Nota de rectificación (2026-11-03, rev. 4)** — correcciones de numeración, dependencias y estado, sin tocar el alcance ni los estados de los changes archivados (C-01 a C-06 y C-09):
+> - **Migraciones**: C-06 usó la `003_lista_espera` y C-09 la `004_hc_odontograma`. Quedan superadas las menciones "Migración 003" (C-09, archivado, no se reescribe), "004" (C-10) y "005" (C-11): cada change crea **la siguiente revisión sobre el head vigente al implementar** (`alembic heads`, desde `backend/`), y el número final depende del orden de merge. C-07 también necesita una migración (`recordatorio`), que su scope no mencionaba.
+> - **C-08 depende de C-07**: sus links de confirmación y cancelación lo reutilizan; el campo "Dependencias" decía solo C-04. Los gates ya lo ordenaban después de C-07.
+> - **C-10**: el test de "seña vinculada a reserva" apunta a la reserva online (C-08), pero C-10 depende solo de C-03. En el `design.md` de C-10 se decide cómo se modela la seña sin depender de C-08 (por ejemplo, una referencia opcional al turno) o queda como pregunta abierta.
+> - **C-09** (archivado): "cobertura OS aplicada" quedó como un monto informado por el cliente, que solo se guarda y se devuelve; el nomenclador y el cálculo de cobertura/copago son de C-10. Su "Leer antes" cita la Q7, que no trata sobre HC: la referencia está desalineada y no se derivó ninguna obligación de ella.
+> - **Gates**: son más conservadores que las dependencias reales (C-07 espera a C-14, y C-10 a C-04, C-05 y C-13, sin necesitarlos). Ante una diferencia manda el campo "Dependencias" de cada change.
+> - **Asignación (2026-11-03)**: Facundo Quiroga, C-07 y luego C-08; Mariano Chirino, C-09 (archivado) y luego C-10. `C-23` sin responsable; conviene cerrarlo antes de que C-07 incorpore Redis, porque ambos tocan `docker-compose.yml`.
+> - **Estado y árbol**: se actualizaron el pie del documento, la línea "Ya archivados" del camino crítico, el árbol de dependencias (C-08 cuelga de C-07) y la nota de la FASE 2. También se actualizaron `.active-orchestrator-state.json` (revisión 4) y el resumen de `AGENTS.md` y `CLAUDE.md`.
+
 ---
 
 ## Cómo usar este documento
@@ -37,8 +46,8 @@ C-01 foundation-setup
         ├── C-03 crear-turno-sin-solapamientos
         │     ├── C-04 cancelar-reprogramar
         │     │     ├── C-06 lista-de-espera
-        │     │     ├── C-07 recordatorios-confirmacion
-        │     │     └── C-08 reserva-online
+        │     │     └── C-07 recordatorios-confirmacion
+        │     │         └── C-08 reserva-online (rev. 4: depende también de C-07)
         │     │
         │     ├── C-05 agenda-del-dia
         │     │
@@ -128,7 +137,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados: C-01, C-02, C-03. Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03 (también están archivados C-04, C-05, C-06 y C-09, fuera del recorte). Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, pero conviene ejecutarlo antes de C-13 para que la imagen y las migraciones estén verificadas cuando el frontend empiece a consumir la API.
 
@@ -280,7 +289,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ## FASE 2 — Paciente y recordatorios (posterior al TP)
 
-> C-06, C-07 y C-08 son paralelos tras C-04. Ninguno entra en el recorte TP.
+> C-06, C-07 y C-08 son paralelos tras C-04 (rev. 4: C-08 depende además de C-07, por lo que va después de él). Ninguno entra en el recorte TP.
 
 ### [C-06] `lista-de-espera`
 - **Estado**: `[x]` archivado (2026-11-02)
@@ -304,6 +313,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - Modelo `Recordatorio`: `turno_id`, `canal` (whatsapp|email), `estado` (pendiente|enviado|confirmado|cancelado), `token_1toque`
   - Job 48/24h: envía recordatorio; link `POST /confirmar/{token}` → confirmado, `POST /cancelar/{token}` → cancelado (libera vía C-04)
   - `WHATSAPP_TOKEN` solo vía env, cupo incluido; sin token → fallback email/log (tests sin red)
+  - Migración: tabla `recordatorio` como siguiente revisión sobre el head vigente al implementar (rev. 4; la 004 ya la ocupó C-09)
   - Tests: envío programa, confirmación 1 toque, cancelación libera hueco, sin token no rompe
 - **Dependencias**: C-04
 - **Governance**: ALTO
@@ -321,7 +331,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - `GET /reservar/{profesional}?prestacion=&fecha=` (slots reales: horario − bloqueos − turnos activos)
   - `POST /reservar`: crea pendiente vía validación C-03 (rate limit por IP); links de confirmación/cancelación que reutilizan C-07
   - Tests: slots excluyen ocupados/bloqueos, crear ok, solape 409, rate limit, links públicos sin login
-- **Dependencias**: C-04
+- **Dependencias**: C-04, C-07 (rev. 4: los links de confirmación y cancelación reutilizan C-07)
 - **Governance**: MEDIO
 - **Leer antes**:
   - `knowledge-base/03_actores_y_roles.md` §Rutas públicas
@@ -358,7 +368,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - Modelos: `Caja` (apertura/cierre diario, arqueo), `Cobro` (turno_id, medio, monto centavos, estado), `LiquidacionOS` (nomenclador, cobertura/copago, PDF)
   - `POST /caja/abrir|cerrar`, `POST /cobros` (efectivo/tarjeta/transf/MP/OS), `POST /cobros/{id}/factura-arca` (B/C CAE+QR), `GET /liquidaciones-os`
   - `MP_ACCESS_TOKEN`, `ARCA_CERT` solo env; sin credenciales → modo simulado marcado explícito (tests sin red)
-  - Migración 004: tablas caja/cobros/liquidaciones
+  - Migración: tablas caja/cobros/liquidaciones, como siguiente revisión sobre el head vigente al implementar (rev. 4: la 004 ya la ocupó C-09; el número final depende del orden de merge)
   - Tests: apertura/cierre/arqueo, cobro por medio, seña vinculada a reserva, factura simulada, liquidación PDF, anulación trazable
 - **Dependencias**: C-03
 - **Governance**: CRITICO
@@ -376,7 +386,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - Modelos: `Rol`, `Sucursal`, `UsuarioSucursal`; `PermissionContext`: `require_role()`, `require_admin()` (primer login real acá si se exige)
   - `GET /export` — pacientes + HC + agenda + caja en 1 clic (contrato de salida 30 días documentado en README)
   - Migración asistida desde planilla (script `import_planilla.*` + guía en español)
-  - Migración 005: roles/sucursales
+  - Migración: roles/sucursales, como siguiente revisión sobre el head vigente al implementar (rev. 4: el número final depende del orden de merge)
   - Tests: aislamiento por sucursal, permisos por rol, exportación incluye los 4 dominios, import planilla idempotente
 - **Dependencias**: C-09, C-10
 - **Governance**: ALTO
@@ -626,6 +636,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-10-28 (rev. 3)**: 23 changes. Archivados: C-01, C-02, C-03. Pendientes: 20.
+> **Estado del roadmap al 2026-11-03 (rev. 4)**: 23 changes. Archivados: C-01, C-02, C-03, C-04, C-05, C-06 y C-09. Pendientes: 16 (C-07, C-08, C-10, C-11 y C-12 a C-23).
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
 > Próximo paso del recorte TP: `/opsx:propose C-12-catalogo-recursos-api` (o `C-23-fix-api-contenedor`, que no bloquea).
