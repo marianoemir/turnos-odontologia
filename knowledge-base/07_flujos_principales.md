@@ -49,6 +49,8 @@ Recepcion ← 201 creado | 409 conflicto
 **Casos de error**: profesional/fecha inválidos → 422/404.
 
 ## Flujo 4: Ofrecer hueco a lista de espera (posterior, no implementar)
+
+> **Nota (2026-11-02):** este flujo ya no es posterior: C-06 `lista-espera` está implementado y archivado (ver Épica 4 en `06_funcionalidades.md`). El texto de abajo se conserva como se redactó. Criterio de orden: Q5 abierta, FIFO provisional.
 **Disparador**: cancelación. **Actor**: Recepción + Sistema.
 1. Sistema detecta hueco liberado (RN-TU-01).
 2. Según criterio de orden (pregunta abierta), propone a siguiente en lista.

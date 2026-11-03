@@ -40,7 +40,7 @@ Estos comportamientos existen y están testeados, pero no forman parte del contr
 |---|---|---|
 | `SKILL.md` de la skill | RN-AG-02/03/04 | Existen: solape de profesional, de sillón y borde `[inicio, fin)` |
 | `proposal.md` | RN-TU-01 | Existe, pero la cita es tangencial: la regla dice que cancelar libera profesional y sillón; no dice que el hueco liberado no se rellene |
-| `.active-orchestrator-state.json` | RN-01..RN-08 | Son los alias antiguos que la propia KB declara entre paréntesis (RN-05 = RN-AG-05, RN-06 = RN-TU-01, RN-08 = RN-ES-01). **RN-07 no se verificó** |
+| `.active-orchestrator-state.json` | RN-01..RN-08 | Son los alias antiguos que la propia KB declara entre paréntesis (RN-05 = RN-AG-05, RN-06 = RN-TU-01, RN-08 = RN-ES-01). **RN-07 no se verificó** (nota 2026-11-02: verificada contra la KB, es `RN-TU-02 (RN-07)` en `knowledge-base/05_reglas_de_negocio.md`) |
 | `spec.md` | (ninguna) | No cita reglas |
 
 **Conclusión:** los IDs citados existen. La KB **no contiene reglas de negocio de la lista de espera**: solo US-004 y el Flujo 4 (marcados "change posterior") y la pregunta abierta Q5.
