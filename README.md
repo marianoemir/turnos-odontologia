@@ -240,9 +240,10 @@ docker compose exec postgres psql -U odontologia -d turnos
 ```sql
 CREATE ROLE mcp_readonly LOGIN PASSWORD '<clave-ficticia-del-rol>';
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO mcp_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE odontologia IN SCHEMA public GRANT SELECT ON TABLES TO mcp_readonly;
 ```
 
-El `GRANT` no alcanza a las tablas futuras: cada change que crea tablas (por ejemplo `lista_espera`, de C-06) obliga a repetirlo. Se comprueba consultando `information_schema.role_table_grants` con `grantee = 'mcp_readonly'`.
+El `GRANT` cubre las tablas que ya existen; `ALTER DEFAULT PRIVILEGES` cubre las que cree `odontologia` de ahí en adelante (por ejemplo `lista_espera`, de C-06, que quedó sin acceso hasta el 2026-11-02). Esta segunda línea se ejecutó el 2026-11-02 y se verificó en `pg_default_acl`, pero **no se probó todavía con una migración real**. Se comprueba consultando `information_schema.role_table_grants` con `grantee = 'mcp_readonly'`.
 
 ### Variable de entorno
 
