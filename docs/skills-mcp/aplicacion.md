@@ -15,7 +15,7 @@
 
 > **Actualización 2026-11-02:** la descripción de C-04 de arriba refleja el momento de la preparación. C-04 se implementó y archivó el 2026-11-01 (`openspec/changes/archive/2026-11-01-c-04-cancelar-reprogramar/`) y figura `[x]` en `CHANGES.md`.
 
-**Skill propia (actualización 2026-11-02):** `lista-espera-odontologia` (Andrés) está guardada en `.agents/skills/lista-espera-odontologia/`, registrada en `.atl/skill-registry.md` (ruta relativa, agregada a mano; el registro no se regeneró) y referenciada en `AGENTS.md`/`CLAUDE.md`. Su código de ejemplo se corrigió tras las correcciones B1, B3 y B4 de C-06 (`docs/correcciones/c-06-correcciones.md`). **[PENDIENTE]** evidencia real de uso (solicitud, resultado, aporte), prueba en sesión nueva y confirmar si se generó con `skill-creator`.
+**Skill propia (actualización 2026-11-02):** `lista-espera-odontologia` (Andrés) está guardada en `.agents/skills/lista-espera-odontologia/`, registrada en `.atl/skill-registry.md` (ruta relativa, agregada a mano; el registro no se regeneró) y referenciada en `AGENTS.md`/`CLAUDE.md`. Su código de ejemplo se corrigió tras las correcciones B1, B3 y B4 de C-06 (`docs/correcciones/c-06-correcciones.md`). Según lo informado por el equipo, se generó con `skill-creator`; se conserva el texto de su fase de captura de intención (`docs/skills-mcp/evidencias/skill-creator-captura-intencion.txt`), sin autor ni fecha, y no hay registro de la ejecución de los casos de prueba. **Uso real (2026-11-03):** en una sesión nueva el agente invocó la skill y revisó la spec de C-06; detalle y revisión crítica en `docs/skills-mcp/evidencias/skill-uso-real-2026-11-03.md`. **[PENDIENTE]** qué pidió Andrés al generarla y qué cambió a mano.
 
 ## 2. Evidencias
 
