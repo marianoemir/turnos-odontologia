@@ -46,7 +46,7 @@ Se prepara un change por herramienta, sin implementar (sin `/opsx:apply`).
 **Seguridad (ambos con vulnerabilidades registradas):**
 - *Postgres MCP Pro:* CVE-2026-85620 (publicada el 2026-09-04, severidad 9,2). Afecta a todas las versiones hasta la 0.3.0: una función puesta en la cláusula `FROM` evade la validación del modo `restricted` y permite leer archivos del servidor. En notas del 5 de setiembre no había versión corregida; **[PENDIENTE]** ver si hoy existe. **No pudimos confirmar** la versión de nuestra imagen (creada el 2025-05-16).
 - *DBHub:* CVE-2026-61788 (el modo solo lectura no impedía escrituras; corregido en 0.22.6) y CVE-2026-61742 (HTTP sin autenticación; solo afecta al transporte HTTP). Probamos la v1.5.0 por `stdio`, así que no nos alcanzan. Existe además CVE-2026-79536, una inyección SQL en `sql-parser.ts` de la v1.2.0, **sin aviso del proveedor**: no confirmamos si la 1.5.0 la corrige.
-- *Mitigación común:* base local con datos ficticios y usuario de base de solo lectura, sin privilegios de lectura de archivos del servidor como `pg_read_server_files` (DBHub lo recomienda). Ambos MCP se probaron con el rol `mcp_readonly` (solo `SELECT` en las 8 tablas, sin superusuario ni `pg_read_server_files`); el script de referencia para recrearlo está en el README.
+- *Mitigación común:* base local con datos ficticios y usuario de base de solo lectura, sin privilegios de lectura de archivos del servidor como `pg_read_server_files` (DBHub lo recomienda). Ambos MCP se probaron con el rol `mcp_readonly` (solo `SELECT` en las 8 tablas, sin superusuario ni `pg_read_server_files`); el README incluye un script **reconstruido** para recrearlo (el rol original se creó a mano; nota 2026-11-02).
 
 ## 4. Instalación y configuración (Postgres MCP Pro)
 
