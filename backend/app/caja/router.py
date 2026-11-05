@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from backend.app.caja.reloj import ahora_local
 from backend.app.caja.schemas import (
@@ -99,7 +102,8 @@ def _traducir_error(exc: Exception) -> HTTPException:
         ),
     ):
         return HTTPException(status_code=422, detail=str(exc))
-    return HTTPException(status_code=500, detail=str(exc))
+    logger.exception("Error inesperado en router de caja: %s", exc)
+    return HTTPException(status_code=500, detail="error interno")
 
 
 # ---------------------------------------------------------------------------

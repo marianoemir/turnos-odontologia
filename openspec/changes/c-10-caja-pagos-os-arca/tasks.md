@@ -299,12 +299,12 @@
 
 ## 6. Registro e integración de la app
 
-- [ ] 6.1 Registrar el router en `backend/app/main.py`
+- [x] 6.1 Registrar el router en `backend/app/main.py`
   (`app.include_router(caja_router)`).
   **Verificación:** `pytest backend/tests/test_caja_api.py -k apertura_valida`
   en verde y `GET /health` sigue respondiendo 200.
 
-- [ ] 6.2 Confirmar que `backend/app/caja/models.py` se importa desde `env.py`
+- [x] 6.2 Confirmar que `backend/app/caja/models.py` se importa desde `env.py`
   (tarea 2.3) y que la app arranca sin `DATABASE_URL` (contrato foundation:
   importar `main` no debe exigir base).
   **Verificación:**
@@ -372,7 +372,7 @@
   subconjunto que matchee por subcadena).
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -rs` en verde.
 
-- [ ] 7.3 `backend/tests/test_caja_api.py` con `TestClient`: cubre códigos de
+- [x] 7.3 `backend/tests/test_caja_api.py` con `TestClient`: cubre códigos de
   estado, cuerpos y `detail` de 409 (ver tabla de mapeo). Los escenarios de las
   23:30 se hacen deterministas con
   `app.dependency_overrides[get_ahora] = lambda: datetime(2026, 11, 3, 23, 30, tzinfo=ZONA)`
