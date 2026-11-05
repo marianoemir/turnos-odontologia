@@ -425,6 +425,43 @@ def test_horario_patch_dia_semana_invalido():
     with pytest.raises(ValidationError):
         HorarioPatch(dia_semana=7)
 
+def test_horario_create_rechaza_tzinfo_aware():
+    prof_id = uuid.uuid4()
+    # desde aware
+    with pytest.raises(ValidationError):
+        HorarioCreate(
+            profesional_id=prof_id,
+            dia_semana=1,
+            desde=time(10, 0, tzinfo=UTC),
+            hasta=time(11, 0),
+        )
+    # hasta aware
+    with pytest.raises(ValidationError):
+        HorarioCreate(
+            profesional_id=prof_id,
+            dia_semana=1,
+            desde=time(10, 0),
+            hasta=time(11, 0, tzinfo=UTC),
+        )
+    # mixto (desde naive, hasta aware string o objeto) -> debe dar ValidationError, no TypeError
+    with pytest.raises(ValidationError):
+        HorarioCreate.model_validate(
+            {
+                "profesional_id": str(prof_id),
+                "dia_semana": 1,
+                "desde": "10:00",
+                "hasta": "11:00+00:00",
+            }
+        )
+
+
+def test_horario_patch_rechaza_tzinfo_aware():
+    with pytest.raises(ValidationError):
+        HorarioPatch(desde=time(10, 0, tzinfo=UTC))
+    with pytest.raises(ValidationError):
+        HorarioPatch(hasta=time(11, 0, tzinfo=UTC))
+
+
 
 def test_horario_out():
     uid = uuid.uuid4()

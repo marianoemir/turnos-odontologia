@@ -177,6 +177,13 @@ class HorarioCreate(BaseModel):
     desde: time
     hasta: time
 
+    @field_validator("desde", "hasta", mode="after")
+    @classmethod
+    def rechazar_tzinfo(cls, v: time) -> time:
+        if v.tzinfo is not None:
+            raise ValueError("No se permite zona horaria en horas de atención")
+        return v
+
     @model_validator(mode="after")
     def validar_rango(self) -> HorarioCreate:
         if self.desde >= self.hasta:
@@ -197,6 +204,13 @@ class HorarioPatch(BaseModel):
     def rechazar_null(cls, v: object) -> object:
         if v is None:
             raise ValueError("El campo no permite valores nulos")
+        return v
+
+    @field_validator("desde", "hasta", mode="after")
+    @classmethod
+    def rechazar_tzinfo(cls, v: time | None) -> time | None:
+        if v is not None and v.tzinfo is not None:
+            raise ValueError("No se permite zona horaria en horas de atención")
         return v
 
 
