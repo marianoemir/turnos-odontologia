@@ -551,4 +551,4 @@ filas, todas en `test_caja_api.py`).
   la revisión esté aprobada. Al archivar solo se marca `[x]` en la línea
   Estado de C-10 en `CHANGES.md`.
 
-> **Revisión humana de design.md/spec: PENDIENTE (05/11/2026).** Se avanza sobre los defaults del diseño. Preguntas enviadas a la fundación: arqueo solo efectivo (D2), copago OS (D28), una caja por día. No mergear a main sin cerrarla.
+> **Revisión humana de design.md/spec: CERRADA (05/11/2026).** Defaults del diseño aceptados sin respuesta de negocio: arqueo solo efectivo (D2), copago OS fuera del cobro (D28), una caja por día (D1), precios fijados por recepción, factura B o C a elección, sin control de acceso hasta C-11, facturar con caja cerrada permitido y anular con caja cerrada bloqueado (D23). Quedan registrados como preguntas abiertas en `knowledge-base/10_preguntas_abiertas.md`. Criterio del profesor: completar los changes, que funcione y respetar SDD y el flujo de Active Stack.
