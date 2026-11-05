@@ -37,6 +37,10 @@ class Paciente(Base):
     ficticio: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 class Profesional(Base):
@@ -48,6 +52,10 @@ class Profesional(Base):
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     matricula: Mapped[str] = mapped_column(
         String(32), nullable=False, unique=True
+    )
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
     )
 
 
@@ -79,6 +87,10 @@ class Prestacion(Base):
         String(100), nullable=False, unique=True
     )
     duracion_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 def hay_solape_config(a_desde, a_hasta, b_desde, b_hasta) -> bool:
@@ -105,6 +117,10 @@ class HorarioAtencion(Base):
     dia_semana: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     desde: Mapped[time] = mapped_column(Time, nullable=False)
     hasta: Mapped[time] = mapped_column(Time, nullable=False)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 def validar_horario_sin_solape(

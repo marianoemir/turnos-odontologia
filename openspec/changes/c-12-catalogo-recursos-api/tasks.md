@@ -2,8 +2,11 @@
 
 ## 1. Migración de Base de Datos y Modelos
 
-- [ ] 1.1 Crear la migración Alembic aditiva `006_catalogo_activo` sobre el head `005_caja_pagos` agregando la columna `activo BOOLEAN NOT NULL DEFAULT true` con índices nombrados explícitamente `ix_pacientes_activo`, `ix_profesionales_activo`, `ix_prestaciones_activo` e `ix_horarios_activo` para coincidir con el `index=True` de los modelos, actualizar las clases correspondientes en `backend/app/agenda/models.py` asegurando consistencia con `SillonBox` y verificar ejecutando `alembic upgrade head` y `alembic downgrade -1` contra PostgreSQL real.
-- [ ] 1.2 Confirmar si `alembic check` funciona con el env.py del proyecto (correr desde backend/). Si no funciona, verificar la migración 006_catalogo_activo inspeccionando las columnas e índices contra PostgreSQL (information_schema / pg_indexes) y dejar la salida como nota.
+- [x] 1.1 Crear la migración Alembic aditiva `006_catalogo_activo` sobre el head `005_caja_pagos` agregando la columna `activo BOOLEAN NOT NULL DEFAULT true` con índices nombrados explícitamente `ix_pacientes_activo`, `ix_profesionales_activo`, `ix_prestaciones_activo` e `ix_horarios_activo` para coincidir con el `index=True` de los modelos, actualizar las clases correspondientes en `backend/app/agenda/models.py` asegurando consistencia con `SillonBox` y verificar ejecutando `alembic upgrade head` y `alembic downgrade -1` contra PostgreSQL real.
+- [x] 1.2 Confirmar si `alembic check` funciona con el env.py del proyecto (correr desde backend/). Si no funciona, verificar la migración 006_catalogo_activo inspeccionando las columnas e índices contra PostgreSQL (information_schema / pg_indexes) y dejar la salida como nota.
+  - Nota: `alembic check` funcionó perfectamente reportando "No new upgrade operations detected.", confirmando que los modelos SQLAlchemy en models.py coinciden exactamente con el esquema de la base. Adicionalmente se verificaron las columnas e índices en Postgres:
+    Columnas: ('horarios', 'activo', 'boolean', 'NO', 'true'), ('pacientes', 'activo', 'boolean', 'NO', 'true'), ('prestaciones', 'activo', 'boolean', 'NO', 'true'), ('profesionales', 'activo', 'boolean', 'NO', 'true').
+    Índices: ('horarios', 'ix_horarios_activo'), ('pacientes', 'ix_pacientes_activo'), ('prestaciones', 'ix_prestaciones_activo'), ('profesionales', 'ix_profesionales_activo').
 
 ## 2. Ajuste Mínimo en C-03 (Servicio de Turnos)
 
