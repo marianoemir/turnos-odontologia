@@ -434,7 +434,13 @@ def test_consultas_get_y_404(client):
 
 
 def test_get_liquidaciones_os_orden_desc(client):
-    client.post("/caja/abrir", json={"monto_apertura_centavos": 5000})
+    # La caja se abre con el mismo reloj inyectado que los cobros:
+    # sin esto el test depende de la fecha real del dia.
+    app.dependency_overrides[get_ahora] = lambda: datetime(
+        2026, 11, 4, 9, 0, tzinfo=ZONA
+    )
+    r_abrir = client.post("/caja/abrir", json={"monto_apertura_centavos": 5000})
+    assert r_abrir.status_code == 201
 
     # Liquidación 1 con t1
     app.dependency_overrides[get_ahora] = lambda: datetime(2026, 11, 4, 10, 0, tzinfo=ZONA)
