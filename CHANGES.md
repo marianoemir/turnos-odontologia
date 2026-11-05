@@ -363,7 +363,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-10] `caja-pagos-os-arca`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-05)
 - **Scope**: Caja diaria + Mercado Pago + OS + factura ARCA (pagos: governance máxima)
   - Modelos: `Caja` (apertura/cierre diario, arqueo), `Cobro` (turno_id, medio, monto centavos, estado), `LiquidacionOS` (nomenclador, cobertura/copago, PDF)
   - `POST /caja/abrir|cerrar`, `POST /cobros` (efectivo/tarjeta/transf/MP/OS), `POST /cobros/{id}/factura-arca` (B/C CAE+QR), `GET /liquidaciones-os`
