@@ -269,7 +269,7 @@
 
 ## 5. Router
 
-- [ ] 5.1 `backend/app/caja/router.py` con los **9 endpoints** de `design.md`
+- [x] 5.1 `backend/app/caja/router.py` con los **9 endpoints** de `design.md`
   §API, `response_model` y `status_code` correctos, el `get_db` con `commit()`
   del router (patrón `lista_espera`) y la dependencia `get_ahora()` que inyecta
   el reloj (D21/D29) en **`POST /caja/abrir`, `POST /caja/cerrar`,
@@ -278,7 +278,7 @@
   en verde; `python -c "from backend.app.caja.router import router;
   print(len(router.routes))"` devuelve 9.
 
-- [ ] 5.2 Mapeo de excepciones de dominio a HTTP, explícito:
+- [x] 5.2 Mapeo de excepciones de dominio a HTTP, explícito:
   `CajaNoEncontrada`/`CobroNoEncontrado`/`TurnoNoEncontrado` → **404**;
   `CajaYaAbierta`/`CajaNoAbierta`/`CajaYaCerrada`/`CajaCerrada`/
   `CobroYaAnulado`/**`CobroFacturado`**/`CobroAnulado`/`CobroYaFacturado`/
@@ -292,7 +292,7 @@
   **Verificación:** `pytest backend/tests/test_caja_api.py -k "_409 or _422"`
   en verde.
 
-- [ ] 5.3 Verificar que no existe ningún endpoint `DELETE` en el router y que las
+- [x] 5.3 Verificar que no existe ningún endpoint `DELETE` en el router y que las
   rutas de borrado responden 405.
   **Verificación:** `pytest backend/tests/test_caja_api.py -k delete_cobro_405`
   en verde.
