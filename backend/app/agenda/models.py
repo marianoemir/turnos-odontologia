@@ -124,15 +124,25 @@ class HorarioAtencion(Base):
 
 
 def validar_horario_sin_solape(
-    session, profesional_id, dia_semana, desde, hasta
+    session,
+    profesional_id,
+    dia_semana,
+    desde,
+    hasta,
+    excluir_id: uuid.UUID | None = None,
 ) -> None:
-    """Rechaza con ValueError si el rango solapa otra fila del mismo
-    profesional y dia. La adyacencia exacta esta permitida (D2)."""
-    existentes = (
+    """Rechaza con ValueError si el rango solapa otra fila activa del mismo
+    profesional y dia. La adyacencia exacta esta permitida (D2/RN-AG-04).
+    Si se pasa excluir_id, omite dicha fila para permitir PATCH idempotente."""
+    query = (
         session.query(HorarioAtencion)
         .filter_by(profesional_id=profesional_id, dia_semana=dia_semana)
-        .all()
+        .filter(HorarioAtencion.activo.is_(True))
     )
+    if excluir_id is not None:
+        query = query.filter(HorarioAtencion.id != excluir_id)
+
+    existentes = query.all()
     for fila in existentes:
         if hay_solape_config(fila.desde, fila.hasta, desde, hasta):
             raise ValueError(
