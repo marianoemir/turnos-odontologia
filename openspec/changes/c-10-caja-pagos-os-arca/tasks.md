@@ -483,14 +483,14 @@ filas, todas en `test_caja_api.py`).
 
 ## 8. Verificación final
 
-- [ ] 8.1 `ruff check backend/` sin hallazgos.
+- [x] 8.1 `ruff check backend/` sin hallazgos.
   **Verificación:** `ruff check backend/` sale con código 0.
 
-- [ ] 8.2 Suite completa sin regresiones (integración real incluida).
+- [x] 8.2 Suite completa sin regresiones (integración real incluida).
   **Verificación:** `pytest -rs backend/tests` en verde, sin `skipped` de
   integración (con `CI=true` la falta de Postgres debe fallar, no skipear).
 
-- [ ] 8.3 Revisión de las reglas duras: sin hard delete, sin datos reales, sin
+- [x] 8.3 Revisión de las reglas duras: sin hard delete, sin datos reales, sin
   secretos, 409 para conflicto de negocio, 422 para input inválido (incluidos
   monto fuera de rango y campos OS inválidos), sin `datetime.now()` en la lógica
   de negocio (reloj inyectable), sin `commit()` en el servicio y **sin lecturas
@@ -502,7 +502,7 @@ filas, todas en `test_caja_api.py`).
   `backend.app.turnos.service` (no la redefine) y que `backend/app/caja` no
   importa `httpx`/`requests`/`urllib.request`.
 
-- [ ] 8.4 Evidencia de que `ALTER DEFAULT PRIVILEGES` de la migración 005 llega
+- [x] 8.4 Evidencia de que `ALTER DEFAULT PRIVILEGES` de la migración 005 llega
   a `mcp_readonly`: después de `upgrade head`, consultar los grants reales de las
   tres tablas nuevas y los default ACL. Comando de referencia del revisor
   (evidencia primaria, **no** se ejecuta en esta etapa):
