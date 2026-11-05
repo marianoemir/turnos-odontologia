@@ -1,6 +1,6 @@
 """Tests de la capa de servicio de caja, cobros y liquidaciones (C-10, 7.2)."""
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
 import pytest
 
@@ -991,6 +991,7 @@ def test_cobro_turno_inexistente(db_session):
 
 def test_integrity_error_traduce_409(db_session):
     from unittest.mock import patch
+
     from sqlalchemy.exc import IntegrityError
 
     orig_flush = db_session.flush
@@ -1002,7 +1003,7 @@ def test_integrity_error_traduce_409(db_session):
         return orig_flush(*args, **kwargs)
 
     # Simular una colisión de unicidad que supere la consulta previa
-    with patch.object(db_session, "flush", side_effect=flush_wrapper):
+    with patch.object(db_session, "flush", side_effect=flush_wrapper):  # noqa: SIM117
         with pytest.raises(CajaYaAbierta):
             ServicioCaja.abrir(
                 db_session,
