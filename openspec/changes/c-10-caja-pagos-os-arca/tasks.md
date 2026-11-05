@@ -44,7 +44,7 @@
 > reordena la numeración de tareas y solo se documenta la dependencia real de
 > verificación.
 
-- [ ] 1.1 Extender `_CATALOGO_TABLES` en `backend/tests/conftest.py` (tupla de
+- [x] 1.1 Extender `_CATALOGO_TABLES` en `backend/tests/conftest.py` (tupla de
   alrededor de la línea 117) agregando `liquidacion_os`, `cobro`, `caja` en orden
   inverso de dependencias, para que el `TRUNCATE` no deje filas entre tests. Va
   primero porque todo lo demás depende de una pizarra limpia. Ojo: el
@@ -55,7 +55,7 @@
   no:randomly` dos veces seguidas da el mismo resultado y sin fallos por datos
   residuales.
 
-- [ ] 1.2 Crear `backend/app/caja/__init__.py` con **docstring de una línea**
+- [x] 1.2 Crear `backend/app/caja/__init__.py` con **docstring de una línea**
   (patrón `agenda/` y `lista_espera/`), `backend/app/caja/reloj.py` con
   `ahora_local()` (`datetime.now(ZONA)`) y `hoy_local()`, **importando `ZONA` de
   `backend.app.turnos.service`** (definida en la línea 27; **no** redefinirla), y
@@ -72,7 +72,7 @@
   backend/tests/test_caja_modelo.py -k caja_fecha_unica` en verde (insertar dos
   cajas con la misma `fecha` debe fallar por UNIQUE).
 
-- [ ] 1.3 Modelar `caja` (fecha UNIQUE **sin** índice extra: el UNIQUE ya crea
+- [x] 1.3 Modelar `caja` (fecha UNIQUE **sin** índice extra: el UNIQUE ya crea
   el índice, `ix_caja_fecha` se elimina; monto de apertura CHECK `BETWEEN 0 AND
   MONTO_MAX_CENTAVOS`; estado abierta/cerrada; montos `BigInteger`) y `cobro`
   (FK a caja RESTRICT, `turno_id` FK **RESTRICT** (D16: no hay borrado silencioso
@@ -84,7 +84,7 @@
   **Verificación:** `pytest backend/tests/test_caja_modelo.py -k
   "cobro_restrict_caja or monto_cobro_positivo or monto_cobro_tope"` en verde.
 
-- [ ] 1.4 Modelar `liquidacion_os` (FK a cobro RESTRICT + UNIQUE, nomenclador
+- [x] 1.4 Modelar `liquidacion_os` (FK a cobro RESTRICT + UNIQUE, nomenclador
   NOT NULL, montos `BigInteger` CHECK `BETWEEN 0 AND MONTO_MAX_CENTAVOS`,
   estado con CHECK que incluye `anulada`) **más los CHECK de coherencia**
   `cobertura_centavos <= monto_total_centavos` (`cobertura_no_excede_total`) y
@@ -98,7 +98,7 @@
 
 ## 2. Migración 005
 
-- [ ] 2.1 Crear `backend/alembic/versions/005_caja_pagos.py` con
+- [x] 2.1 Crear `backend/alembic/versions/005_caja_pagos.py` con
   `revision = "005_caja_pagos"` y **`down_revision = "004_hc_odontograma"`**
   (head real verificado; `CHANGES.md` mencionaba "004" y está desactualizado).
   **La migración no hace `GRANT` ni toca roles**: el rol `mcp_readonly` no está
@@ -118,7 +118,7 @@
   ```
   La migración aplica sin error.
 
-- [ ] 2.2 Implementar `downgrade()` en **orden inverso**
+- [x] 2.2 Implementar `downgrade()` en **orden inverso**
   (`liquidacion_os` → `cobro` → `caja`), dropeando índices antes que tablas.
   **Verificación** (parado en `backend\`):
   ```powershell
@@ -128,7 +128,7 @@
   ```
   Ambas idempotentes y sin error; repetir la secuencia una segunda vez.
 
-- [ ] 2.3 Agregar el import explícito `from backend.app.caja import models` con
+- [x] 2.3 Agregar el import explícito `from backend.app.caja import models` con
   `# noqa: F401` en `backend/alembic/env.py`, junto a los imports de `agenda`,
   `hc`, `lista_espera` y `turnos`. Sin este import `Base.metadata` no ve las
   tablas.
@@ -148,7 +148,7 @@
 > escenarios viven en `test_caja_api.py` (§5 y §7.3) y son los que la matriz
 > referencia.
 
-- [ ] 3.1 Schemas de caja: `CajaAbrir` (**sin** `fecha`, D30:
+- [x] 3.1 Schemas de caja: `CajaAbrir` (**sin** `fecha`, D30:
   `monto_apertura_centavos: int = Field(ge=0, le=MONTO_MAX_CENTAVOS)`),
   `CajaCerrar` (`fecha: date | None = None`,
   `monto_cierre_contado_centavos: int = Field(ge=0, le=MONTO_MAX_CENTAVOS)`),
@@ -159,7 +159,7 @@
   "apertura or cierre"` en verde (casos negativos y sobre el tope → `422` de
   Pydantic, sin tocar la base).
 
-- [ ] 3.2 Schemas de cobro: `CobroCreate` (`caja_id` opcional, `turno_id`
+- [x] 3.2 Schemas de cobro: `CobroCreate` (`caja_id` opcional, `turno_id`
   opcional, `medio`, `concepto` opcional con default `total`,
   `monto_centavos: int = Field(gt=0, le=MONTO_MAX_CENTAVOS)`, campos OS
   opcionales `nomenclador_codigo` y
@@ -178,7 +178,7 @@
   "monto_no_positivo or medio_invalido or monto_maximo or cobertura_mayor or
   campos_os"` en verde.
 
-- [ ] 3.3 Schemas de ARCA y liquidación: `FacturaArcaCreate`
+- [x] 3.3 Schemas de ARCA y liquidación: `FacturaArcaCreate`
   (`tipo: Literal["B","C"]`), `FacturaArcaOut` (`cae`, `qr`, `simulado`,
   `modo`), `LiquidacionOSOut` con `id`, `cobro_id`, `nomenclador_codigo`, montos,
   `estado` y `pdf_referencia`. Constantes `MODO_ARCA_SIMULADO = "simulado"` y
@@ -324,7 +324,7 @@
 > RED; 7.x cierra cada archivo (cobertura completa, `-rs`, nombres definitivos de
 > la matriz) y agrega los tests unitarios/invariantes que **no** son escenarios.
 
-- [ ] 7.1 `backend/tests/test_caja_modelo.py` (`pytestmark = pytest.mark.integration`):
+- [x] 7.1 `backend/tests/test_caja_modelo.py` (`pytestmark = pytest.mark.integration`):
   invariantes de esquema. Tests nombrados (los usan 1.2–1.4):
   `test_caja_fecha_unica`, `test_cobro_restrict_caja`,
   `test_monto_cobro_positivo`, `test_monto_cobro_tope`,
@@ -384,7 +384,7 @@
   el código de producción no lee el entorno (D9).
   **Verificación:** `pytest backend/tests/test_caja_api.py -rs` en verde.
 
-- [ ] 7.4 `backend/tests/test_caja_schemas.py`: tests puros de Pydantic (sin
+- [x] 7.4 `backend/tests/test_caja_schemas.py`: tests puros de Pydantic (sin
   `TestClient`, sin base) de montos fuera de rango, medio/concepto/tipo
   inválidos, `campos_os_no_aplicables` (mensaje dentro del `detail` en lista),
   nomenclador ausente y cobertura mayor al total. No son escenarios de la matriz:
