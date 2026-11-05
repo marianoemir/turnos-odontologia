@@ -192,7 +192,7 @@
 > (`test_caja_servicio.py`, con `db_session`): no necesitan router y por eso van
 > antes de §5. El router puede crear la `HTTPException` recién en 5.x.
 
-- [ ] 4.1 `backend/app/caja/service.py` con `ServicioCaja.abrir` y `cerrar`:
+- [x] 4.1 `backend/app/caja/service.py` con `ServicioCaja.abrir` y `cerrar`:
   abrir valida fecha única (409 `caja_ya_abierta`/`caja_ya_cerrada`), monto
   `0 <= x <= MONTO_MAX_CENTAVOS`, y usa `hoy_local(ahora)` (nunca una fecha del
   request, D30); cerrar identifica la caja por `fecha` (default `hoy_local()` del
@@ -206,14 +206,14 @@
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "abrir or cerrar or cierre"` en verde.
 
-- [ ] 4.2 `obtener` y `obtener_por_fecha(session, fecha=None, *, ahora=None)`:
+- [x] 4.2 `obtener` y `obtener_por_fecha(session, fecha=None, *, ahora=None)`:
   404 si no existe; `fecha` default `hoy_local(ahora)` para que `GET /caja` sin
   `fecha` use el reloj inyectado (D29). Triangular con el caso de fecha sin caja
   y con el override de las 23:30.
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "obtener or por_fecha"` en verde.
 
-- [ ] 4.3 `registrar_cobro(session, datos, *, ahora=None)`: resuelve la caja con
+- [x] 4.3 `registrar_cobro(session, datos, *, ahora=None)`: resuelve la caja con
   `caja_id` explícito (404 si no existe, 409 si cerrada) o, si falta, con
   `hoy_local(ahora)` (409 `caja_no_abierta` si no hay caja abierta hoy, D29);
   toma row lock sobre la caja (`with_for_update()`), valida turno existente (404
@@ -228,7 +228,7 @@
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "registrar_cobro or cobro_os"` en verde.
 
-- [ ] 4.4 `obtener_cobro` y `anular_cobro`: 404 si no existe; rechazos en
+- [x] 4.4 `obtener_cobro` y `anular_cobro`: 404 si no existe; rechazos en
   **orden de precedencia** `cobro_ya_anulado` → `caja_cerrada` → `cobro_facturado`
   (D26): 409 si ya anulado, 409 `caja_cerrada` si la caja del cobro está cerrada
   (D23), 409 `cobro_facturado` si el cobro ya tiene factura emitida (excepción
@@ -242,7 +242,7 @@
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "anular"` en verde.
 
-- [ ] 4.5 `facturar_arca`: toma row lock sobre el cobro
+- [x] 4.5 `facturar_arca`: toma row lock sobre el cobro
   (`with_for_update()`, D19); valida cobro existente (404) y no anulado (409);
   rechaza segunda emisión (409 `cobro_ya_facturado`); rechaza cobro OS (409
   `medio_no_facturable`, D24); valida tipo (422); opera siempre en modo
@@ -253,12 +253,12 @@
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "factura"` en verde.
 
-- [ ] 4.6 `listar_liquidaciones`: orden `creado_en` desc, `[]` si no hay,
+- [x] 4.6 `listar_liquidaciones`: orden `creado_en` desc, `[]` si no hay,
   incluye `estado` (también `anulada`, D27). Triangular con listado vacío.
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -k
   "listado_liquidaciones"` en verde.
 
-- [ ] 4.7 Validación explícita de FKs **antes** de `session.add` en
+- [x] 4.7 Validación explícita de FKs **antes** de `session.add` en
   `registrar_cobro` (turno y caja) y traducción de `IntegrityError`
   (UNIQUE/CHECK) a la excepción de dominio correspondiente: un id bien formado
   (UUID válido) que no existe es excepción de dominio → **404**, nunca `500`; una
@@ -332,7 +332,7 @@
   `test_liquidacion_check_cobertura_copago`, `test_montos_bigint`.
   **Verificación:** `pytest backend/tests/test_caja_modelo.py -rs` en verde.
 
-- [ ] 7.2 `backend/tests/test_caja_servicio.py`: servicio con `db_session` y
+- [x] 7.2 `backend/tests/test_caja_servicio.py`: servicio con `db_session` y
   `seed_catalogo(db_session)`; tests de la capa de servicio, sin HTTP. Respaldan
   el TDD de cada tarea 4.x y son distintos de los de la matriz (que son de API).
   Por tarea:
