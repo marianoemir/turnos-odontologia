@@ -544,4 +544,113 @@ def test_error_interno_500_logger(client, monkeypatch):
     assert r.json() == {"detail": "error interno"}
 
 
+def test_totales_por_medio_excluyen_cobros_anulados(client):
+    """GET /caja/{id} y GET /caja no incluyen cobros anulados en totales_por_medio_centavos.
+
+    Se registra un cobro en efectivo ($3000), uno con tarjeta ($4500) y uno anulado ($2000).
+    Los totales deben reflejar únicamente los cobros no anulados.
+    """
+    ahora = datetime(2026, 11, 4, 10, 0, tzinfo=ZONA)
+    app.dependency_overrides[get_ahora] = lambda: ahora
+
+    try:
+        r_abrir = client.post("/caja/abrir", json={"monto_apertura_centavos": 10000})
+        assert r_abrir.status_code == 201
+        caja_id = r_abrir.json()["id"]
+
+        # 1. Cobro efectivo (3000)
+        r1 = client.post(
+            "/cobros",
+            json={"medio": "efectivo", "monto_centavos": 3000},
+        )
+        assert r1.status_code == 201
+
+        # 2. Cobro tarjeta (4500)
+        r2 = client.post(
+            "/cobros",
+            json={"medio": "tarjeta", "monto_centavos": 4500},
+        )
+        assert r2.status_code == 201
+
+        # 3. Cobro efectivo a anular (2000)
+        r3 = client.post(
+            "/cobros",
+            json={"medio": "efectivo", "monto_centavos": 2000},
+        )
+        assert r3.status_code == 201
+        cobro3_id = r3.json()["id"]
+
+        # Anular cobro 3
+        r_anular = client.post(
+            f"/cobros/{cobro3_id}/anular",
+            json={"motivo": "pago duplicado"},
+        )
+        assert r_anular.status_code == 200
+
+        # Verificar GET /caja/{id}
+        r_caja_id = client.get(f"/caja/{caja_id}")
+        assert r_caja_id.status_code == 200
+        totales_id = r_caja_id.json()["totales_por_medio_centavos"]
+        assert totales_id.get("efectivo") == 3000  # Excluye los 2000 anulados
+        assert totales_id.get("tarjeta") == 4500
+
+        # Verificar GET /caja (sin fecha, usa ahora inyectado)
+        r_caja_hoy = client.get("/caja")
+        assert r_caja_hoy.status_code == 200
+        totales_hoy = r_caja_hoy.json()["totales_por_medio_centavos"]
+        assert totales_hoy.get("efectivo") == 3000
+        assert totales_hoy.get("tarjeta") == 4500
+    finally:
+        app.dependency_overrides.pop(get_ahora, None)
+
+
+def test_precedencia_d26_caja_cerrada_sobre_cobro_facturado(client):
+    """Precedencia D26: cobro facturado en una caja ya cerrada al anular da 409 caja_cerrada.
+
+    El orden de precedencia es: cobro_ya_anulado -> caja_cerrada -> cobro_facturado.
+    Si el cobro no está anulado pero está facturado y la caja está cerrada, debe fallar con
+    causa: 'caja_cerrada' (no 'cobro_facturado').
+    """
+    ahora = datetime(2026, 11, 4, 10, 0, tzinfo=ZONA)
+    app.dependency_overrides[get_ahora] = lambda: ahora
+
+    try:
+        r_abrir = client.post("/caja/abrir", json={"monto_apertura_centavos": 5000})
+        assert r_abrir.status_code == 201
+
+        # Registrar cobro
+        r_cobro = client.post(
+            "/cobros",
+            json={"medio": "efectivo", "monto_centavos": 2000},
+        )
+        assert r_cobro.status_code == 201
+        cobro_id = r_cobro.json()["id"]
+
+        # Facturar cobro
+        r_factura = client.post(
+            f"/cobros/{cobro_id}/factura-arca",
+            json={"tipo": "B"},
+        )
+        assert r_factura.status_code == 201
+
+        # Cerrar caja
+        r_cerrar = client.post(
+            "/caja/cerrar",
+            json={"monto_cierre_contado_centavos": 7000},
+        )
+        assert r_cerrar.status_code == 200
+
+        # Intentar anular el cobro facturado en la caja cerrada
+        r_anular = client.post(
+            f"/cobros/{cobro_id}/anular",
+            json={"motivo": "intento de anulación"},
+        )
+        assert r_anular.status_code == 409
+        body = r_anular.json()
+        assert body["detail"]["causa"] == "caja_cerrada"
+    finally:
+        app.dependency_overrides.pop(get_ahora, None)
+
+
+
 

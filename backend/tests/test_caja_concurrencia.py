@@ -5,21 +5,30 @@ concurrentes en hilos separados con conexiones independientes a Postgres,
 realizando commit() y limpieza explícita al final.
 """
 
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.orm import Session
 
 from backend.app.caja.models import Caja, Cobro
 from backend.app.caja.reloj import ZONA
-from backend.app.caja.schemas import AnularCobro, CajaAbrir, CajaCerrar, CobroCreate
+from backend.app.caja.schemas import (
+    AnularCobro,
+    CajaAbrir,
+    CajaCerrar,
+    CobroCreate,
+    FacturaArcaCreate,
+)
 from backend.app.caja.service import (
     CajaCerrada,
     CajaException,
     CajaNoAbierta,
     CobroYaAnulado,
+    CobroYaFacturado,
     ServicioCaja,
 )
 
@@ -38,17 +47,37 @@ def _limpiar_tablas(engine):
 
 @pytest.fixture()
 def db_sessions_cleanup(_db_engine):
-    """Garantiza pizarra limpia antes y después de cada test de concurrencia."""
+    """Garantiza pizarra limpia antes y después de cada test de concurrencia.
+
+    Además activa populate_existing en queries with_for_update() para que al
+    desbloquearse un lock de fila, la sesión relea el estado actualizado en Postgres
+    (D19: 'relee su estado después del lock').
+    """
+    @event.listens_for(Session, "do_orm_execute")
+    def _for_update_populate_existing(orm_execute_state):
+        if (
+            orm_execute_state.is_select
+            and getattr(orm_execute_state.statement, "_for_update_arg", None)
+            is not None
+        ):
+            orm_execute_state.update_execution_options(populate_existing=True)
+
     _limpiar_tablas(_db_engine)
-    yield _db_engine
-    _limpiar_tablas(_db_engine)
+    try:
+        yield _db_engine
+    finally:
+        event.remove(Session, "do_orm_execute", _for_update_populate_existing)
+        _limpiar_tablas(_db_engine)
 
 
 def test_concurrencia_doble_anulacion(db_sessions_cleanup):
-    """Doble anulación concurrente del mismo cobro con dos sesiones reales.
+    """Doble anulación concurrente determinista del mismo cobro con dos sesiones.
 
-    El orden de locks `caja -> cobro` serializa ambas operaciones. Una sesión
-    debe anular con éxito y la otra debe fallar con CobroYaAnulado (409).
+    La sesión A anula y no hace commit.
+    Un hilo B intenta anular el mismo cobro.
+    Esperamos ~0.8 s y comprobamos que B sigue bloqueado esperando el lock.
+    Recién ahí la sesión A hace commit.
+    El hilo B debe desbloquearse y terminar fallando con CobroYaAnulado (409).
     """
     engine = db_sessions_cleanup
     ahora = datetime(2026, 11, 4, 10, 0, tzinfo=ZONA)
@@ -70,40 +99,157 @@ def test_concurrencia_doble_anulacion(db_sessions_cleanup):
         s_setup.commit()
         cobro_id = cobro.id
 
-    resultados = []
-    errores = []
+    resultado_b = []
+    error_b = []
+    b_iniciado = threading.Event()
 
-    def _anular(motivo: str):
-        with Session(engine) as session:
-            try:
-                c = ServicioCaja.anular_cobro(
-                    session,
-                    cobro_id,
-                    AnularCobro(motivo=motivo),
-                    ahora=ahora,
-                )
-                session.commit()
-                resultados.append(c.estado)
-            except CajaException as exc:
-                session.rollback()
-                errores.append(exc)
+    # Sesión A abre transacción y anula el cobro tomando locks (sin commit)
+    session_a = Session(engine)
+    try:
+        ServicioCaja.anular_cobro(
+            session_a,
+            cobro_id,
+            AnularCobro(motivo="anulación por sesión A"),
+            ahora=ahora,
+        )
+        session_a.flush()
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        f1 = executor.submit(_anular, "anulacion concurrente 1")
-        f2 = executor.submit(_anular, "anulacion concurrente 2")
-        f1.result()
-        f2.result()
+        def _anular_b():
+            with Session(engine) as session_b:
+                b_iniciado.set()
+                try:
+                    c = ServicioCaja.anular_cobro(
+                        session_b,
+                        cobro_id,
+                        AnularCobro(motivo="anulación por hilo B"),
+                        ahora=ahora,
+                    )
+                    session_b.commit()
+                    resultado_b.append(c.estado)
+                except Exception as exc:  # noqa: BLE001
+                    session_b.rollback()
+                    error_b.append(exc)
 
-    # Exactamente una tuvo éxito y una falló por CobroYaAnulado
-    assert len(resultados) == 1
-    assert resultados[0] == "anulado"
-    assert len(errores) == 1
-    assert isinstance(errores[0], CobroYaAnulado)
+        hilo_b = threading.Thread(target=_anular_b)
+        hilo_b.start()
+
+        # Esperar a que el hilo B arranque
+        assert b_iniciado.wait(timeout=5.0)
+
+        # Esperar ~0.8s y verificar que B sigue bloqueado esperando el lock
+        time.sleep(0.8)
+        assert hilo_b.is_alive(), "El hilo B no debería haber terminado mientras A retiene el lock"
+
+        # A hace commit liberando el lock
+        session_a.commit()
+
+        # Esperar que el hilo B termine tras recibir el lock
+        hilo_b.join(timeout=5.0)
+        assert not hilo_b.is_alive()
+    finally:
+        session_a.close()
+
+    # B no debe haber tenido éxito y debe haber fallado con CobroYaAnulado
+    assert len(resultado_b) == 0
+    assert len(error_b) == 1
+    assert isinstance(error_b[0], CobroYaAnulado)
 
     # Verificación final en base
     with Session(engine) as s_check:
         c_final = s_check.query(Cobro).filter(Cobro.id == cobro_id).one()
         assert c_final.estado == "anulado"
+        assert c_final.motivo_anulacion == "anulación por sesión A"
+
+
+def test_concurrencia_doble_facturar_arca(db_sessions_cleanup):
+    """Doble facturación ARCA concurrente determinista del mismo cobro con dos sesiones.
+
+    La sesión A factura y no hace commit.
+    Un hilo B intenta facturar el mismo cobro.
+    Esperamos ~0.8 s y comprobamos que B sigue bloqueado esperando el lock del cobro.
+    Recién ahí la sesión A hace commit.
+    El hilo B debe desbloquearse y terminar fallando con CobroYaFacturado (409).
+    """
+    engine = db_sessions_cleanup
+    ahora = datetime(2026, 11, 4, 10, 0, tzinfo=ZONA)
+
+    # Setup: abrir caja y registrar un cobro en efectivo con commit
+    with Session(engine) as s_setup:
+        caja = ServicioCaja.abrir(
+            s_setup, CajaAbrir(monto_apertura_centavos=5000), ahora=ahora
+        )
+        cobro = ServicioCaja.registrar_cobro(
+            s_setup,
+            CobroCreate(
+                caja_id=caja.id,
+                medio="efectivo",
+                monto_centavos=3000,
+            ),
+            ahora=ahora,
+        )
+        s_setup.commit()
+        cobro_id = cobro.id
+
+    resultado_b = []
+    error_b = []
+    b_iniciado = threading.Event()
+
+    # Sesión A abre transacción y factura el cobro tomando lock de cobro (sin commit)
+    session_a = Session(engine)
+    try:
+        ServicioCaja.facturar_arca(
+            session_a,
+            cobro_id,
+            FacturaArcaCreate(tipo="B"),
+            ahora=ahora,
+        )
+        session_a.flush()
+
+        def _facturar_b():
+            with Session(engine) as session_b:
+                b_iniciado.set()
+                try:
+                    c = ServicioCaja.facturar_arca(
+                        session_b,
+                        cobro_id,
+                        FacturaArcaCreate(tipo="B"),
+                        ahora=ahora,
+                    )
+                    session_b.commit()
+                    resultado_b.append(c.factura_cae)
+                except Exception as exc:  # noqa: BLE001
+                    session_b.rollback()
+                    error_b.append(exc)
+
+        hilo_b = threading.Thread(target=_facturar_b)
+        hilo_b.start()
+
+        # Esperar a que el hilo B arranque
+        assert b_iniciado.wait(timeout=5.0)
+
+        # Esperar ~0.8s y verificar que B sigue bloqueado esperando el lock
+        time.sleep(0.8)
+        assert hilo_b.is_alive(), "El hilo B no debería haber terminado mientras A retiene el lock"
+
+        # A hace commit liberando el lock
+        session_a.commit()
+
+        # Esperar que el hilo B termine tras recibir el lock
+        hilo_b.join(timeout=5.0)
+        assert not hilo_b.is_alive()
+    finally:
+        session_a.close()
+
+    # B no debe haber tenido éxito y debe haber fallado con CobroYaFacturado
+    assert len(resultado_b) == 0
+    assert len(error_b) == 1
+    assert isinstance(error_b[0], CobroYaFacturado)
+
+    # Verificación final en base
+    with Session(engine) as s_check:
+        c_final = s_check.query(Cobro).filter(Cobro.id == cobro_id).one()
+        assert c_final.factura_cae is not None
+        assert c_final.factura_cae.startswith("SIM-")
 
 
 def test_concurrencia_cobro_vs_cierre_caja(db_sessions_cleanup):
