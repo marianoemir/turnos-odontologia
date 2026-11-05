@@ -550,3 +550,5 @@ filas, todas en `test_caja_api.py`).
 - Archivar el change con `/opsx:archive` recién cuando 8.1–8.4 estén en verde y
   la revisión esté aprobada. Al archivar solo se marca `[x]` en la línea
   Estado de C-10 en `CHANGES.md`.
+
+> **Revisión humana de design.md/spec: PENDIENTE (05/11/2026).** Se avanza sobre los defaults del diseño. Preguntas enviadas a la fundación: arqueo solo efectivo (D2), copago OS (D28), una caja por día. No mergear a main sin cerrarla.
