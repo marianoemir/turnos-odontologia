@@ -244,6 +244,7 @@ class ServicioTurnos:
         filas = (
             session.query(HorarioAtencion)
             .filter_by(profesional_id=profesional_id)
+            .filter(HorarioAtencion.activo.is_(True))
             .all()
         )
         por_dia: dict[int, list] = {}

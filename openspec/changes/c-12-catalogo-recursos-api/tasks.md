@@ -10,7 +10,8 @@
 
 ## 2. Ajuste Mínimo en C-03 (Servicio de Turnos)
 
-- [ ] 2.1 Agregar el filtro `HorarioAtencion.activo.is_(True)` en `ServicioTurnos._cubierto_por_horario` (`backend/app/turnos/service.py`) y crear un test en `backend/tests/test_turnos_servicio.py` que verifique que un turno es rechazado por conflicto de horario cuando la única franja que lo cubría tiene `activo=false`.
+- [x] 2.1 Agregar el filtro `HorarioAtencion.activo.is_(True)` en `ServicioTurnos._cubierto_por_horario` (`backend/app/turnos/service.py`) y crear un test en `backend/tests/test_turnos_servicio.py` que verifique que un turno es rechazado por conflicto de horario cuando la única franja que lo cubría tiene `activo=false`.
+  - Nota: Verificado mediante prueba de mutación. Al remover `.filter(HorarioAtencion.activo.is_(True))`, el nuevo test `test_turno_rechazado_si_horario_inactivo` en `backend/tests/test_turno_servicio.py` FALLA (`Failed: DID NOT RAISE ConflictoTurno`), demostrando que un horario inactivo cubría indebidamente el turno. Al restaurar el filtro, el test pasa exitosamente junto con el caso de control.
 
 ## 3. Schemas Pydantic y Validaciones de Entrada
 
