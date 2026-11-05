@@ -269,7 +269,7 @@
 
 ## 5. Router
 
-- [ ] 5.1 `backend/app/caja/router.py` con los **9 endpoints** de `design.md`
+- [x] 5.1 `backend/app/caja/router.py` con los **9 endpoints** de `design.md`
   §API, `response_model` y `status_code` correctos, el `get_db` con `commit()`
   del router (patrón `lista_espera`) y la dependencia `get_ahora()` que inyecta
   el reloj (D21/D29) en **`POST /caja/abrir`, `POST /caja/cerrar`,
@@ -278,7 +278,7 @@
   en verde; `python -c "from backend.app.caja.router import router;
   print(len(router.routes))"` devuelve 9.
 
-- [ ] 5.2 Mapeo de excepciones de dominio a HTTP, explícito:
+- [x] 5.2 Mapeo de excepciones de dominio a HTTP, explícito:
   `CajaNoEncontrada`/`CobroNoEncontrado`/`TurnoNoEncontrado` → **404**;
   `CajaYaAbierta`/`CajaNoAbierta`/`CajaYaCerrada`/`CajaCerrada`/
   `CobroYaAnulado`/**`CobroFacturado`**/`CobroAnulado`/`CobroYaFacturado`/
@@ -292,19 +292,19 @@
   **Verificación:** `pytest backend/tests/test_caja_api.py -k "_409 or _422"`
   en verde.
 
-- [ ] 5.3 Verificar que no existe ningún endpoint `DELETE` en el router y que las
+- [x] 5.3 Verificar que no existe ningún endpoint `DELETE` en el router y que las
   rutas de borrado responden 405.
   **Verificación:** `pytest backend/tests/test_caja_api.py -k delete_cobro_405`
   en verde.
 
 ## 6. Registro e integración de la app
 
-- [ ] 6.1 Registrar el router en `backend/app/main.py`
+- [x] 6.1 Registrar el router en `backend/app/main.py`
   (`app.include_router(caja_router)`).
   **Verificación:** `pytest backend/tests/test_caja_api.py -k apertura_valida`
   en verde y `GET /health` sigue respondiendo 200.
 
-- [ ] 6.2 Confirmar que `backend/app/caja/models.py` se importa desde `env.py`
+- [x] 6.2 Confirmar que `backend/app/caja/models.py` se importa desde `env.py`
   (tarea 2.3) y que la app arranca sin `DATABASE_URL` (contrato foundation:
   importar `main` no debe exigir base).
   **Verificación:**
@@ -372,7 +372,7 @@
   subconjunto que matchee por subcadena).
   **Verificación:** `pytest backend/tests/test_caja_servicio.py -rs` en verde.
 
-- [ ] 7.3 `backend/tests/test_caja_api.py` con `TestClient`: cubre códigos de
+- [x] 7.3 `backend/tests/test_caja_api.py` con `TestClient`: cubre códigos de
   estado, cuerpos y `detail` de 409 (ver tabla de mapeo). Los escenarios de las
   23:30 se hacen deterministas con
   `app.dependency_overrides[get_ahora] = lambda: datetime(2026, 11, 3, 23, 30, tzinfo=ZONA)`
@@ -391,7 +391,7 @@
   son la verificación unitaria de §3.
   **Verificación:** `pytest backend/tests/test_caja_schemas.py -rs` en verde.
 
-- [ ] 7.5 `backend/tests/test_caja_concurrencia.py`: test de concurrencia con
+- [x] 7.5 `backend/tests/test_caja_concurrencia.py`: test de concurrencia con
   **dos sesiones reales** sobre `_db_engine` (no `db_session`, cuyos datos sin
   commit no son visibles desde otra conexión), con `commit()` y limpieza
   explícita al final: (a) doble anulación del mismo cobro y (b) cobro vs cierre
@@ -483,14 +483,14 @@ filas, todas en `test_caja_api.py`).
 
 ## 8. Verificación final
 
-- [ ] 8.1 `ruff check backend/` sin hallazgos.
+- [x] 8.1 `ruff check backend/` sin hallazgos.
   **Verificación:** `ruff check backend/` sale con código 0.
 
-- [ ] 8.2 Suite completa sin regresiones (integración real incluida).
+- [x] 8.2 Suite completa sin regresiones (integración real incluida).
   **Verificación:** `pytest -rs backend/tests` en verde, sin `skipped` de
   integración (con `CI=true` la falta de Postgres debe fallar, no skipear).
 
-- [ ] 8.3 Revisión de las reglas duras: sin hard delete, sin datos reales, sin
+- [x] 8.3 Revisión de las reglas duras: sin hard delete, sin datos reales, sin
   secretos, 409 para conflicto de negocio, 422 para input inválido (incluidos
   monto fuera de rango y campos OS inválidos), sin `datetime.now()` en la lógica
   de negocio (reloj inyectable), sin `commit()` en el servicio y **sin lecturas
@@ -502,7 +502,7 @@ filas, todas en `test_caja_api.py`).
   `backend.app.turnos.service` (no la redefine) y que `backend/app/caja` no
   importa `httpx`/`requests`/`urllib.request`.
 
-- [ ] 8.4 Evidencia de que `ALTER DEFAULT PRIVILEGES` de la migración 005 llega
+- [x] 8.4 Evidencia de que `ALTER DEFAULT PRIVILEGES` de la migración 005 llega
   a `mcp_readonly`: después de `upgrade head`, consultar los grants reales de las
   tres tablas nuevas y los default ACL. Comando de referencia del revisor
   (evidencia primaria, **no** se ejecuta en esta etapa):
@@ -551,4 +551,4 @@ filas, todas en `test_caja_api.py`).
   la revisión esté aprobada. Al archivar solo se marca `[x]` en la línea
   Estado de C-10 en `CHANGES.md`.
 
-> **Revisión humana de design.md/spec: PENDIENTE (05/11/2026).** Se avanza sobre los defaults del diseño. Preguntas enviadas a la fundación: arqueo solo efectivo (D2), copago OS (D28), una caja por día. No mergear a main sin cerrarla.
+> **Revisión humana de design.md/spec: CERRADA (05/11/2026).** Defaults del diseño aceptados sin respuesta de negocio: arqueo solo efectivo (D2), copago OS fuera del cobro (D28), una caja por día (D1), precios fijados por recepción, factura B o C a elección, sin control de acceso hasta C-11, facturar con caja cerrada permitido y anular con caja cerrada bloqueado (D23). Quedan registrados como preguntas abiertas en `knowledge-base/10_preguntas_abiertas.md`. Criterio del profesor: completar los changes, que funcione y respetar SDD y el flujo de Active Stack.
