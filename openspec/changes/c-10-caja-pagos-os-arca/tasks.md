@@ -391,7 +391,7 @@
   son la verificación unitaria de §3.
   **Verificación:** `pytest backend/tests/test_caja_schemas.py -rs` en verde.
 
-- [ ] 7.5 `backend/tests/test_caja_concurrencia.py`: test de concurrencia con
+- [x] 7.5 `backend/tests/test_caja_concurrencia.py`: test de concurrencia con
   **dos sesiones reales** sobre `_db_engine` (no `db_session`, cuyos datos sin
   commit no son visibles desde otra conexión), con `commit()` y limpieza
   explícita al final: (a) doble anulación del mismo cobro y (b) cobro vs cierre
