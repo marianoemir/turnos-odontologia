@@ -16,6 +16,7 @@ from backend.app.db import Base
 from backend.app.hc import models as _hc_models  # noqa: F401  (metadata)
 from backend.app.lista_espera import models as _lista_espera_models  # noqa: F401
 from backend.app.turnos import models as _turnos_models  # noqa: F401
+from backend.app.caja import models  # noqa: F401
 
 config = context.config
 target_metadata = Base.metadata
