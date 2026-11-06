@@ -393,6 +393,13 @@ campo adicional del turno para el estado de resultado.
   concurrentes] → el `with_for_update` serializa por recordatorio, no entre
   recordatorios; el estado del turno decide y gana la última escritura. Con
   `expirado` para estados no aplicables, el caso queda acotado.
+- [Segundo click en confirmar sobre un turno que recepción canceló después] →
+  consecuencia de la fila 3 de D7: la acción registrada se reporta como ya
+  aplicada aunque el turno haya cambiado de estado después. Un segundo
+  `POST /confirmar/{token}` sobre un token ya usado para confirmar responde 200
+  `confirmado` con el turno en `cancelado` y no lo modifica. El cuerpo de la
+  ruta no expone el estado del turno, así que C-21 debe releerlo antes de
+  asumir que sigue confirmado.
 - [Sin reintentos] → un `fallido` se pierde; queda visible en la DB. Aceptado por
   decisión del PO.
 - [Rutas públicas sin auth] → el token es la capacidad (256 bits, formato

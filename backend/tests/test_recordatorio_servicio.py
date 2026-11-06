@@ -260,6 +260,40 @@ def test_confirmado_en_ventana_48h_si_recibe_etapa_48h(db_session):
 
 
 # ---------------------------------------------------------------------------
+# D6: token distinto por recordatorio del mismo turno
+# ---------------------------------------------------------------------------
+
+
+def test_dos_recordatorios_del_mismo_turno_tienen_tokens_distintos(
+    db_session,
+):
+    ids = _ids(db_session)
+    inicio = AHORA + timedelta(hours=47)
+    turno = _insertar_turno(db_session, ids, inicio=inicio)
+    fake = FakeNotificador()
+
+    primero = _procesar(db_session, notificador=fake)
+    segundo_ahora = inicio - timedelta(hours=23)
+    segundo = _procesar(
+        db_session, ahora=segundo_ahora, notificador=fake
+    )
+
+    recordatorios = (
+        db_session.query(Recordatorio)
+        .filter_by(turno_id=turno.id)
+        .order_by(Recordatorio.etapa)
+        .all()
+    )
+    assert [r.etapa for r in recordatorios] == ["24h", "48h"]
+    assert [r.estado for r in recordatorios] == ["enviado", "enviado"]
+    assert recordatorios[0].token_hash != recordatorios[1].token_hash
+    assert primero.enviados == 1
+    assert segundo.enviados == 1
+    assert len(fake.envios) == 2
+    assert fake.envios[0]["token"] != fake.envios[1]["token"]
+
+
+# ---------------------------------------------------------------------------
 # D3: dedupe e idempotencia
 # ---------------------------------------------------------------------------
 
