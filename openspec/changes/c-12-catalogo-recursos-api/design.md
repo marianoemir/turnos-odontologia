@@ -103,11 +103,15 @@ Asimismo, al revisar `ServicioTurnos._cubierto_por_horario` (`backend/app/turnos
 
 ## Open Questions
 
+> Todas las preguntas abiertas fueron cerradas como **defaults aceptados sin respuesta de negocio**.
+
 1. **¿El servicio de turnos (`backend/app/turnos/service.py`) debe rechazar profesionales o prestaciones inactivas?**
-   - *Default asumido*: Fuera del alcance de C-12. No se modifica la validación de profesional/prestación en C-03 para preservar estabilidad; hoy solo valida `sillon.activo` (RN-AG-03) y ahora `HorarioAtencion.activo` (D2). Se mantiene anotado como seguimiento para futuras iteraciones de agenda.
+   - *Default aceptado sin respuesta de negocio*: Fuera del alcance de C-12. No se modifica la validación de profesional/prestación en C-03 para preservar estabilidad; hoy solo valida `sillon.activo` (RN-AG-03) y ahora `HorarioAtencion.activo` (D2). Se mantiene anotado como seguimiento para futuras iteraciones de agenda.
 2. **¿`POST /pacientes` permite especificar el campo `ficticio`?**
-   - *Default asumido*: Sí, se acepta en el schema como opcional con valor por defecto `true`, coincidiendo con el valor por defecto a nivel de base de datos exigido para el entorno de TP.
+   - *Default aceptado sin respuesta de negocio*: Sí, se acepta en el schema como opcional con valor por defecto `true`, coincidiendo con el valor por defecto a nivel de base de datos exigido para el entorno de TP.
 3. **¿Cómo se da de baja una franja horaria que ya no rige?**
-   - *Default asumido*: Con la incorporación de la columna `activo` en la migración 006, la baja de un horario se realiza limpiamente mediante `PATCH /horarios-atencion/{id}` enviando `{"activo": false}`.
+   - *Default aceptado sin respuesta de negocio*: Con la incorporación de la columna `activo` en la migración 006, la baja de un horario se realiza limpiamente mediante `PATCH /horarios-atencion/{id}` enviando `{"activo": false}`.
 4. **¿Qué ocurre si al crear un bloqueo (`POST /bloqueos`) se envían `profesional_id` y `sillon_id` juntos?**
-   - *Default asumido*: Se acepta y aplica solo a turnos con ese profesional Y ese sillón simultáneamente (según la función `bloqueo_aplica` de C-02, matriz D1), validando que ambos recursos existan y estén activos.
+   - *Default aceptado sin respuesta de negocio*: Se acepta y aplica solo a turnos con ese profesional Y ese sillón simultáneamente (según la función `bloqueo_aplica` de C-02, matriz D1), validando que ambos recursos existan y estén activos.
+5. **Riesgo de carrera concurrente en solape de horarios (sin exclusion constraint en BD):**
+   - *Default aceptado sin respuesta de negocio*: Volumen bajo de operaciones administrativas concurrentes; mitigación en Python con `validar_horario_sin_solape(..., excluir_id=id)` aceptada.

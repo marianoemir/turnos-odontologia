@@ -67,5 +67,5 @@
 
 ## Workflow follow-up
 
-- Ejecutar `/opsx:apply c-12-catalogo-recursos-api` para implementar las tareas planificadas.
-- Verificar tests en verde antes de `/opsx:archive c-12-catalogo-recursos-api`.
+- [x] Ejecutar `/opsx:apply c-12-catalogo-recursos-api` para implementar las tareas planificadas.
+- [x] Verificar tests en verde antes de `/opsx:archive c-12-catalogo-recursos-api` (435 tests passing).
