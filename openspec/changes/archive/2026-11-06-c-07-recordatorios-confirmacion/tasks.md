@@ -50,5 +50,5 @@
 - [x] Actualizar el resumen del roadmap en `AGENTS.md` y `CLAUDE.md`, que deben quedar **idénticos**: C-07 archivado, próximo change del recorte y estado/fecha del roadmap.
 - [x] Actualizar la KB: `knowledge-base/03_actores_y_roles.md` §Rutas públicas (agregar `POST /confirmar/{token}` y `POST /cancelar/{token}`), `knowledge-base/06_funcionalidades.md` Épica 5 (US-005 implementada con su alcance real) y `knowledge-base/08_arquitectura_propuesta.md` tabla de variables (`WHATSAPP_TOKEN` opcional, sin valor en el repo, con fallback `log`).
 - [x] Sincronizar `design.md` con lo implementado: D6 (colisión de token no se regenera; el `UNIQUE` falla visible), D16 (campos en `NULL` y `simulado=false`), D1 (campos de `ResumenProcesamiento`, línea del job y `--ahora` sin zona), y §Risks (bloqueo en el `UNIQUE` con un commit por lote y segundo click tras cancelación por recepción). Verificación: cada afirmación coincide con el código y los tests.
-- [ ] Archivar el change cuando la revisión del proyecto esté satisfecha y los tests estén en verde.
-- [ ] Verificar el resultado archivado (specs principales `recordatorios` y `turnos` actualizadas).
+- [x] Archivar el change cuando la revisión del proyecto esté satisfecha y los tests estén en verde.
+- [x] Verificar el resultado archivado (specs principales `recordatorios` y `turnos` actualizadas).
