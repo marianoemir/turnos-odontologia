@@ -89,6 +89,26 @@ class ServicioTurnos:
         return turno
 
     @staticmethod
+    def confirmar(session, turno_id: uuid.UUID) -> Turno:
+        """Confirmar un turno `pendiente` (D9).
+
+        No revalida horario, bloqueo ni solape: no cambia el intervalo. La
+        idempotencia de la misma accion vive en la capa del link (D7), no aca,
+        para mantener la simetria con `cancelar`.
+        """
+        turno = session.get(Turno, turno_id)
+        if turno is None:
+            raise TurnoNoEncontrado("turno", turno_id)
+        if turno.estado != "pendiente":
+            raise ConflictoTurno(
+                "transicion",
+                f"un turno {turno.estado} no se puede confirmar",
+            )
+        turno.estado = "confirmado"
+        session.flush()
+        return turno
+
+    @staticmethod
     def cancelar(session, turno_id: uuid.UUID) -> Turno:
         turno = session.get(Turno, turno_id)
         if turno is None:

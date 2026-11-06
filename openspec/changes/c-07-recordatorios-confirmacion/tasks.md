@@ -13,15 +13,15 @@
 
 ## 2. Reloj y notificadores
 
-- [ ] 2.1 Escribir `backend/tests/test_recordatorio_notificadores.py` (RED) que cubra: `ahora_local()` devuelve un datetime con zona `America/Argentina/Buenos_Aires`; la fábrica elige canal `whatsapp` con `WHATSAPP_TOKEN` presente y `log` con la variable ausente o vacía; ambos notificadores devuelven una referencia `SIM-` no vacía y no usan red; un fallo se propaga como `NotificacionFallida`. Verificación: los tests fallan por módulos ausentes.
-- [ ] 2.2 Implementar `backend/app/recordatorios/reloj.py` con `ahora_local()` importando `ZONA` de `backend.app.turnos.service` (sin redefinirla). Verificación: el test del reloj queda en verde.
-- [ ] 2.3 Implementar `backend/app/recordatorios/notificadores.py` con el Protocol `Notificador`, `WhatsAppSimulado` (`SIM-WA-…`), `LogSimulado` (`SIM-LOG-…`), `NotificacionFallida` y `construir_notificador()` que solo evalúa la presencia de `WHATSAPP_TOKEN`. Verificación: los tests de notificadores quedan en verde sin llamadas de red.
-- [ ] 2.4 Agregar `WHATSAPP_TOKEN=` **sin valor** a `.env.example` con un comentario de que su ausencia activa el fallback `log`. Verificación: con la variable vacía, `construir_notificador().canal == "log"`.
+- [x] 2.1 Escribir `backend/tests/test_recordatorio_notificadores.py` (RED) que cubra: `ahora_local()` devuelve un datetime con zona `America/Argentina/Buenos_Aires`; la fábrica elige canal `whatsapp` con `WHATSAPP_TOKEN` presente y `log` con la variable ausente o vacía; ambos notificadores devuelven una referencia `SIM-` no vacía y no usan red; un fallo se propaga como `NotificacionFallida`. Verificación: los tests fallan por módulos ausentes.
+- [x] 2.2 Implementar `backend/app/recordatorios/reloj.py` con `ahora_local()` importando `ZONA` de `backend.app.turnos.service` (sin redefinirla). Verificación: el test del reloj queda en verde.
+- [x] 2.3 Implementar `backend/app/recordatorios/notificadores.py` con el Protocol `Notificador`, `WhatsAppSimulado` (`SIM-WA-…`), `LogSimulado` (`SIM-LOG-…`), `NotificacionFallida` y `construir_notificador()` que solo evalúa la presencia de `WHATSAPP_TOKEN`. Verificación: los tests de notificadores quedan en verde sin llamadas de red.
+- [x] 2.4 Agregar `WHATSAPP_TOKEN=` **sin valor** a `.env.example` con un comentario de que su ausencia activa el fallback `log`. Verificación: con la variable vacía, `construir_notificador().canal == "log"`.
 
 ## 3. ServicioTurnos.confirmar
 
-- [ ] 3.1 Escribir en `backend/tests/test_turno_servicio.py` los tests RED de `confirmar`: `pendiente` → `confirmado` conservando inicio, fin, paciente, profesional, sillón y prestación; 409 `transicion` desde `confirmado`, `cancelado`, `atendido` y `ausente`; 404 con UUID inexistente; y confirmación exitosa de un turno cuyo horario ya no está configurado (no revalida agenda). Verificación: los tests fallan por método ausente.
-- [ ] 3.2 Implementar `ServicioTurnos.confirmar(session, turno_id)` en `backend/app/turnos/service.py` con el orden del design D9 (existe → estado `pendiente` → escribir y `flush`). Verificación: los tests de 3.1 y toda la suite de turnos existente quedan en verde.
+- [x] 3.1 Escribir en `backend/tests/test_turno_servicio.py` los tests RED de `confirmar`: `pendiente` → `confirmado` conservando inicio, fin, paciente, profesional, sillón y prestación; 409 `transicion` desde `confirmado`, `cancelado`, `atendido` y `ausente`; 404 con UUID inexistente; y confirmación exitosa de un turno cuyo horario ya no está configurado (no revalida agenda). Verificación: los tests fallan por método ausente.
+- [x] 3.2 Implementar `ServicioTurnos.confirmar(session, turno_id)` en `backend/app/turnos/service.py` con el orden del design D9 (existe → estado `pendiente` → escribir y `flush`). Verificación: los tests de 3.1 y toda la suite de turnos existente quedan en verde.
 
 ## 4. Procesamiento de recordatorios
 

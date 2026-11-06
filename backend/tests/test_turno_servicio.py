@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from backend.app.agenda.models import (
+    HorarioAtencion,
     Paciente,
     Prestacion,
     Profesional,
@@ -841,3 +842,70 @@ def test_traducir_23514_no_se_convierte_en_409(db_session):
     assert error.orig.sqlstate == "23514"
     with pytest.raises(IntegrityError):
         ServicioTurnos._traducir_integridad(error)
+
+
+def test_confirmar_pendiente_conserva_el_resto_del_turno(db_session):
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+    fin_original = turno.fin
+
+    resultado = ServicioTurnos.confirmar(db_session, turno.id)
+
+    assert resultado.id == turno.id
+    assert resultado.estado == "confirmado"
+    assert resultado.inicio == LUNES_10
+    assert resultado.fin == fin_original
+    assert resultado.paciente_id == ids["paciente"]
+    assert resultado.profesional_id == ids["profesional"]
+    assert resultado.sillon_id == ids["sillon"]
+    assert resultado.prestacion_id == ids["consulta30"]
+    assert db_session.query(Turno).count() == 1
+
+
+@pytest.mark.parametrize(
+    "estado", ["confirmado", "cancelado", "atendido", "ausente"]
+)
+def test_confirmar_estado_no_pendiente_da_409(db_session, estado):
+    ids = _ids(db_session)
+    turno = _insertar_turno(
+        db_session,
+        ids,
+        estado=estado,
+        inicio=LUNES_10,
+        fin=datetime(2026, 10, 12, 10, 30, tzinfo=TZ),
+    )
+
+    with pytest.raises(ConflictoTurno) as exc:
+        ServicioTurnos.confirmar(db_session, turno.id)
+
+    assert exc.value.causa == "transicion"
+    db_session.expire_all()
+    assert db_session.get(Turno, turno.id).estado == estado
+
+
+def test_confirmar_turno_inexistente_da_404(db_session):
+    import uuid
+
+    inexistente = uuid.uuid4()
+
+    with pytest.raises(TurnoNoEncontrado) as exc:
+        ServicioTurnos.confirmar(db_session, inexistente)
+
+    assert exc.value.recurso == "turno"
+    assert exc.value.ref_id == inexistente
+    assert db_session.query(Turno).count() == 0
+
+
+def test_confirmar_no_revalida_la_agenda(db_session):
+    """D9: confirmar no revalida horario, bloqueo ni solape."""
+    ids = _ids(db_session)
+    turno = _crear(db_session, ids)
+
+    db_session.query(HorarioAtencion).filter_by(
+        profesional_id=ids["profesional"]
+    ).delete()
+    db_session.flush()
+
+    resultado = ServicioTurnos.confirmar(db_session, turno.id)
+
+    assert resultado.estado == "confirmado"
