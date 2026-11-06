@@ -210,7 +210,26 @@ El solape se rechaza en dos niveles: el servicio valida primero y devuelve el `4
 
 Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola.
 
-> **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. El servicio se incorpora con el primer change que la use (`C-07 recordatorios-confirmacion`); hasta entonces `REDIS_URL` es solo una variable reservada y no hace falta tener Redis corriendo.
+> **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. C-07 `recordatorios-confirmacion` tampoco lo usa: su procesamiento es determinista y se invoca por cron (ver §Recordatorios 48h/24h). Redis queda reservado para el primer change con funcionalidad asincrónica real.
+
+## Recordatorios 48h/24h (job por cron)
+
+El procesamiento de recordatorios no es asincrónico: es un job idempotente que abre su propia sesión, procesa el lote, commitea una sola vez al final e imprime el resumen. Se invoca por cron (o el Programador de tareas de Windows) desde la raíz del repo y con `DATABASE_URL` definida:
+
+```powershell
+python -m backend.app.recordatorios.job --limite 200
+```
+
+Opciones:
+
+- `--limite N`: máximo de turnos candidatos a procesar (default 200).
+- `--ahora ISO-8601`: instante de procesamiento; sin zona horaria se interpreta en `America/Argentina/Buenos_Aires`. Por defecto usa el reloj local.
+
+Salida: `recordatorios: candidatos=N enviados=N omitidos=N fallidos=N`. El código de salida es 0 salvo error de infraestructura; un envío `fallido` no es error de proceso. Ejemplo de crontab cada 15 minutos:
+
+```cron
+*/15 * * * * cd /ruta/al/repo && .venv/bin/python -m backend.app.recordatorios.job >> /var/log/recordatorios.log 2>&1
+```
 
 ## Integración MCP: Postgres MCP Pro
 

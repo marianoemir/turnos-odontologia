@@ -137,7 +137,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03 (también están archivados C-04, C-05, C-06 y C-09, fuera del recorte). Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03 (también están archivados C-04, C-05, C-06, C-07 y C-09, fuera del recorte). Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, pero conviene ejecutarlo antes de C-13 para que la imagen y las migraciones estén verificadas cuando el frontend empiece a consumir la API.
 
@@ -308,7 +308,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-07] `recordatorios-confirmacion`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-06)
 - **Scope**: US-005 — recordatorios con confirmación en 1 toque (WhatsApp entra acá, primera integración externa)
   - Modelo `Recordatorio`: `turno_id`, `canal` (whatsapp|email), `estado` (pendiente|enviado|confirmado|cancelado), `token_1toque`
   - Job 48/24h: envía recordatorio; link `POST /confirmar/{token}` → confirmado, `POST /cancelar/{token}` → cancelado (libera vía C-04)
@@ -636,6 +636,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-03 (rev. 4)**: 23 changes. Archivados: C-01, C-02, C-03, C-04, C-05, C-06 y C-09. Pendientes: 16 (C-07, C-08, C-10, C-11 y C-12 a C-23).
+> **Estado del roadmap al 2026-11-06 (rev. 5)**: 23 changes. Archivados: C-01, C-02, C-03, C-04, C-05, C-06, C-07 y C-09. Pendientes: 15 (C-08, C-10, C-11 y C-12 a C-23).
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
 > Próximo paso del recorte TP: `/opsx:propose C-12-catalogo-recursos-api` (o `C-23-fix-api-contenedor`, que no bloquea).
