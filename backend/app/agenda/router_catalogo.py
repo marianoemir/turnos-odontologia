@@ -13,8 +13,18 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
+from backend.app.agenda.models import (
+    HorarioAtencion,
+    Paciente,
+    Prestacion,
+    Profesional,
+    SillonBox,
+    validar_horario_sin_solape,
+)
 from backend.app.agenda.schemas import (
+    HorarioCreate,
+    HorarioOut,
+    HorarioPatch,
     PacienteCreate,
     PacienteOut,
     PacientePatch,
@@ -315,3 +325,124 @@ def modificar_prestacion(
 
     _flush_o_409(session)
     return prestacion
+
+
+
+# ============================================================================
+# Horarios de Atención
+# ============================================================================
+
+
+@router.get("/horarios-atencion", response_model=list[HorarioOut])
+def listar_horarios_atencion(
+    session: Annotated[Session, Depends(get_db)],
+    incluir_inactivos: bool = False,
+):
+    query = session.query(HorarioAtencion)
+    if not incluir_inactivos:
+        query = query.filter(HorarioAtencion.activo.is_(True))
+
+    return query.order_by(
+        HorarioAtencion.profesional_id.asc(),
+        HorarioAtencion.dia_semana.asc(),
+        HorarioAtencion.desde.asc(),
+        HorarioAtencion.id.asc(),
+    ).all()
+
+
+@router.post(
+    "/horarios-atencion",
+    response_model=HorarioOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_horario_atencion(
+    body: HorarioCreate,
+    session: Annotated[Session, Depends(get_db)],
+):
+    profesional = (
+        session.query(Profesional).filter_by(id=body.profesional_id).first()
+    )
+    if profesional is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Profesional {body.profesional_id} no encontrado",
+        )
+    if not profesional.activo:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Profesional inactivo",
+        )
+
+    try:
+        validar_horario_sin_solape(
+            session=session,
+            profesional_id=body.profesional_id,
+            dia_semana=body.dia_semana,
+            desde=body.desde,
+            hasta=body.hasta,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"causa": "solape_horario", "detalle": str(exc)},
+        ) from exc
+
+    horario = HorarioAtencion(
+        profesional_id=body.profesional_id,
+        dia_semana=body.dia_semana,
+        desde=body.desde,
+        hasta=body.hasta,
+        activo=True,
+    )
+    session.add(horario)
+    _flush_o_409(session)
+    return horario
+
+
+@router.patch("/horarios-atencion/{horario_id}", response_model=HorarioOut)
+def modificar_horario_atencion(
+    horario_id: uuid.UUID,
+    body: HorarioPatch,
+    session: Annotated[Session, Depends(get_db)],
+):
+    horario = session.query(HorarioAtencion).filter_by(id=horario_id).first()
+    if horario is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Horario de atención {horario_id} no encontrado",
+        )
+
+    datos = body.model_dump(exclude_unset=True)
+
+    dia_semana_res = datos.get("dia_semana", horario.dia_semana)
+    desde_res = datos.get("desde", horario.desde)
+    hasta_res = datos.get("hasta", horario.hasta)
+    activo_res = datos.get("activo", horario.activo)
+
+    if desde_res >= hasta_res:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="desde debe ser menor que hasta",
+        )
+
+    if activo_res:
+        try:
+            validar_horario_sin_solape(
+                session=session,
+                profesional_id=horario.profesional_id,
+                dia_semana=dia_semana_res,
+                desde=desde_res,
+                hasta=hasta_res,
+                excluir_id=horario.id,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"causa": "solape_horario", "detalle": str(exc)},
+            ) from exc
+
+    for campo, valor in datos.items():
+        setattr(horario, campo, valor)
+
+    _flush_o_409(session)
+    return horario

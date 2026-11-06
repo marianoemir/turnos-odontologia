@@ -13,7 +13,13 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
+from backend.app.agenda.models import (
+    HorarioAtencion,
+    Paciente,
+    Prestacion,
+    Profesional,
+    SillonBox,
+)
 from backend.app.main import app
 from backend.app.turnos.router import get_db
 
@@ -577,3 +583,258 @@ def test_patch_prestacion_baja_logica_y_errores(client, db_session):
     )
     assert res_409.status_code == 409
     assert res_409.json()["detail"]["causa"] == "duplicate_nombre_prestacion"
+
+
+
+# ============================================================================
+# 5. Horarios de Atención (Grupo 9)
+# ============================================================================
+
+
+def test_crear_horario_atencion_exitoso(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_H_{u}", matricula=f"M-H-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    res = client.post(
+        "/horarios-atencion",
+        json={
+            "profesional_id": str(prof.id),
+            "dia_semana": 1,
+            "desde": "08:00",
+            "hasta": "12:00",
+        },
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["profesional_id"] == str(prof.id)
+    assert data["dia_semana"] == 1
+    assert data["desde"] == "08:00:00"
+    assert data["hasta"] == "12:00:00"
+    assert data["activo"] is True
+    assert "id" in data
+
+
+def test_crear_horario_404_profesional_inexistente(client):
+    res = client.post(
+        "/horarios-atencion",
+        json={
+            "profesional_id": str(uuid.uuid4()),
+            "dia_semana": 1,
+            "desde": "08:00",
+            "hasta": "12:00",
+        },
+    )
+    assert res.status_code == 404
+    assert isinstance(res.json()["detail"], str)
+
+
+def test_crear_horario_422_profesional_inactivo(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Inac_{u}", matricula=f"M-Inac-{u}", activo=False)
+    db_session.add(prof)
+    db_session.flush()
+
+    res = client.post(
+        "/horarios-atencion",
+        json={
+            "profesional_id": str(prof.id),
+            "dia_semana": 1,
+            "desde": "08:00",
+            "hasta": "12:00",
+        },
+    )
+    assert res.status_code == 422
+    assert res.json()["detail"] == "Profesional inactivo"
+
+
+def test_crear_horario_422_validaciones_rango_y_dia(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Val_{u}", matricula=f"M-Val-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    # dia_semana < 0 o > 6
+    assert client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": -1, "desde": "08:00", "hasta": "12:00"},
+    ).status_code == 422
+    assert client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 7, "desde": "08:00", "hasta": "12:00"},
+    ).status_code == 422
+
+    # desde >= hasta
+    assert client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 1, "desde": "12:00", "hasta": "08:00"},
+    ).status_code == 422
+    assert client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 1, "desde": "10:00", "hasta": "10:00"},
+    ).status_code == 422
+
+
+def test_crear_horario_409_solape_y_adyacencia_permitida(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Sol_{u}", matricula=f"M-Sol-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    # Base: 08:00 a 12:00 día 1
+    res1 = client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 1, "desde": "08:00", "hasta": "12:00"},
+    )
+    assert res1.status_code == 201
+
+    # Solape parcial: 10:00 a 14:00 -> 409
+    res_sol = client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 1, "desde": "10:00", "hasta": "14:00"},
+    )
+    assert res_sol.status_code == 409
+    assert res_sol.json()["detail"]["causa"] == "solape_horario"
+
+    # Adyacencia exacta: 12:00 a 16:00 -> 201 exitoso (RN-AG-04)
+    res_ady = client.post(
+        "/horarios-atencion",
+        json={"profesional_id": str(prof.id), "dia_semana": 1, "desde": "12:00", "hasta": "16:00"},
+    )
+    assert res_ady.status_code == 201
+
+
+def test_listar_horarios_orden_y_filtro_inactivos(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    p1 = Profesional(nombre=f"A_Prof_{u}", matricula=f"M1-{u}", activo=True)
+    p2 = Profesional(nombre=f"B_Prof_{u}", matricula=f"M2-{u}", activo=True)
+    db_session.add_all([p1, p2])
+    db_session.flush()
+
+    # Insertamos deliberadamente desordenados
+    # P1: día 3 14:00, día 1 10:00, día 1 08:00, día 1 14:00 (inactivo)
+    # P2: día 0 09:00
+    from datetime import time
+    h_p1_d3 = HorarioAtencion(profesional_id=p1.id, dia_semana=3, desde=time(14, 0), hasta=time(18, 0), activo=True)
+    h_p1_d1_tarde = HorarioAtencion(profesional_id=p1.id, dia_semana=1, desde=time(10, 0), hasta=time(12, 0), activo=True)
+    h_p1_d1_temprano = HorarioAtencion(profesional_id=p1.id, dia_semana=1, desde=time(8, 0), hasta=time(10, 0), activo=True)
+    h_p1_d1_inactivo = HorarioAtencion(profesional_id=p1.id, dia_semana=1, desde=time(14, 0), hasta=time(16, 0), activo=False)
+    h_p2_d0 = HorarioAtencion(profesional_id=p2.id, dia_semana=0, desde=time(9, 0), hasta=time(13, 0), activo=True)
+
+    db_session.add_all([h_p1_d3, h_p1_d1_tarde, h_p1_d1_temprano, h_p1_d1_inactivo, h_p2_d0])
+    db_session.flush()
+
+    res_def = client.get("/horarios-atencion").json()
+    # Filtrar solo los de nuestros profesionales
+    items_p1 = [h for h in res_def if h["profesional_id"] == str(p1.id)]
+    assert len(items_p1) == 3
+    # Orden profesional_id asc:
+    # Verificamos orden global entre p1 y p2: si p1.id < p2.id, los de p1 deben preceder a los de p2
+    items_ambos = [h for h in res_def if h["profesional_id"] in (str(p1.id), str(p2.id))]
+    prof_ids_ordenados = sorted([str(p1.id), str(p2.id)])
+    assert items_ambos[0]["profesional_id"] == prof_ids_ordenados[0]
+    # Orden interno de p1: dia_semana asc, luego desde asc
+    assert items_p1[0]["dia_semana"] == 1 and items_p1[0]["desde"] == "08:00:00"
+    assert items_p1[1]["dia_semana"] == 1 and items_p1[1]["desde"] == "10:00:00"
+    assert items_p1[2]["dia_semana"] == 3 and items_p1[2]["desde"] == "14:00:00" 
+    assert items_p1[1]["dia_semana"] == 1 and items_p1[1]["desde"] == "10:00:00"
+    assert items_p1[2]["dia_semana"] == 3 and items_p1[2]["desde"] == "14:00:00"
+
+    # Con incluir_inactivos=true
+    res_all = client.get("/horarios-atencion?incluir_inactivos=true").json()
+    items_p1_all = [h for h in res_all if h["profesional_id"] == str(p1.id)]
+    assert len(items_p1_all) == 4
+    inactivo = [h for h in items_p1_all if h["activo"] is False]
+    assert len(inactivo) == 1
+    assert inactivo[0]["desde"] == "14:00:00"
+
+
+def test_patch_horario_modificaciones_y_fila_propia(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_P_{u}", matricula=f"M-P-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    h = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(8, 0), hasta=time(12, 0), activo=True)
+    db_session.add(h)
+    db_session.flush()
+
+    # PATCH {} -> 200 sin cambios
+    assert client.patch(f"/horarios-atencion/{h.id}", json={}).status_code == 200
+
+    # PATCH sobre la fila propia (no solapa consigo mismo gracias a excluir_id)
+    res_propia = client.patch(f"/horarios-atencion/{h.id}", json={"desde": "08:30"})
+    assert res_propia.status_code == 200
+    assert res_propia.json()["desde"] == "08:30:00"
+
+    # PATCH con baja lógica activo=false
+    res_baja = client.patch(f"/horarios-atencion/{h.id}", json={"activo": False})
+    assert res_baja.status_code == 200
+    assert res_baja.json()["activo"] is False
+
+
+def test_patch_horario_reactivacion_con_solape(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Reac_{u}", matricula=f"M-Reac-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    # Horario 1 activo: 08:00 a 12:00
+    from datetime import time
+    h1 = HorarioAtencion(profesional_id=prof.id, dia_semana=2, desde=time(8, 0), hasta=time(12, 0), activo=True)
+    # Horario 2 inactivo en el mismo rango: 09:00 a 11:00
+    from datetime import time
+    h2 = HorarioAtencion(profesional_id=prof.id, dia_semana=2, desde=time(9, 0), hasta=time(11, 0), activo=False)
+    db_session.add_all([h1, h2])
+    db_session.flush()
+
+    # Reactivar h2 debe disparar revalidación de solape y responder 409
+    res = client.patch(f"/horarios-atencion/{h2.id}", json={"activo": True})
+    assert res.status_code == 409
+    assert res.json()["detail"]["causa"] == "solape_horario"
+
+
+def test_patch_horario_rango_resultante_invalido_responde_422(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Rango_{u}", matricula=f"M-Rango-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    h = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(10, 0), hasta=time(14, 0), activo=True)
+    db_session.add(h)
+    db_session.flush()
+
+    # Enviar solo hasta="09:00" (menor que el desde guardado 10:00) debe responder 422 antes del flush (no 500)
+    res = client.patch(f"/horarios-atencion/{h.id}", json={"hasta": "09:00"})
+    assert res.status_code == 422
+    assert "desde debe ser menor que hasta" in res.json()["detail"]
+
+
+def test_patch_horario_errores_404_y_422_generales(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_Err_{u}", matricula=f"M-Err-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    h = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(8, 0), hasta=time(12, 0), activo=True)
+    db_session.add(h)
+    db_session.flush()
+
+    # 404 id inexistente
+    res_404 = client.patch(f"/horarios-atencion/{uuid.uuid4()}", json={"dia_semana": 2})
+    assert res_404.status_code == 404
+    assert isinstance(res_404.json()["detail"], str)
+
+    # 422 profesional_id no es patcheable
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"profesional_id": str(uuid.uuid4())}).status_code == 422
+
+    # 422 campo desconocido
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"campo_extra": "invalido"}).status_code == 422
+
+    # 422 null en campo not null
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"desde": None}).status_code == 422
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"dia_semana": None}).status_code == 422
