@@ -118,7 +118,7 @@ _CATALOGO_TABLES = (
     "pacientes, profesionales, sillones, "
     "prestaciones, horarios, bloqueos, turnos, lista_espera, "
     "entrada_hc, odontograma, plan_item, plan_tratamiento, historia_clinica, "
-    "caja, cobro, liquidacion_os"
+    "caja, cobro, liquidacion_os, recordatorio"
 )
 
 
