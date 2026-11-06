@@ -100,6 +100,14 @@ respectivamente); `email` queda reservado sin uso en este change (S3).
   `seed_catalogo`); el adaptador CLI `python -m backend.app.recordatorios.job`
   abre sesión, procesa, commitea, imprime el resumen y devuelve código 0 (1 solo
   ante error de infraestructura). Un `fallido` no es error de proceso.
+  **Resumen:** `ResumenProcesamiento` (dataclass frozen) lleva `candidatos`,
+  `enviados`, `omitidos` y `fallidos`; `omitidos` cuenta **solo** los choques de
+  `uq_recordatorio_dedupe` (un candidato que otro proceso ya tomó), no los turnos
+  fuera de ventana ni los pacientes sin contacto. El job imprime una línea con los
+  cuatro campos: `recordatorios: candidatos=N enviados=N omitidos=N fallidos=N`.
+  **`--ahora`:** acepta ISO-8601; sin zona horaria se interpreta en
+  `America/Argentina/Buenos_Aires` (`ZONA`) y un offset explícito se respeta tal
+  cual.
   **Descartado:** Celery/RQ/arq + Redis; scheduler embebido con `sleep` en el
   proceso de la API.
   **Discrepancia con `CHANGES.md` rev. 3/4:** la nota de higiene y la asignación
@@ -153,10 +161,13 @@ respectivamente); `email` queda reservado sin uso en este change (S3).
   `token_hash = sha256(token).hexdigest()`; el crudo solo se pasa al notificador
   en memoria y nunca se persiste ni se loguea (D12).
   `expira_en = inicio_turno` (snapshot), porque confirmar o cancelar un turno ya
-  comenzado no tiene efecto útil. `UNIQUE(token_hash)`; si el `flush` diera
-  colisión se regenera una vez. **Por qué hash y no claro:** Gobernanza ALTO; un
-  dump de la base con tokens en claro permite cancelar turnos ajenos. Sha256
-  determinístico alcanza por la entropía del token (no hace falta bcrypt).
+  comenzado no tiene efecto útil. `UNIQUE(token_hash)` **no maneja** una
+  colisión: con `token_urlsafe(32)` (256 bits) la probabilidad es despreciable y,
+  si ocurriera, el `UNIQUE` hace fallar el lote de forma visible —`IntegrityError`
+  re-lanzado, porque el servicio solo omite `uq_recordatorio_dedupe`—. No se
+  regenera el token ni hay reintento. **Por qué hash y no claro:** Gobernanza
+  ALTO; un dump de la base con tokens en claro permite cancelar turnos ajenos.
+  Sha256 determinístico alcanza por la entropía del token (no hace falta bcrypt).
   **Descartado:** TTL fijo desde el envío (un recordatorio a T-48h expiraría
   después del turno); token en claro en la tabla.
 
@@ -266,9 +277,10 @@ respectivamente); `email` queda reservado sin uso en este change (S3).
   Antes de enviar, el servicio lee `paciente.contacto` a través de la relación del
   turno; si es `NULL`, cadena vacía o solo whitespace, **no invoca al
   notificador** y deja el recordatorio en `estado='fallido'`,
-  `error='sin_contacto'`, `proveedor_ref=NULL`, `enviado_en=NULL` y
-  `simulado=false` (no hubo entrega). `canal` conserva el canal que se habría
-  usado, porque la fábrica se evalúa igual y el CHECK es `NOT NULL`. Aplica D14:
+  `error='sin_contacto'`, `proveedor_ref=NULL`, `enviado_en=NULL`, `mensaje=NULL`
+  y `simulado=false` (no hubo entrega ni texto entregado que persistir; D12 solo
+  aplica cuando hay mensaje). `canal` conserva el canal que se habría usado,
+  porque la fábrica se evalúa igual y el CHECK es `NOT NULL`. Aplica D14:
   no se reintenta. **Por qué:** `Paciente.contacto` es un `Text` libre nullable y
   el seed usa `"tel 11-0000-0001"`; el job no puede inventar un destinatario ni
   enviar a `None`. **Descartado:** generar un contacto ficticio (enviaría a
@@ -362,7 +374,11 @@ campo adicional del turno para el estado de resultado.
   simulado es inocuo; con proveedor real, un outbox/cola es el change futuro
   (Q2). Mitigación: lotes chicos y `limite`.
 - [El `UNIQUE` de dedupe hace esperar a la segunda transacción hasta el commit de
-  la primera] → aceptable con un cron y lotes de decenas; documentar el tick.
+  la primera] → con un único commit por lote, una ejecución concurrente queda
+  **bloqueada en el `UNIQUE`** hasta que la primera commitee y recién entonces
+  omite el envío; el bloqueo es el mecanismo de dedupe, no un fallo. Lo documenta
+  `backend/tests/test_recordatorio_concurrencia.py` (D3). Aceptable con un cron y
+  lotes de decenas; documentar el tick.
 - [El token crudo viaja al notificador y podría filtrarse en logs] → el `mensaje`
   persistido y `LogSimulado` usan la copia redactada (D12); el crudo solo vive en
   memoria durante el envío. Los tests lo verifican vía `FakeNotificador`. Con
