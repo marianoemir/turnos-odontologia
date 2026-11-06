@@ -737,8 +737,6 @@ def test_listar_horarios_orden_y_filtro_inactivos(client, db_session):
     # Orden interno de p1: dia_semana asc, luego desde asc
     assert items_p1[0]["dia_semana"] == 1 and items_p1[0]["desde"] == "08:00:00"
     assert items_p1[1]["dia_semana"] == 1 and items_p1[1]["desde"] == "10:00:00"
-    assert items_p1[2]["dia_semana"] == 3 and items_p1[2]["desde"] == "14:00:00" 
-    assert items_p1[1]["dia_semana"] == 1 and items_p1[1]["desde"] == "10:00:00"
     assert items_p1[2]["dia_semana"] == 3 and items_p1[2]["desde"] == "14:00:00"
 
     # Con incluir_inactivos=true
@@ -838,3 +836,83 @@ def test_patch_horario_errores_404_y_422_generales(client, db_session):
     # 422 null en campo not null
     assert client.patch(f"/horarios-atencion/{h.id}", json={"desde": None}).status_code == 422
     assert client.patch(f"/horarios-atencion/{h.id}", json={"dia_semana": None}).status_code == 422
+
+
+
+def test_patch_horario_solape_con_otro_activo_responde_409(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_SolPatch_{u}", matricula=f"M-SP-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    # h1 activo día 1 08:00-12:00
+    h1 = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(8, 0), hasta=time(12, 0), activo=True)
+    # h2 activo día 1 12:00-16:00 (adyacente)
+    h2 = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(12, 0), hasta=time(16, 0), activo=True)
+    # h3 activo día 2 09:00-11:00
+    h3 = HorarioAtencion(profesional_id=prof.id, dia_semana=2, desde=time(9, 0), hasta=time(11, 0), activo=True)
+    db_session.add_all([h1, h2, h3])
+    db_session.flush()
+
+    # PATCH h2 {"desde": "11:00"} -> 409 causa solape_horario (solapa con h1 [08:00, 12:00))
+    res_sol = client.patch(f"/horarios-atencion/{h2.id}", json={"desde": "11:00"})
+    assert res_sol.status_code == 409
+    assert res_sol.json()["detail"]["causa"] == "solape_horario"
+
+    # Control: PATCH h2 {"desde": "12:30"} -> 200 (sigue dentro de su franja sin solapar)
+    res_ok = client.patch(f"/horarios-atencion/{h2.id}", json={"desde": "12:30"})
+    assert res_ok.status_code == 200
+    assert res_ok.json()["desde"] == "12:30:00"
+
+    # PATCH h3 {"dia_semana": 1} -> 409 causa solape_horario (en día 1 [09:00, 11:00) solapa con h1)
+    res_h3 = client.patch(f"/horarios-atencion/{h3.id}", json={"dia_semana": 1})
+    assert res_h3.status_code == 409
+    assert res_h3.json()["detail"]["causa"] == "solape_horario"
+
+
+def test_crear_horario_solape_solo_con_inactivo_permitido(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_InacPerm_{u}", matricula=f"M-IP-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    # Horario inactivo día 1 08:00-12:00 del profesional
+    h_inac = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(8, 0), hasta=time(12, 0), activo=False)
+    db_session.add(h_inac)
+    db_session.flush()
+
+    # POST 09:00-11:00 mismo profesional y día -> 201 exitoso (ignora inactivos)
+    res = client.post(
+        "/horarios-atencion",
+        json={
+            "profesional_id": str(prof.id),
+            "dia_semana": 1,
+            "desde": "09:00",
+            "hasta": "11:00",
+        },
+    )
+    assert res.status_code == 201
+    assert res.json()["desde"] == "09:00:00"
+    assert res.json()["hasta"] == "11:00:00"
+
+
+def test_patch_horario_422_dia_semana_y_nulls(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_ValP_{u}", matricula=f"M-VP-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    from datetime import time
+    h = HorarioAtencion(profesional_id=prof.id, dia_semana=1, desde=time(8, 0), hasta=time(12, 0), activo=True)
+    db_session.add(h)
+    db_session.flush()
+
+    # PATCH {"dia_semana": 7} y {"dia_semana": -1} -> 422
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"dia_semana": 7}).status_code == 422
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"dia_semana": -1}).status_code == 422
+
+    # PATCH {"hasta": null} y {"activo": null} -> 422
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"hasta": None}).status_code == 422
+    assert client.patch(f"/horarios-atencion/{h.id}", json={"activo": None}).status_code == 422

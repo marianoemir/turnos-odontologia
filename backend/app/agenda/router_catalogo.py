@@ -369,7 +369,7 @@ def crear_horario_atencion(
         )
     if not profesional.activo:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail="Profesional inactivo",
         )
 
@@ -421,7 +421,7 @@ def modificar_horario_atencion(
 
     if desde_res >= hasta_res:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail="desde debe ser menor que hasta",
         )
 
