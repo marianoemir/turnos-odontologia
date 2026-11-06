@@ -909,3 +909,40 @@ def test_confirmar_no_revalida_la_agenda(db_session):
     resultado = ServicioTurnos.confirmar(db_session, turno.id)
 
     assert resultado.estado == "confirmado"
+def test_turno_rechazado_si_horario_inactivo(db_session):
+    from datetime import time
+
+    from backend.app.agenda.models import HorarioAtencion
+
+    ids = _ids(db_session)
+
+    horario_sabado = HorarioAtencion(
+        profesional_id=ids["profesional"],
+        dia_semana=5,
+        desde=time(10, 0),
+        hasta=time(11, 0),
+        activo=True,
+    )
+    db_session.add(horario_sabado)
+    db_session.flush()
+
+    # Control: con el horario activo, el turno dentro de esa franja se crea correctamente
+    turno_control = _crear(
+        db_session,
+        ids,
+        inicio=datetime(2026, 10, 10, 10, 0, tzinfo=TZ),
+    )
+    assert turno_control.estado == "pendiente"
+
+    # Desactivamos el horario
+    horario_sabado.activo = False
+    db_session.flush()
+
+    # Con el horario inactivo, el turno en esa franja debe ser rechazado por horario
+    with pytest.raises(ConflictoTurno) as exc:
+        _crear(
+            db_session,
+            ids,
+            inicio=datetime(2026, 10, 17, 10, 0, tzinfo=TZ),
+        )
+    assert exc.value.causa == "horario"

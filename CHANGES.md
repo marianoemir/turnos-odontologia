@@ -405,7 +405,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 > bloqueos desde la UI, y los turnos solo podrían crearse contra datos de seed.
 
 ### [C-12] `catalogo-recursos-api`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-05)
 - **Scope**: API CRUD del catálogo ya modelado en C-02 (sin cambios de esquema)
   - **Criterio único de actualización: `PATCH` en todos los recursos, pacientes incluido.** Razón: la UI edita por campo y hace toggles de `activo` sin reenviar el objeto completo; `PATCH` parcial es idempotente con el mismo body y evita pisar campos que el formulario no tocó (un `PUT` obligaría a un round-trip de lectura previa y a reenviar relaciones).
   - `GET/POST /pacientes`, `PATCH /pacientes/{id}` — `dni` único → 409 `duplicate_dni`; búsqueda `?q=` por nombre o dni con paginación (`limit`/`offset`)
@@ -637,5 +637,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 > **Estado del roadmap al 2026-11-06 (rev. 5)**: 23 changes. Archivados: C-01, C-02, C-03, C-04, C-05, C-06, C-07 y C-09. Pendientes: 15 (C-08, C-10, C-11 y C-12 a C-23).
+> **Estado del roadmap al 2026-11-05 (rev. 4)**: 23 changes. Archivados: C-01 a C-06, C-09, C-10 y C-12. Pendientes: 14 (C-07, C-08, C-11 y C-13 a C-23).
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Próximo paso del recorte TP: `/opsx:propose C-12-catalogo-recursos-api` (o `C-23-fix-api-contenedor`, que no bloquea).
+> Próximo paso del recorte TP: `/opsx:propose C-13-frontend-foundation` (o `C-23-fix-api-contenedor`, que no bloquea).
