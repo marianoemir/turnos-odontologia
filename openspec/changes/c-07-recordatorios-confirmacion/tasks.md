@@ -33,8 +33,8 @@
 
 ## 5. Resolución del token de un toque
 
-- [ ] 5.1 Escribir `backend/tests/test_recordatorio_token.py` (RED) siguiendo la tabla de precedencia D7: token inexistente → excepción de 404; misma acción sobre token usado → 200 idempotente; acción opuesta → excepción con `accion_previa`; `estado` `pendiente`/`fallido` → `expirado`; `ahora > expira_en` → `expirado`; confirmar `pendiente` → `confirmado`; confirmar `confirmado` → `confirmado` consumiendo el token; cancelar `pendiente`/`confirmado` → `cancelado`; cancelar un turno ya `cancelado` → `expirado`. Verificar además `respondido_en` seteado con el `ahora` inyectado.
-- [ ] 5.2 Implementar `ServicioRecordatorios.resolver_token(session, token, *, accion, ahora=None)` con las excepciones `TokenNoEncontrado` y `AccionYaUsada(accion_previa)`, resolviendo el `recordatorio` con `with_for_update()` y delegando en `ServicioTurnos.confirmar`/`cancelar`. Verificación: los tests de 5.1 quedan en verde.
+- [x] 5.1 Escribir `backend/tests/test_recordatorio_token.py` (RED) siguiendo la tabla de precedencia D7: token inexistente → excepción de 404; misma acción sobre token usado → 200 idempotente; acción opuesta → excepción con `accion_previa`; `estado` `pendiente`/`fallido` → `expirado`; `ahora > expira_en` → `expirado`; confirmar `pendiente` → `confirmado`; confirmar `confirmado` → `confirmado` consumiendo el token; cancelar `pendiente`/`confirmado` → `cancelado`; cancelar un turno ya `cancelado` → `expirado`. Verificar además `respondido_en` seteado con el `ahora` inyectado.
+- [x] 5.2 Implementar `ServicioRecordatorios.resolver_token(session, token, *, accion, ahora=None)` con las excepciones `TokenNoEncontrado` y `AccionYaUsada(accion_previa)`, resolviendo el `recordatorio` con `with_for_update()` y delegando en `ServicioTurnos.confirmar`/`cancelar`. Verificación: los tests de 5.1 quedan en verde.
 
 ## 6. API pública, configuración y verificación
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -24,11 +25,12 @@ from backend.app.recordatorios.notificadores import (
 )
 from backend.app.recordatorios.reloj import ahora_local
 from backend.app.turnos.models import ESTADOS_ACTIVOS, Turno
-from backend.app.turnos.service import ZONA
+from backend.app.turnos.service import ZONA, ServicioTurnos
 
 VENTANA_24H = timedelta(hours=24)
 VENTANA_48H = timedelta(hours=48)
 CONSTRAINT_DEDUPE = "uq_recordatorio_dedupe"
+ACCION_POR_ESTADO_USADO = {"confirmado": "confirmar", "cancelado": "cancelar"}
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,33 @@ class ResumenProcesamiento:
     enviados: int = 0
     omitidos: int = 0
     fallidos: int = 0
+
+
+@dataclass(frozen=True)
+class ResolucionToken:
+    """Resultado de `resolver_token` para el router (D7/D11)."""
+
+    resultado: str
+    turno_id: uuid.UUID
+    inicio: datetime
+
+
+class TokenNoEncontrado(Exception):
+    """Token bien formado sin recordatorio asociado -> 404."""
+
+    def __init__(self):
+        super().__init__("token no encontrado")
+        self.detalle = "token no encontrado"
+
+
+class AccionYaUsada(Exception):
+    """Token ya consumido por la accion opuesta -> 409 `ya_usado`."""
+
+    def __init__(self, accion_previa: str):
+        super().__init__(f"token ya usado para {accion_previa}")
+        self.causa = "ya_usado"
+        self.accion_previa = accion_previa
+        self.detalle = f"el token ya se uso para {accion_previa}"
 
 
 class ServicioRecordatorios:
@@ -86,6 +115,84 @@ class ServicioRecordatorios:
                 session, turno, etapa, instante, emisor, conteos
             )
         return ResumenProcesamiento(**conteos)
+
+    @staticmethod
+    def resolver_token(
+        session,
+        token: str,
+        *,
+        accion: str,
+        ahora: datetime | None = None,
+    ) -> ResolucionToken:
+        """D7: resuelve el token respetando el orden exacto de la tabla.
+
+        Busca por sha256 (el crudo no se persiste ni se loguea) y bloquea la
+        fila con `with_for_update()` para serializar dos clicks simultaneos.
+        El estado del turno se evalua ANTES de delegar en
+        `ServicioTurnos.confirmar`/`cancelar`, de modo que un turno que no
+        admite la accion responde `expirado` y no dispara un 409 de transicion.
+        """
+        instante = ahora if ahora is not None else ahora_local()
+        if (
+            instante.tzinfo is None
+            or instante.tzinfo.utcoffset(instante) is None
+        ):
+            raise ValueError("ahora debe tener zona horaria")
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        recordatorio = (
+            session.query(Recordatorio)
+            .filter_by(token_hash=token_hash)
+            .with_for_update()
+            .one_or_none()
+        )
+        if recordatorio is None:
+            raise TokenNoEncontrado()
+        turno = session.get(Turno, recordatorio.turno_id)
+        if turno is None:
+            # La FK RESTRICT lo impide; se trata como no resoluble.
+            raise TokenNoEncontrado()
+
+        # Filas 3 y 4: el token ya fue consumido.
+        accion_previa = ACCION_POR_ESTADO_USADO.get(recordatorio.estado)
+        if accion_previa is not None:
+            if accion_previa == accion:
+                return ResolucionToken(
+                    resultado=recordatorio.estado,
+                    turno_id=turno.id,
+                    inicio=turno.inicio,
+                )
+            raise AccionYaUsada(recordatorio.estado)
+
+        # Fila 5: pendiente/fallido; fila 6: vencido.
+        if recordatorio.estado != "enviado":
+            return ResolucionToken("expirado", turno.id, turno.inicio)
+        if instante > recordatorio.expira_en:
+            return ResolucionToken("expirado", turno.id, turno.inicio)
+
+        # Filas 7 a 10: el estado actual del turno decide.
+        if accion == "confirmar":
+            if turno.estado == "pendiente":
+                ServicioTurnos.confirmar(session, turno.id)
+                resultado = "confirmado"
+            elif turno.estado == "confirmado":
+                resultado = "confirmado"
+            else:
+                return ResolucionToken("expirado", turno.id, turno.inicio)
+        elif accion == "cancelar":
+            if turno.estado in ("pendiente", "confirmado"):
+                ServicioTurnos.cancelar(session, turno.id)
+                resultado = "cancelado"
+            else:
+                return ResolucionToken("expirado", turno.id, turno.inicio)
+        else:
+            raise ValueError(f"accion invalida: {accion}")
+
+        recordatorio.estado = resultado
+        recordatorio.respondido_en = instante
+        session.flush()
+        return ResolucionToken(
+            resultado=resultado, turno_id=turno.id, inicio=turno.inicio
+        )
 
     @staticmethod
     def _etapa_debida(turno: Turno, instante: datetime) -> str:
