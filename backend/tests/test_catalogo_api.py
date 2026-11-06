@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.agenda.models import (
+    Bloqueo,
     HorarioAtencion,
     Paciente,
     Prestacion,
@@ -916,3 +917,221 @@ def test_patch_horario_422_dia_semana_y_nulls(client, db_session):
     # PATCH {"hasta": null} y {"activo": null} -> 422
     assert client.patch(f"/horarios-atencion/{h.id}", json={"hasta": None}).status_code == 422
     assert client.patch(f"/horarios-atencion/{h.id}", json={"activo": None}).status_code == 422
+
+
+
+# ============================================================================
+# 6. Bloqueos (Grupo 10)
+# ============================================================================
+
+
+def test_crear_bloqueos_combinaciones_exitosas(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_B_{u}", matricula=f"M-B-{u}", activo=True)
+    sillon = SillonBox(nombre=f"Sillon_B_{u}", activo=True)
+    db_session.add_all([prof, sillon])
+    db_session.flush()
+
+    # 1. Global (ambos null)
+    res_global = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": None,
+            "sillon_id": None,
+            "desde": "2026-11-10T08:00:00+00:00",
+            "hasta": "2026-11-10T12:00:00+00:00",
+            "motivo": "Feriado",
+        },
+    )
+    assert res_global.status_code == 201
+    d_g = res_global.json()
+    assert d_g["profesional_id"] is None
+    assert d_g["sillon_id"] is None
+    assert d_g["motivo"] == "Feriado"
+
+    # 2. Con profesional (sillon null)
+    res_prof = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": str(prof.id),
+            "sillon_id": None,
+            "desde": "2026-11-11T08:00:00+00:00",
+            "hasta": "2026-11-11T12:00:00+00:00",
+            "motivo": "Congreso",
+        },
+    )
+    assert res_prof.status_code == 201
+    assert res_prof.json()["profesional_id"] == str(prof.id)
+    assert res_prof.json()["sillon_id"] is None
+
+    # 3. Con sillón (profesional null)
+    res_sil = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": None,
+            "sillon_id": str(sillon.id),
+            "desde": "2026-11-12T08:00:00+00:00",
+            "hasta": "2026-11-12T12:00:00+00:00",
+            "motivo": "Mantenimiento",
+        },
+    )
+    assert res_sil.status_code == 201
+    assert res_sil.json()["sillon_id"] == str(sillon.id)
+    assert res_sil.json()["profesional_id"] is None
+
+    # 4. Con ambos (aplica a la intersección según C-02 bloqueo_aplica)
+    res_ambos = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": str(prof.id),
+            "sillon_id": str(sillon.id),
+            "desde": "2026-11-13T08:00:00+00:00",
+            "hasta": "2026-11-13T12:00:00+00:00",
+            "motivo": "Cirugía conjunta",
+        },
+    )
+    assert res_ambos.status_code == 201
+    assert res_ambos.json()["profesional_id"] == str(prof.id)
+    assert res_ambos.json()["sillon_id"] == str(sillon.id)
+
+
+def test_listar_bloqueos_orden_desde_e_id(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    from datetime import UTC, datetime
+
+    # Insertamos deliberadamente desordenados en el tiempo
+    # b_tarde se inserta primero (14:00) y b_temprano después (08:00)
+    b_tarde = Bloqueo(
+        desde=datetime(2026, 12, 1, 14, 0, tzinfo=UTC),
+        hasta=datetime(2026, 12, 1, 18, 0, tzinfo=UTC),
+        motivo=f"B_TARDE_{u}",
+    )
+    db_session.add(b_tarde)
+    db_session.flush()
+
+    b_temprano = Bloqueo(
+        desde=datetime(2026, 12, 1, 8, 0, tzinfo=UTC),
+        hasta=datetime(2026, 12, 1, 12, 0, tzinfo=UTC),
+        motivo=f"B_TEMPRANO_{u}",
+    )
+    db_session.add(b_temprano)
+    db_session.flush()
+
+    res = client.get("/bloqueos").json()
+    items_u = [b for b in res if u in b["motivo"]]
+    assert len(items_u) == 2
+    # El orden por desde ASC debe anteponer b_temprano
+    assert items_u[0]["motivo"] == f"B_TEMPRANO_{u}"
+    assert items_u[1]["motivo"] == f"B_TARDE_{u}" 
+
+
+def test_crear_bloqueo_422_rango_y_datetime_naive(client):
+    # desde >= hasta -> 422
+    res_rango = client.post(
+        "/bloqueos",
+        json={
+            "desde": "2026-11-10T12:00:00+00:00",
+            "hasta": "2026-11-10T08:00:00+00:00",
+            "motivo": "Invalido",
+        },
+    )
+    assert res_rango.status_code == 422
+
+    # Datetime naive (sin timezone offset) -> 422
+    res_naive = client.post(
+        "/bloqueos",
+        json={
+            "desde": "2026-11-10T08:00:00",
+            "hasta": "2026-11-10T12:00:00",
+            "motivo": "Naive",
+        },
+    )
+    assert res_naive.status_code == 422
+
+
+def test_crear_bloqueo_404_y_422_recursos_inexistentes_o_inactivos(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof_inac = Profesional(nombre=f"Dr_Inac_{u}", matricula=f"M-Inac-{u}", activo=False)
+    sillon_inac = SillonBox(nombre=f"Sillon_Inac_{u}", activo=False)
+    prof_act = Profesional(nombre=f"Dr_Act_{u}", matricula=f"M-Act-{u}", activo=True)
+    sillon_act = SillonBox(nombre=f"Sillon_Act_{u}", activo=True)
+    db_session.add_all([prof_inac, sillon_inac, prof_act, sillon_act])
+    db_session.flush()
+
+    # 404 profesional inexistente
+    res_prof_404 = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": str(uuid.uuid4()),
+            "desde": "2026-11-10T08:00:00+00:00",
+            "hasta": "2026-11-10T12:00:00+00:00",
+            "motivo": "Test 404",
+        },
+    )
+    assert res_prof_404.status_code == 404
+    assert isinstance(res_prof_404.json()["detail"], str)
+
+    # 404 sillón inexistente
+    res_sil_404 = client.post(
+        "/bloqueos",
+        json={
+            "sillon_id": str(uuid.uuid4()),
+            "desde": "2026-11-10T08:00:00+00:00",
+            "hasta": "2026-11-10T12:00:00+00:00",
+            "motivo": "Test 404",
+        },
+    )
+    assert res_sil_404.status_code == 404
+    assert isinstance(res_sil_404.json()["detail"], str)
+
+    # 422 profesional inactivo
+    res_prof_422 = client.post(
+        "/bloqueos",
+        json={
+            "profesional_id": str(prof_inac.id),
+            "desde": "2026-11-10T08:00:00+00:00",
+            "hasta": "2026-11-10T12:00:00+00:00",
+            "motivo": "Test 422",
+        },
+    )
+    assert res_prof_422.status_code == 422
+    assert res_prof_422.json()["detail"] == "Profesional inactivo"
+
+    # 422 sillón inactivo
+    res_sil_422 = client.post(
+        "/bloqueos",
+        json={
+            "sillon_id": str(sillon_inac.id),
+            "desde": "2026-11-10T08:00:00+00:00",
+            "hasta": "2026-11-10T12:00:00+00:00",
+            "motivo": "Test 422",
+        },
+    )
+    assert res_sil_422.status_code == 422
+    assert res_sil_422.json()["detail"] == "Sillón inactivo"
+
+
+def test_delete_bloqueo_exitoso_y_404(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    from datetime import UTC, datetime
+
+    b = Bloqueo(
+        desde=datetime(2026, 12, 10, 8, 0, tzinfo=UTC),
+        hasta=datetime(2026, 12, 10, 12, 0, tzinfo=UTC),
+        motivo=f"Eliminar_{u}",
+    )
+    db_session.add(b)
+    db_session.flush()
+
+    # DELETE exitoso -> 204 No Content
+    res_del = client.delete(f"/bloqueos/{b.id}")
+    assert res_del.status_code == 204
+
+    # Verificar que ya no figura en GET /bloqueos
+    res_get = client.get("/bloqueos").json()
+    assert all(item["id"] != str(b.id) for item in res_get)
+
+    # DELETE de id inexistente -> 404 (detail string)
+    res_404 = client.delete(f"/bloqueos/{uuid.uuid4()}")
+    assert res_404.status_code == 404
+    assert isinstance(res_404.json()["detail"], str)

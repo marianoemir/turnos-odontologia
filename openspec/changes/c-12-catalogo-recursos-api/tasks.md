@@ -10,7 +10,7 @@
 
 ## 2. Ajuste Mínimo en C-03 (Servicio de Turnos)
 
-- [x] 2.1 Agregar el filtro `HorarioAtencion.activo.is_(True)` en `ServicioTurnos._cubierto_por_horario` (`backend/app/turnos/service.py`) y crear un test en `backend/tests/test_turnos_servicio.py` que verifique que un turno es rechazado por conflicto de horario cuando la única franja que lo cubría tiene `activo=false`.
+- [x] 2.1 Agregar el filtro `HorarioAtencion.activo.is_(True)` en `ServicioTurnos._cubierto_por_horario` (`backend/app/turnos/service.py`) y crear un test en `backend/tests/test_turno_servicio.py` que verifique que un turno es rechazado por conflicto de horario cuando la única franja que lo cubría tiene `activo=false`.
   - Nota: Verificado mediante prueba de mutación. Al remover `.filter(HorarioAtencion.activo.is_(True))`, el nuevo test `test_turno_rechazado_si_horario_inactivo` en `backend/tests/test_turno_servicio.py` FALLA (`Failed: DID NOT RAISE ConflictoTurno`), demostrando que un horario inactivo cubría indebidamente el turno. Al restaurar el filtro, el test pasa exitosamente junto con el caso de control.
 
 ## 3. Schemas Pydantic y Validaciones de Entrada
@@ -53,11 +53,17 @@
 
 ## 10. Endpoints de Bloqueos
 
-- [ ] 10.1 Implementar endpoints `GET /bloqueos` (listando todos los bloqueos ordenados por `desde, id` sin filtro de activo), `POST /bloqueos` (permitiendo bloqueo global con profesional y sillón nulos, y bloqueo conjunto con profesional_id y sillon_id que aplica únicamente cuando coinciden ambos según bloqueo_aplica de C-02) y `DELETE /bloqueos/{id}` (único DELETE permitido) validando `desde < hasta` (422), datetimes con timezone no naive (422), profesional o sillón inexistente (404 string), profesional o sillón inactivo (422) y DELETE con id inexistente retornando 404 (detail string); verificar con tests en `backend/tests/test_catalogo_api.py`.
+- [x] 10.1 Implementar endpoints `GET /bloqueos` (listando todos los bloqueos ordenados por `desde, id` sin filtro de activo), `POST /bloqueos` (permitiendo bloqueo global con profesional y sillón nulos, y bloqueo conjunto con profesional_id y sillon_id que aplica únicamente cuando coinciden ambos según bloqueo_aplica de C-02) y `DELETE /bloqueos/{id}` (único DELETE permitido) validando `desde < hasta` (422), datetimes con timezone no naive (422), profesional o sillón inexistente (404 string), profesional o sillón inactivo (422) y DELETE con id inexistente retornando 404 (detail string); verificar con tests en `backend/tests/test_catalogo_api.py`.
+  - Nota: Verificado mediante 4 pruebas de mutación: (a) Al remover la validación de profesional inexistente en `POST /bloqueos`, el test `test_crear_bloqueo_404_y_422_recursos_inexistentes_o_inactivos` FALLA con `AttributeError: 'NoneType' object has no attribute 'activo'` al intentar acceder al profesional inexistente. (b) Al remover la validación de profesional inactivo, el test `test_crear_bloqueo_404_y_422_recursos_inexistentes_o_inactivos` FALLA con `assert 201 == 422`. (c) Al alterar el `order_by(Bloqueo.desde.asc(), Bloqueo.id.asc())`, `test_listar_bloqueos_orden_desde_e_id` FALLA demostrando que el orden temporal determinístico no se cumple. (d) Al hacer que el DELETE de un ID inexistente retorne éxito silencioso (204) en vez de 404, `test_delete_bloqueo_exitoso_y_404` FALLA con `assert 204 == 404`. Con el código restaurado, todos los tests pasan en verde.
 
 ## 11. Verificación Integral
 
-- [ ] 11.1 Ejecutar y verificar la suite completa de tests de la aplicación (`pytest backend/tests`), comprobando que no existen regresiones sobre turnos, agenda, caja y lista de espera y que ningún test depende del reloj real.
+- [x] 11.1 Ejecutar y verificar la suite completa de tests de la aplicación (`pytest backend/tests`), comprobando que no existen regresiones sobre turnos, agenda, caja y lista de espera y que ningún test depende del reloj real.
+  - Nota: Verificación integral completada exitosamente:
+    1. Grep limpio en tests de C-12 (`test_catalogo_*.py` y `test_turno_servicio.py`): sin llamadas a `datetime.now`, `date.today`, `utcnow` o `time.time`.
+    2. Migración Alembic: `alembic heads` reporta `006_catalogo_activo (head)` y `alembic check` reporta `No new upgrade operations detected.`
+    3. OpenAPI: inspección de `/openapi.json` confirma la exposición de todos los recursos del catálogo (`/pacientes`, `/profesionales`, `/sillones`, `/prestaciones`, `/horarios-atencion`, `/bloqueos`).
+    4. Suite de pruebas: 435 tests pasando tanto en ejecución determinística como con orden aleatorio (`pytest backend/tests`), confirmando idempotencia y ausencia de regresiones.
 
 ## Workflow follow-up
 

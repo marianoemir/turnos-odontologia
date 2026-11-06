@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.agenda.models import (
+    Bloqueo,
     HorarioAtencion,
     Paciente,
     Prestacion,
@@ -22,6 +23,8 @@ from backend.app.agenda.models import (
     validar_horario_sin_solape,
 )
 from backend.app.agenda.schemas import (
+    BloqueoCreate,
+    BloqueoOut,
     HorarioCreate,
     HorarioOut,
     HorarioPatch,
@@ -446,3 +449,94 @@ def modificar_horario_atencion(
 
     _flush_o_409(session)
     return horario
+
+
+
+# ============================================================================
+# Bloqueos (Grupo 10)
+# ============================================================================
+
+
+@router.get("/bloqueos", response_model=list[BloqueoOut])
+def listar_bloqueos(
+    session: Annotated[Session, Depends(get_db)],
+):
+    return (
+        session.query(Bloqueo)
+        .order_by(Bloqueo.desde.asc(), Bloqueo.id.asc())
+        .all()
+    )
+
+
+@router.post(
+    "/bloqueos",
+    response_model=BloqueoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_bloqueo(
+    body: BloqueoCreate,
+    session: Annotated[Session, Depends(get_db)],
+):
+    if body.profesional_id is not None:
+        profesional = (
+            session.query(Profesional)
+            .filter_by(id=body.profesional_id)
+            .first()
+        )
+        if profesional is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Profesional {body.profesional_id} no encontrado",
+            )
+        if not profesional.activo:
+            raise HTTPException(
+                status_code=422,
+                detail="Profesional inactivo",
+            )
+
+    if body.sillon_id is not None:
+        sillon = (
+            session.query(SillonBox)
+            .filter_by(id=body.sillon_id)
+            .first()
+        )
+        if sillon is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Sillón {body.sillon_id} no encontrado",
+            )
+        if not sillon.activo:
+            raise HTTPException(
+                status_code=422,
+                detail="Sillón inactivo",
+            )
+
+    bloqueo = Bloqueo(
+        profesional_id=body.profesional_id,
+        sillon_id=body.sillon_id,
+        desde=body.desde,
+        hasta=body.hasta,
+        motivo=body.motivo,
+    )
+    session.add(bloqueo)
+    _flush_o_409(session)
+    return bloqueo
+
+
+@router.delete(
+    "/bloqueos/{bloqueo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def eliminar_bloqueo(
+    bloqueo_id: uuid.UUID,
+    session: Annotated[Session, Depends(get_db)],
+):
+    bloqueo = session.query(Bloqueo).filter_by(id=bloqueo_id).first()
+    if bloqueo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bloqueo {bloqueo_id} no encontrado",
+        )
+
+    session.delete(bloqueo)
+    session.flush()
