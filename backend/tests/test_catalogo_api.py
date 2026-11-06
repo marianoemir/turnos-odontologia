@@ -1,19 +1,10 @@
-"""Tests de integración para la API REST del catálogo de recursos (C-12, grupo 5).
+"""Tests de integración para la API REST del catálogo de recursos (C-12).
 
-Verifica endpoints de Pacientes contra PostgreSQL real:
-- Smoke test: GET /pacientes responde 200
-- Alta exitosa con POST /pacientes (ficticio por defecto true, activo=true)
-- Paginación determinística y envelope {items, total, limit, offset}
-- Paginación estable sin saltos ni duplicados entre páginas consecutivas
-- Query params fuera de rango: limit (1..200) y offset (>= 0) -> 422
-- Búsqueda con ?q= con escape de % y _ (coincidencia literal)
-- Conteo total consistente con filtros de ?q= y ?incluir_inactivos=
-- Conflicto 409 con duplicate_dni en POST y en PATCH
-- Validación 422 por exceso de largo (nombre > 200, dni > 32)
-- PATCH {} sin cambios
-- PATCH con null explícito en NOT NULL -> 422
-- PATCH con campo desconocido (extra=forbid) -> 422
-- PATCH con id inexistente -> 404 (detail string)
+Verifica endpoints de Pacientes, Profesionales, Sillones y Prestaciones contra PostgreSQL real:
+- Pacientes (grupo 5): smoke, CRUD, paginación, búsqueda ?q=, 409, 422, 404.
+- Profesionales (grupo 6): GET ordenado, inclusión/exclusión inactivos, POST, PATCH toggle activo, 409 duplicate_matricula, 422 largo, 404, 422 desconocido.
+- Sillones (grupo 7): GET ordenado, inclusión/exclusión inactivos, POST, PATCH baja lógica activo=false, 409 duplicate_nombre_sillon, 422 largo, 404, 405 en DELETE.
+- Prestaciones (grupo 8): GET ordenado, inclusión/exclusión inactivos, POST, PATCH, 422 duracion_min <= 0 (POST/PATCH), 409 duplicate_nombre_prestacion, 422 largo, 404.
 Sin depender de la fecha real del sistema.
 """
 
@@ -22,7 +13,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.agenda.models import Paciente
+from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
 from backend.app.main import app
 from backend.app.turnos.router import get_db
 
@@ -40,7 +31,7 @@ def client(db_session):
 
 
 # ============================================================================
-# 1. Smoke test y Creación de Pacientes
+# 1. Pacientes (Grupo 5)
 # ============================================================================
 
 
@@ -98,11 +89,6 @@ def test_crear_paciente_422_exceso_largo(client):
         json={"nombre": "Juan", "dni": "D" * 33},
     )
     assert res.status_code == 422
-
-
-# ============================================================================
-# 2. Paginación determinística y Búsqueda
-# ============================================================================
 
 
 def test_paginacion_fuera_de_rango_422(client):
@@ -197,11 +183,6 @@ def test_total_consistente_con_filtros_y_activo(client, db_session):
     assert len(res_all["items"]) == 2
 
 
-# ============================================================================
-# 3. PATCH de Pacientes
-# ============================================================================
-
-
 def test_patch_paciente_modifica_solo_presentes(client, db_session):
     u = uuid.uuid4().hex[:6]
     p = Paciente(
@@ -288,3 +269,311 @@ def test_patch_paciente_409_duplicate_dni(client, db_session):
     assert res.status_code == 409
     data = res.json()
     assert data["detail"]["causa"] == "duplicate_dni"
+
+
+# ============================================================================
+# 2. Profesionales (Grupo 6)
+# ============================================================================
+
+
+def test_crear_profesional_exitoso(client):
+    mat = f"MAT-{uuid.uuid4().hex[:8]}"
+    res = client.post(
+        "/profesionales",
+        json={"nombre": "Dra. Gomez", "matricula": mat},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["nombre"] == "Dra. Gomez"
+    assert data["matricula"] == mat
+    assert data["activo"] is True
+    assert "id" in data
+
+
+def test_crear_profesional_409_duplicate_matricula(client):
+    mat = f"MAT-{uuid.uuid4().hex[:8]}"
+    client.post("/profesionales", json={"nombre": "Primero", "matricula": mat})
+
+    res = client.post("/profesionales", json={"nombre": "Segundo", "matricula": mat})
+    assert res.status_code == 409
+    data = res.json()
+    assert data["detail"]["causa"] == "duplicate_matricula"
+    assert "matrícula" in data["detail"]["detalle"]
+
+
+def test_crear_profesional_422_exceso_largo(client):
+    assert client.post(
+        "/profesionales",
+        json={"nombre": "A" * 201, "matricula": "M1"},
+    ).status_code == 422
+    assert client.post(
+        "/profesionales",
+        json={"nombre": "Dr.", "matricula": "M" * 33},
+    ).status_code == 422
+
+
+def test_listar_profesionales_orden_y_filtro_inactivos(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    p_b = Profesional(nombre=f"B_Dr_{u}", matricula=f"M-B-{u}", activo=True)
+    p_a = Profesional(nombre=f"A_Dra_{u}", matricula=f"M-A-{u}", activo=True)
+    p_inactivo = Profesional(
+        nombre=f"0_Inactivo_{u}", matricula=f"M-I-{u}", activo=False
+    )
+    db_session.add_all([p_b, p_a, p_inactivo])
+    db_session.flush()
+
+    # Por defecto: solo activos y ordenados por nombre ASC
+    res_def = client.get("/profesionales").json()
+    items_u = [p for p in res_def if u in p["nombre"]]
+    assert len(items_u) == 2
+    assert items_u[0]["nombre"] == f"A_Dra_{u}"
+    assert items_u[1]["nombre"] == f"B_Dr_{u}"
+
+    # Con incluir_inactivos=true
+    res_all = client.get("/profesionales?incluir_inactivos=true").json()
+    items_all = [p for p in res_all if u in p["nombre"]]
+    assert len(items_all) == 3
+    assert items_all[0]["nombre"] == f"0_Inactivo_{u}"
+
+
+def test_patch_profesional_toggle_activo_y_modificaciones(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof = Profesional(nombre=f"Dr_{u}", matricula=f"M-{u}", activo=True)
+    db_session.add(prof)
+    db_session.flush()
+
+    # Toggle activo a False
+    res = client.patch(f"/profesionales/{prof.id}", json={"activo": False})
+    assert res.status_code == 200
+    assert res.json()["activo"] is False
+
+    # PATCH vacío no modifica
+    res_vacio = client.patch(f"/profesionales/{prof.id}", json={})
+    assert res_vacio.status_code == 200
+    assert res_vacio.json()["activo"] is False
+
+
+def test_patch_profesional_404_422_409(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    prof1 = Profesional(nombre=f"Dr1_{u}", matricula=f"M1-{u}", activo=True)
+    prof2 = Profesional(nombre=f"Dr2_{u}", matricula=f"M2-{u}", activo=True)
+    db_session.add_all([prof1, prof2])
+    db_session.flush()
+
+    # 404 id inexistente
+    res_404 = client.patch(f"/profesionales/{uuid.uuid4()}", json={"nombre": "Nuevo"})
+    assert res_404.status_code == 404
+    assert isinstance(res_404.json()["detail"], str)
+
+    # 422 campo desconocido
+    res_422_extra = client.patch(
+        f"/profesionales/{prof1.id}", json={"desconocido": 123}
+    )
+    assert res_422_extra.status_code == 422
+
+    # 422 null en campo NOT NULL
+    res_422_null = client.patch(
+        f"/profesionales/{prof1.id}", json={"matricula": None}
+    )
+    assert res_422_null.status_code == 422
+
+    # 409 duplicate_matricula en PATCH
+    res_409 = client.patch(
+        f"/profesionales/{prof2.id}", json={"matricula": f"M1-{u}"}
+    )
+    assert res_409.status_code == 409
+    assert res_409.json()["detail"]["causa"] == "duplicate_matricula"
+
+
+# ============================================================================
+# 3. Sillones (Grupo 7)
+# ============================================================================
+
+
+def test_crear_sillon_exitoso(client):
+    nom = f"Sillon_{uuid.uuid4().hex[:8]}"
+    res = client.post("/sillones", json={"nombre": nom})
+    assert res.status_code == 201
+    data = res.json()
+    assert data["nombre"] == nom
+    assert data["activo"] is True
+    assert "id" in data
+
+
+def test_crear_sillon_409_duplicate_nombre_sillon(client):
+    nom = f"Sillon_{uuid.uuid4().hex[:8]}"
+    client.post("/sillones", json={"nombre": nom})
+
+    res = client.post("/sillones", json={"nombre": nom})
+    assert res.status_code == 409
+    assert res.json()["detail"]["causa"] == "duplicate_nombre_sillon"
+
+
+def test_crear_sillon_422_exceso_largo(client):
+    assert client.post("/sillones", json={"nombre": "S" * 101}).status_code == 422
+
+
+def test_listar_sillones_orden_y_filtro_inactivos(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    s_b = SillonBox(nombre=f"B_Sillon_{u}", activo=True)
+    s_a = SillonBox(nombre=f"A_Sillon_{u}", activo=True)
+    s_inactivo = SillonBox(nombre=f"0_Inactivo_{u}", activo=False)
+    db_session.add_all([s_b, s_a, s_inactivo])
+    db_session.flush()
+
+    res_def = client.get("/sillones").json()
+    items_u = [s for s in res_def if u in s["nombre"]]
+    assert len(items_u) == 2
+    assert items_u[0]["nombre"] == f"A_Sillon_{u}"
+    assert items_u[1]["nombre"] == f"B_Sillon_{u}"
+
+    res_all = client.get("/sillones?incluir_inactivos=true").json()
+    items_all = [s for s in res_all if u in s["nombre"]]
+    assert len(items_all) == 3
+    assert items_all[0]["nombre"] == f"0_Inactivo_{u}"
+
+
+def test_patch_sillon_baja_logica_y_errores(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    s1 = SillonBox(nombre=f"S1_{u}", activo=True)
+    s2 = SillonBox(nombre=f"S2_{u}", activo=True)
+    db_session.add_all([s1, s2])
+    db_session.flush()
+
+    # Baja lógica vía activo=false
+    res_baja = client.patch(f"/sillones/{s1.id}", json={"activo": False})
+    assert res_baja.status_code == 200
+    assert res_baja.json()["activo"] is False
+
+    # PATCH {}
+    assert client.patch(f"/sillones/{s1.id}", json={}).status_code == 200
+
+    # 404 id inexistente
+    res_404 = client.patch(f"/sillones/{uuid.uuid4()}", json={"nombre": "Nuevo"})
+    assert res_404.status_code == 404
+    assert isinstance(res_404.json()["detail"], str)
+
+    # 422 campo desconocido
+    assert client.patch(f"/sillones/{s1.id}", json={"extra": 1}).status_code == 422
+
+    # 422 null en nombre
+    assert client.patch(f"/sillones/{s1.id}", json={"nombre": None}).status_code == 422
+
+    # 409 duplicate_nombre_sillon en PATCH
+    res_409 = client.patch(f"/sillones/{s2.id}", json={"nombre": f"S1_{u}"})
+    assert res_409.status_code == 409
+    assert res_409.json()["detail"]["causa"] == "duplicate_nombre_sillon"
+
+
+def test_delete_sillon_rechazado_405(client):
+    # RN: No existe DELETE en sillones (baja lógica vía PATCH)
+    res = client.delete(f"/sillones/{uuid.uuid4()}")
+    assert res.status_code == 405
+
+
+# ============================================================================
+# 4. Prestaciones (Grupo 8)
+# ============================================================================
+
+
+def test_crear_prestacion_exitosa(client):
+    nom = f"Prestacion_{uuid.uuid4().hex[:8]}"
+    res = client.post("/prestaciones", json={"nombre": nom, "duracion_min": 45})
+    assert res.status_code == 201
+    data = res.json()
+    assert data["nombre"] == nom
+    assert data["duracion_min"] == 45
+    assert data["activo"] is True
+    assert "id" in data
+
+
+def test_crear_prestacion_409_duplicate_nombre_prestacion(client):
+    nom = f"Prestacion_{uuid.uuid4().hex[:8]}"
+    client.post("/prestaciones", json={"nombre": nom, "duracion_min": 30})
+
+    res = client.post("/prestaciones", json={"nombre": nom, "duracion_min": 20})
+    assert res.status_code == 409
+    assert res.json()["detail"]["causa"] == "duplicate_nombre_prestacion"
+
+
+def test_crear_prestacion_422_validaciones(client):
+    # duracion_min <= 0
+    assert client.post(
+        "/prestaciones", json={"nombre": "P", "duracion_min": 0}
+    ).status_code == 422
+    assert client.post(
+        "/prestaciones", json={"nombre": "P", "duracion_min": -10}
+    ).status_code == 422
+
+    # nombre > 100
+    assert client.post(
+        "/prestaciones", json={"nombre": "P" * 101, "duracion_min": 20}
+    ).status_code == 422
+
+
+def test_listar_prestaciones_orden_y_filtro_inactivos(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    pr_b = Prestacion(nombre=f"B_Pres_{u}", duracion_min=30, activo=True)
+    pr_a = Prestacion(nombre=f"A_Pres_{u}", duracion_min=20, activo=True)
+    pr_inactiva = Prestacion(nombre=f"0_Inactiva_{u}", duracion_min=15, activo=False)
+    db_session.add_all([pr_b, pr_a, pr_inactiva])
+    db_session.flush()
+
+    res_def = client.get("/prestaciones").json()
+    items_u = [pr for pr in res_def if u in pr["nombre"]]
+    assert len(items_u) == 2
+    assert items_u[0]["nombre"] == f"A_Pres_{u}"
+    assert items_u[1]["nombre"] == f"B_Pres_{u}"
+
+    res_all = client.get("/prestaciones?incluir_inactivos=true").json()
+    items_all = [pr for pr in res_all if u in pr["nombre"]]
+    assert len(items_all) == 3
+    assert items_all[0]["nombre"] == f"0_Inactiva_{u}"
+
+
+def test_patch_prestacion_baja_logica_y_errores(client, db_session):
+    u = uuid.uuid4().hex[:6]
+    pr1 = Prestacion(nombre=f"PR1_{u}", duracion_min=30, activo=True)
+    pr2 = Prestacion(nombre=f"PR2_{u}", duracion_min=40, activo=True)
+    db_session.add_all([pr1, pr2])
+    db_session.flush()
+
+    # Baja lógica
+    res_baja = client.patch(f"/prestaciones/{pr1.id}", json={"activo": False})
+    assert res_baja.status_code == 200
+    assert res_baja.json()["activo"] is False
+
+    # PATCH {}
+    assert client.patch(f"/prestaciones/{pr1.id}", json={}).status_code == 200
+
+    # 404 id inexistente
+    res_404 = client.patch(
+        f"/prestaciones/{uuid.uuid4()}", json={"nombre": "Nuevo"}
+    )
+    assert res_404.status_code == 404
+    assert isinstance(res_404.json()["detail"], str)
+
+    # 422 duracion_min <= 0
+    assert client.patch(
+        f"/prestaciones/{pr1.id}", json={"duracion_min": 0}
+    ).status_code == 422
+    assert client.patch(
+        f"/prestaciones/{pr1.id}", json={"duracion_min": -5}
+    ).status_code == 422
+
+    # 422 campo desconocido
+    assert client.patch(
+        f"/prestaciones/{pr1.id}", json={"extra": 99}
+    ).status_code == 422
+
+    # 422 null en nombre
+    assert client.patch(
+        f"/prestaciones/{pr1.id}", json={"nombre": None}
+    ).status_code == 422
+
+    # 409 duplicate_nombre_prestacion en PATCH
+    res_409 = client.patch(
+        f"/prestaciones/{pr2.id}", json={"nombre": f"PR1_{u}"}
+    )
+    assert res_409.status_code == 409
+    assert res_409.json()["detail"]["causa"] == "duplicate_nombre_prestacion"
