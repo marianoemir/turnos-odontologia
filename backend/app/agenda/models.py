@@ -37,6 +37,10 @@ class Paciente(Base):
     ficticio: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 class Profesional(Base):
@@ -48,6 +52,10 @@ class Profesional(Base):
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     matricula: Mapped[str] = mapped_column(
         String(32), nullable=False, unique=True
+    )
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
     )
 
 
@@ -79,6 +87,10 @@ class Prestacion(Base):
         String(100), nullable=False, unique=True
     )
     duracion_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 def hay_solape_config(a_desde, a_hasta, b_desde, b_hasta) -> bool:
@@ -105,18 +117,32 @@ class HorarioAtencion(Base):
     dia_semana: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     desde: Mapped[time] = mapped_column(Time, nullable=False)
     hasta: Mapped[time] = mapped_column(Time, nullable=False)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"),
+        index=True,
+    )
 
 
 def validar_horario_sin_solape(
-    session, profesional_id, dia_semana, desde, hasta
+    session,
+    profesional_id,
+    dia_semana,
+    desde,
+    hasta,
+    excluir_id: uuid.UUID | None = None,
 ) -> None:
-    """Rechaza con ValueError si el rango solapa otra fila del mismo
-    profesional y dia. La adyacencia exacta esta permitida (D2)."""
-    existentes = (
+    """Rechaza con ValueError si el rango solapa otra fila activa del mismo
+    profesional y dia. La adyacencia exacta esta permitida (D2/RN-AG-04).
+    Si se pasa excluir_id, omite dicha fila para permitir PATCH idempotente."""
+    query = (
         session.query(HorarioAtencion)
         .filter_by(profesional_id=profesional_id, dia_semana=dia_semana)
-        .all()
+        .filter(HorarioAtencion.activo.is_(True))
     )
+    if excluir_id is not None:
+        query = query.filter(HorarioAtencion.id != excluir_id)
+
+    existentes = query.all()
     for fila in existentes:
         if hay_solape_config(fila.desde, fila.hasta, desde, hasta):
             raise ValueError(
