@@ -1,4 +1,4 @@
-"""006 recordatorio: recordatorios 48h/24h y token de un toque (C-07).
+"""007 recordatorio: recordatorios 48h/24h y token de un toque (C-07).
 
 - recordatorio: FK RESTRICT a turnos, enums con CHECK (canal/etapa/estado),
   `token_hash` UNIQUE (solo se persiste el sha256), dedupe
@@ -9,8 +9,8 @@
   backend/app/turnos/models.py (postgresql_where) para que `alembic check`
   no reporte drift, igual que los parciales de la migracion 002.
 
-Revision ID: 006_recordatorio
-Revises: 005_caja_pagos
+Revision ID: 007_recordatorio
+Revises: 006_catalogo_activo
 """
 
 from collections.abc import Sequence
@@ -18,8 +18,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "006_recordatorio"
-down_revision: str | Sequence[str] | None = "005_caja_pagos"
+revision: str = "007_recordatorio"
+down_revision: str | Sequence[str] | None = "006_catalogo_activo"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
