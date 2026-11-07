@@ -118,7 +118,8 @@ _CATALOGO_TABLES = (
     "pacientes, profesionales, sillones, "
     "prestaciones, horarios, bloqueos, turnos, lista_espera, "
     "entrada_hc, odontograma, plan_item, plan_tratamiento, historia_clinica, "
-    "caja, cobro, liquidacion_os"
+    "caja, cobro, liquidacion_os, "
+    "roles, sucursales, usuarios_sucursal"
 )
 
 
@@ -144,3 +145,27 @@ def db_session(_db_engine):
         if txn.is_active:
             txn.rollback()
         conn.close()
+
+
+@pytest.fixture()
+def roles_canonicos(db_session):
+    """Inserta los 4 roles canónicos en la sesión db_session de cada test.
+
+    Usa la MISMA sesión transaccional que el endpoint (inyectada por
+    dependency_overrides) y SIN commit: el rollback del teardown los
+    descarta. Idempotente: ON CONFLICT (nombre) DO NOTHING.
+    """
+    db_session.execute(
+        text(
+            """
+            INSERT INTO roles (id, nombre, descripcion, activo, creado_en)
+            VALUES
+                ('00000000-0000-0000-0000-000000000001', 'admin', NULL, true, now()),
+                ('00000000-0000-0000-0000-000000000002', 'recepcion', NULL, true, now()),
+                ('00000000-0000-0000-0000-000000000003', 'odontologo', NULL, true, now()),
+                ('00000000-0000-0000-0000-000000000004', 'paciente', NULL, true, now())
+            ON CONFLICT (nombre) DO NOTHING
+            """
+        ),
+    )
+    db_session.flush()

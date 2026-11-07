@@ -81,6 +81,7 @@ class PacientesEnvelopeOut(BaseModel):
 class ProfesionalCreate(BaseModel):
     nombre: str = Field(min_length=1, max_length=200)
     matricula: str = Field(min_length=1, max_length=32)
+    sucursal_id: UUID | None = None
 
 
 class ProfesionalPatch(BaseModel):
@@ -88,6 +89,7 @@ class ProfesionalPatch(BaseModel):
 
     nombre: str | None = Field(default=None, min_length=1, max_length=200)
     matricula: str | None = Field(default=None, min_length=1, max_length=32)
+    sucursal_id: UUID | None = None
     activo: bool | None = None
 
     @field_validator("nombre", "matricula", "activo", mode="before")
@@ -104,6 +106,7 @@ class ProfesionalOut(BaseModel):
     id: UUID
     nombre: str
     matricula: str
+    sucursal_id: UUID | None = None
     activo: bool
 
 
@@ -112,12 +115,14 @@ class ProfesionalOut(BaseModel):
 
 class SillonCreate(BaseModel):
     nombre: str = Field(min_length=1, max_length=100)
+    sucursal_id: UUID | None = None
 
 
 class SillonPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nombre: str | None = Field(default=None, min_length=1, max_length=100)
+    sucursal_id: UUID | None = None
     activo: bool | None = None
 
     @field_validator("nombre", "activo", mode="before")
@@ -133,6 +138,7 @@ class SillonOut(BaseModel):
 
     id: UUID
     nombre: str
+    sucursal_id: UUID | None = None
     activo: bool
 
 
