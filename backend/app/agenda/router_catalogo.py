@@ -68,6 +68,20 @@ def _flush_o_409(session: Session) -> None:
         ) from exc
 
 
+def _exigir_sucursal(session: Session, sucursal_id: uuid.UUID | None) -> None:
+    """404 si se indica una sucursal que no existe en la base."""
+    if sucursal_id is None:
+        return
+    from backend.app.rbac.models import Sucursal
+
+    existe = session.query(Sucursal).filter_by(id=sucursal_id).first()
+    if existe is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sucursal {sucursal_id} no encontrada",
+        )
+
+
 # ============================================================================
 # Pacientes
 # ============================================================================
@@ -163,10 +177,14 @@ def modificar_paciente(
 def listar_profesionales(
     session: Annotated[Session, Depends(get_db)],
     incluir_inactivos: bool = False,
+    sucursal_id: uuid.UUID | None = None,
 ):
     query = session.query(Profesional)
     if not incluir_inactivos:
         query = query.filter(Profesional.activo.is_(True))
+    if sucursal_id is not None:
+        _exigir_sucursal(session, sucursal_id)
+        query = query.filter(Profesional.sucursal_id == sucursal_id)
 
     return (
         query.order_by(Profesional.nombre.asc(), Profesional.id.asc()).all()
@@ -182,9 +200,11 @@ def crear_profesional(
     body: ProfesionalCreate,
     session: Annotated[Session, Depends(get_db)],
 ):
+    _exigir_sucursal(session, body.sucursal_id)
     profesional = Profesional(
         nombre=body.nombre,
         matricula=body.matricula,
+        sucursal_id=body.sucursal_id,
         activo=True,
     )
     session.add(profesional)
@@ -208,6 +228,8 @@ def modificar_profesional(
         )
 
     datos = body.model_dump(exclude_unset=True)
+    if datos.get("sucursal_id") is not None:
+        _exigir_sucursal(session, datos["sucursal_id"])
     for campo, valor in datos.items():
         setattr(profesional, campo, valor)
 
@@ -224,10 +246,14 @@ def modificar_profesional(
 def listar_sillones(
     session: Annotated[Session, Depends(get_db)],
     incluir_inactivos: bool = False,
+    sucursal_id: uuid.UUID | None = None,
 ):
     query = session.query(SillonBox)
     if not incluir_inactivos:
         query = query.filter(SillonBox.activo.is_(True))
+    if sucursal_id is not None:
+        _exigir_sucursal(session, sucursal_id)
+        query = query.filter(SillonBox.sucursal_id == sucursal_id)
 
     return query.order_by(SillonBox.nombre.asc(), SillonBox.id.asc()).all()
 
@@ -241,8 +267,10 @@ def crear_sillon(
     body: SillonCreate,
     session: Annotated[Session, Depends(get_db)],
 ):
+    _exigir_sucursal(session, body.sucursal_id)
     sillon = SillonBox(
         nombre=body.nombre,
+        sucursal_id=body.sucursal_id,
         activo=True,
     )
     session.add(sillon)
@@ -264,6 +292,8 @@ def modificar_sillon(
         )
 
     datos = body.model_dump(exclude_unset=True)
+    if datos.get("sucursal_id") is not None:
+        _exigir_sucursal(session, datos["sucursal_id"])
     for campo, valor in datos.items():
         setattr(sillon, campo, valor)
 

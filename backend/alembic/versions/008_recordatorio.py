@@ -9,8 +9,8 @@
   backend/app/turnos/models.py (postgresql_where) para que `alembic check`
   no reporte drift, igual que los parciales de la migracion 002.
 
-Revision ID: 007_recordatorio
-Revises: 006_catalogo_activo
+Revision ID: 008_recordatorio
+Revises: 007_roles_sucursales
 """
 
 from collections.abc import Sequence
@@ -18,8 +18,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "007_recordatorio"
-down_revision: str | Sequence[str] | None = "006_catalogo_activo"
+revision: str = "008_recordatorio"
+down_revision: str | Sequence[str] | None = "007_roles_sucursales"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

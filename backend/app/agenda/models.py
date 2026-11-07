@@ -53,6 +53,9 @@ class Profesional(Base):
     matricula: Mapped[str] = mapped_column(
         String(32), nullable=False, unique=True
     )
+    sucursal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("sucursales.id", ondelete="RESTRICT"), nullable=True,
+    )
     activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true"),
         index=True,
@@ -67,6 +70,9 @@ class SillonBox(Base):
     )
     nombre: Mapped[str] = mapped_column(
         String(100), nullable=False, unique=True
+    )
+    sucursal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("sucursales.id", ondelete="RESTRICT"), nullable=True,
     )
     activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true"),

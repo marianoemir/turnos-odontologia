@@ -1,4 +1,10 @@
-"""Router FastAPI para caja, cobros, facturación ARCA y liquidaciones OS (C-10)."""
+"""Router FastAPI para caja, cobros, facturación ARCA y liquidaciones OS (C-10 + C-11 RBAC).
+
+RBAC: cada endpoint usa `Depends(require_permission(...))` evaluado ANTES del handler
+según D2/D11. La dependencia lanza 403 `permiso_denegado` si el rol no tiene la
+capability; 422 si el header X-Actor-Rol es desconocido; never 401 (usa default
+recepcion cuando falta identidad, D1).
+"""
 
 from __future__ import annotations
 
@@ -9,8 +15,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
 
 from backend.app.caja.reloj import ahora_local
 from backend.app.caja.schemas import (
@@ -46,6 +50,10 @@ from backend.app.caja.service import (
     TurnoNoEncontrado,
 )
 from backend.app.db import get_session
+from backend.app.rbac.context import PermissionContext
+from backend.app.rbac.dependencies import require_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -107,13 +115,20 @@ def _traducir_error(exc: Exception) -> HTTPException:
 
 
 # ---------------------------------------------------------------------------
-# 1. POST /caja/abrir
+# 1. POST /caja/abrir  — capability: caja:escribir
 # ---------------------------------------------------------------------------
-@router.post("/caja/abrir", response_model=CajaOut, status_code=201)
+@router.post(
+    "/caja/abrir",
+    response_model=CajaOut,
+    status_code=201,
+)
 def abrir_caja(
     body: CajaAbrir,
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("caja:escribir"))
+    ],
 ):
     try:
         return ServicioCaja.abrir(session, body, ahora=ahora)
@@ -122,13 +137,20 @@ def abrir_caja(
 
 
 # ---------------------------------------------------------------------------
-# 2. POST /caja/cerrar
+# 2. POST /caja/cerrar  — capability: caja:escribir
 # ---------------------------------------------------------------------------
-@router.post("/caja/cerrar", response_model=CajaOut, status_code=200)
+@router.post(
+    "/caja/cerrar",
+    response_model=CajaOut,
+    status_code=200,
+)
 def cerrar_caja(
     body: CajaCerrar,
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("caja:escribir"))
+    ],
 ):
     try:
         return ServicioCaja.cerrar(session, body, ahora=ahora)
@@ -137,12 +159,19 @@ def cerrar_caja(
 
 
 # ---------------------------------------------------------------------------
-# 3. GET /caja/{id}
+# 3. GET /caja/{id}  — capability: caja:leer
 # ---------------------------------------------------------------------------
-@router.get("/caja/{id}", response_model=CajaOut, status_code=200)
+@router.get(
+    "/caja/{id}",
+    response_model=CajaOut,
+    status_code=200,
+)
 def obtener_caja_por_id(
     id: uuid.UUID,
     session: Annotated[Session, Depends(get_db)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("caja:leer"))
+    ],
 ):
     try:
         return ServicioCaja.obtener(session, id)
@@ -151,10 +180,17 @@ def obtener_caja_por_id(
 
 
 # ---------------------------------------------------------------------------
-# 4. GET /caja
+# 4. GET /caja  — capability: caja:leer
 # ---------------------------------------------------------------------------
-@router.get("/caja", response_model=CajaOut, status_code=200)
+@router.get(
+    "/caja",
+    response_model=CajaOut,
+    status_code=200,
+)
 def obtener_caja_por_fecha(
+    context: Annotated[
+        PermissionContext, Depends(require_permission("caja:leer"))
+    ],
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
     fecha: Annotated[date | None, Query()] = None,
@@ -166,13 +202,20 @@ def obtener_caja_por_fecha(
 
 
 # ---------------------------------------------------------------------------
-# 5. POST /cobros
+# 5. POST /cobros  — capability: cobros:escribir
 # ---------------------------------------------------------------------------
-@router.post("/cobros", response_model=CobroOut, status_code=201)
+@router.post(
+    "/cobros",
+    response_model=CobroOut,
+    status_code=201,
+)
 def registrar_cobro(
     body: CobroCreate,
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("cobros:escribir"))
+    ],
 ):
     try:
         return ServicioCaja.registrar_cobro(session, body, ahora=ahora)
@@ -181,12 +224,19 @@ def registrar_cobro(
 
 
 # ---------------------------------------------------------------------------
-# 6. GET /cobros/{id}
+# 6. GET /cobros/{id}  — capability: cobros:leer
 # ---------------------------------------------------------------------------
-@router.get("/cobros/{id}", response_model=CobroOut, status_code=200)
+@router.get(
+    "/cobros/{id}",
+    response_model=CobroOut,
+    status_code=200,
+)
 def obtener_cobro_por_id(
     id: uuid.UUID,
     session: Annotated[Session, Depends(get_db)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("cobros:leer"))
+    ],
 ):
     try:
         return ServicioCaja.obtener_cobro(session, id)
@@ -195,14 +245,21 @@ def obtener_cobro_por_id(
 
 
 # ---------------------------------------------------------------------------
-# 7. POST /cobros/{id}/anular
+# 7. POST /cobros/{id}/anular  — capability: cobros:escribir
 # ---------------------------------------------------------------------------
-@router.post("/cobros/{id}/anular", response_model=CobroOut, status_code=200)
+@router.post(
+    "/cobros/{id}/anular",
+    response_model=CobroOut,
+    status_code=200,
+)
 def anular_cobro(
     id: uuid.UUID,
     body: AnularCobro,
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("cobros:escribir"))
+    ],
 ):
     try:
         return ServicioCaja.anular_cobro(session, id, body, ahora=ahora)
@@ -211,7 +268,7 @@ def anular_cobro(
 
 
 # ---------------------------------------------------------------------------
-# 8. POST /cobros/{id}/factura-arca
+# 8. POST /cobros/{id}/factura-arca  — capability: cobros:facturar
 # ---------------------------------------------------------------------------
 @router.post(
     "/cobros/{id}/factura-arca",
@@ -223,6 +280,9 @@ def facturar_arca(
     body: FacturaArcaCreate,
     session: Annotated[Session, Depends(get_db)],
     ahora: Annotated[datetime, Depends(get_ahora)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("cobros:facturar"))
+    ],
 ):
     try:
         cobro = ServicioCaja.facturar_arca(session, id, body, ahora=ahora)
@@ -239,7 +299,7 @@ def facturar_arca(
 
 
 # ---------------------------------------------------------------------------
-# 9. GET /liquidaciones-os
+# 9. GET /liquidaciones-os  — capability: liquidaciones:leer
 # ---------------------------------------------------------------------------
 @router.get(
     "/liquidaciones-os",
@@ -248,6 +308,9 @@ def facturar_arca(
 )
 def listar_liquidaciones(
     session: Annotated[Session, Depends(get_db)],
+    context: Annotated[
+        PermissionContext, Depends(require_permission("liquidaciones:leer"))
+    ],
 ):
     try:
         return ServicioCaja.listar_liquidaciones(session)

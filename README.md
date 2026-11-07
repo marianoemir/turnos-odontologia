@@ -358,6 +358,8 @@ Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connect
 - `frontend/` — estructura base de React + TypeScript + Vite, todavía sin funcionalidad; su desarrollo está planificado en C-13 a C-22.
 - `frontend/design-system/` — fundación visual aprobada: tokens, marca y referencia de componentes, con `components.html` para verla en el navegador.
 - `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
+- `docs/export/` — contrato de exportación de datos (`GET /export`, C-11): [docs/export/README.md](docs/export/README.md).
+- `docs/migracion/` — guía de importación asistida desde planilla CSV (`scripts/import_planilla.py`, C-11): [docs/migracion/README.md](docs/migracion/README.md).
 - `docs/explore/` y `docs/verify/` — exploración y verificación de cada change.
 - `docs/capturas-evidencia/` — capturas de Engram y del instalador de Active Stack.
 - `knowledge-base/` — base de conocimiento del dominio.

@@ -1,0 +1,5 @@
+tipo,nombre,dni,matricula,contacto
+paciente,Paciente Ejemplo Uno,DNI-FICT-001,,111-0001
+paciente,Paciente Ejemplo Dos,DNI-FICT-002,,111-0002
+profesional,Profesional Ejemplo,,MP-FICT-001,
+profesional,Profesional Ejemplo Dos,,MP-FICT-002,
