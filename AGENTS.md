@@ -62,13 +62,14 @@ Cargá la skill correspondiente al contexto ANTES de escribir código.
 
 ## Roadmap de Changes
 
-El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (rectificado 2026-11-03, rev. 4; estados al 2026-11-03):
+El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (rectificado 2026-11-06, rev. 6; estados al 2026-11-06):
 
 - **Total**: 23 changes en 6 fases (backend C-01..C-12 + corrección de infra C-23 + frontend C-13..C-22).
+- **Estado**: 10 archivados (C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-09, C-10 y C-12) y 13 pendientes (C-08, C-11, C-13..C-22 y C-23).
 - **Camino crítico backend** (5): `C-01 → C-02 → C-03 → C-10 → C-11`.
 - **Camino crítico end-to-end con UI** (8): `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`.
-- **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados del recorte: C-01..C-03 (además, fuera del recorte: C-04, C-05, C-06 y C-09). Pendientes del recorte: **C-12, C-13, C-14, C-15, C-16**.
-- **En curso**: (ninguno). `C-06` archivado 2026-11-02 y `C-09` archivado. **Próximo del recorte**: `C-12` (`catalogo-recursos-api`). `C-23` (`fix-api-contenedor`) puede intercalarse: depende solo de C-03 y conviene cerrarlo antes de C-13.
+- **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados del recorte: C-01, C-02, C-03 y C-12 (además, fuera del recorte: C-04, C-05, C-06, C-07, C-09 y C-10). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
+- **En curso**: (ninguno). `C-07` (`recordatorios-confirmacion`) archivado 2026-11-06; tras integrar C-12 su migración quedó renumerada como `007_recordatorio` (`down_revision = "006_catalogo_activo"`). **Próximo del recorte**: `C-13` (`frontend-foundation`, depende de C-03 ya archivado). `C-23` (`fix-api-contenedor`) puede intercalarse: depende solo de C-03 y conviene cerrarlo antes de C-13. También habilitados por dependencias: `C-08` (`C-04` + `C-07`) y `C-11` (`C-09` + `C-10`).
 - **Frontend**: C-13 `frontend-foundation` (shell/ruteo/contratos) y C-14 `frontend-componentes-base` (componentes + data layer + rol) son la base; C-15..C-22 son un change por capability. Consumen `frontend/design-system/` (`Revision: 1`, `Mode: system-only`). Ningún change de frontend se adelanta al endpoint que consume.
 
 **Antes de cualquier `/opsx:propose`**: leé [CHANGES.md](CHANGES.md), identificá las dependencias del change y los archivos de "Leer antes".

@@ -25,9 +25,12 @@ R = read, C = create, U = update/cancelar. Sin deletes físicos: cancelación es
 
 ## Rutas públicas
 
+Implementadas en C-07 (sin login; el token opaco es la capacidad):
+- `POST /confirmar/{token}`: confirma un turno `pendiente` y responde 200 `confirmado` o `expirado`; es idempotente para la misma acción y responde 409 `ya_usado` si la acción es la opuesta.
+- `POST /cancelar/{token}`: cancela un turno `pendiente` o `confirmado`, libera el hueco y responde 200 `cancelado` o `expirado`; responde 409 `ya_usado` si la acción es la opuesta.
+
 Primer change: ninguna (uso interno/test con datos ficticios, sin UI obligatoria).
 
 Posterior (v1, no implementar ahora):
 - Link de reserva 24/7 (profesional/prestación/fecha/hora).
-- Link de confirmación/cancelación en 1 toque (libera hueco).
 - Recibos/factura por WhatsApp/email.

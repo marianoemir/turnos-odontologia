@@ -61,8 +61,8 @@ Fuente: casos de uso textuales `docs/discovery/discovery.md` §3 + reglas §7. F
 
 **Reglas relacionadas**: RN-AG-02, RN-AG-03, RN-TU-01
 
-## Épica 5: Recordatorios + resto MVP (changes posteriores, no implementar)
+## Épica 5: Recordatorios + resto MVP (US-005 implementada; US-006 y US-007 pendientes)
 
-- US-005 Recordatorios con confirmación en 1 toque (WhatsApp posterior).
-- US-006 Reserva online 24/7 por link.
-- US-007 HC mínima + odontograma, caja + MP, OS + ARCA, roles + multi-sucursal básico, exportación 1 clic (D3).
+- **US-005 Recordatorios con confirmación en 1 toque — implementada en C-07 (2026-11-06).** Alcance real: recordatorios de 48h y 24h para turnos activos, generados por un job idempotente invocable por cron (`python -m backend.app.recordatorios.job`, sin Redis); token opaco de 256 bits con expiración al inicio del turno; `POST /confirmar/{token}` y `POST /cancelar/{token}`; WhatsApp y log **simulados** (sin red ni proveedor real); fallback `log` si falta `WHATSAPP_TOKEN`; sin reintentos automáticos y sin oferta automática a la lista de espera. El proveedor real de WhatsApp queda para un change posterior (Q2).
+- US-006 Reserva online 24/7 por link (pendiente).
+- US-007 HC mínima + odontograma, caja + MP, OS + ARCA, roles + multi-sucursal básico, exportación 1 clic (D3) (pendiente).
