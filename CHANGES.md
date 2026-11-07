@@ -28,7 +28,7 @@
 
 > **Nota de rectificación (2026-11-06, rev. 6)** — consolidación tras integrar `origin/main` (C-12 ya archivado) en la rama de C-07:
 > - **Estado real recalculado** desde los checkboxes de este archivo: 23 changes, **10 archivados** (C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-09, C-10 y C-12) y **13 pendientes** (C-08, C-11, C-13..C-22 y C-23). Reemplaza las dos líneas de estado rev. 4 y rev. 5 del pie, que el merge dejó contradictorias, y la mención de rev. 2 que aún listaba C-12 como pendiente del recorte TP.
-> - **Migración de C-07 renumerada a `007_recordatorio`**: al integrar C-12, `006_catalogo_activo` pasó a ocupar el 006 sobre `005_caja_pagos`; la migración de C-07 quedó encadenada después (`down_revision = "006_catalogo_activo"`). Queda un solo head (`007_recordatorio`) y no cambia el contenido de la migración (tabla `recordatorio`, constraints e índice `ix_turnos_inicio_activo`).
+> - **Migración de C-07 renumerada a `008_recordatorio`**: tras integrar C-12 había quedado como `007_recordatorio`; al integrar C-11, cuyo `007_roles_sucursales` ocupa el 007 sobre `006_catalogo_activo`, pasó a 008 (`down_revision = "007_roles_sucursales"`). Queda un solo head (`008_recordatorio`) y no cambia el contenido de la migración (tabla `recordatorio`, constraints e índice `ix_turnos_inicio_activo`).
 > - **Recorte TP**: ya archivado C-12; restan C-13, C-14, C-15 y C-16.
 
 ---
@@ -318,7 +318,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - Modelo `Recordatorio`: `turno_id`, `canal` (whatsapp|email), `estado` (pendiente|enviado|confirmado|cancelado), `token_1toque`
   - Job 48/24h: envía recordatorio; link `POST /confirmar/{token}` → confirmado, `POST /cancelar/{token}` → cancelado (libera vía C-04)
   - `WHATSAPP_TOKEN` solo vía env, cupo incluido; sin token → fallback email/log (tests sin red)
-  - Migración: tabla `recordatorio`, numerada **`007_recordatorio`** tras integrar C-12 (`006_catalogo_activo` se quedó con el 006 sobre `005_caja_pagos`); `down_revision = "006_catalogo_activo"`, sin cambios de contenido respecto de la revisión original (rev. 6).
+  - Migración: tabla `recordatorio`, numerada **`008_recordatorio`** tras integrar C-12 y C-11 (`007_roles_sucursales` ocupa el 007 sobre `006_catalogo_activo`); `down_revision = "007_roles_sucursales"`, sin cambios de contenido respecto de la revisión original (rev. 6).
   - Tests: envío programa, confirmación 1 toque, cancelación libera hueco, sin token no rompe
 - **Dependencias**: C-04
 - **Governance**: ALTO
