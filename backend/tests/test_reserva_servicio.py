@@ -395,3 +395,321 @@ def test_slots_no_ofrece_inicios_pasados(db_session):
     slots = _slots(db_session, ids, fecha=date(2020, 1, 6))
 
     assert slots == []
+
+
+def _crear_reserva(db_session, ids, *, nombre, dni, contacto=None, inicio, profesional_id=None, prestacion_id=None):
+    from backend.app.reserva_online.service import ServicioReservaOnline
+
+    return ServicioReservaOnline.crear_reserva(
+        db_session,
+        nombre=nombre,
+        dni=dni,
+        contacto=contacto,
+        profesional_id=profesional_id or ids["profesional"],
+        prestacion_id=prestacion_id or ids["consulta30"],
+        inicio=inicio,
+    )
+
+
+def test_crear_reserva_valida(db_session):
+    """Reserva válida: pendiente, fin=inicio+30 (RN-AG-01), creado_por reserva_online."""
+    ids = _ids(db_session)
+    inicio = datetime(2030, 1, 7, 10, 0, tzinfo=TZ)
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Paciente Reserva Ficticio",
+        dni="DNI-RES-001",
+        contacto="tel ficticio",
+        inicio=inicio,
+    )
+
+    assert set(res.keys()) == {
+        "turno_id",
+        "profesional_id",
+        "prestacion_id",
+        "inicio",
+        "fin",
+        "estado",
+    }
+    assert res["estado"] == "pendiente"
+    assert res["profesional_id"] == ids["profesional"]
+    assert res["prestacion_id"] == ids["consulta30"]
+    assert res["inicio"] == inicio
+    assert res["fin"] == datetime(2030, 1, 7, 10, 30, tzinfo=TZ)
+    turno = db_session.get(Turno, res["turno_id"])
+    assert turno is not None
+    assert turno.creado_por == "reserva_online"
+
+
+def test_crear_reserva_solape_profesional(db_session):
+    """Solape de profesional en otro sillón: ConflictoTurno profesional, sin nuevos turnos."""
+    from backend.app.turnos.service import ConflictoTurno
+
+    ids = _ids(db_session)
+    inicio = datetime(2030, 1, 7, 10, 0, tzinfo=TZ)
+    fin = datetime(2030, 1, 7, 10, 30, tzinfo=TZ)
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+    antes = db_session.query(Turno).count()
+
+    with pytest.raises(ConflictoTurno) as exc_info:
+        _crear_reserva(
+            db_session,
+            ids,
+            nombre="Paciente Reserva Ficticio 2",
+            dni="DNI-RES-002",
+            contacto=None,
+            inicio=inicio,
+        )
+    assert exc_info.value.causa == "profesional"
+    assert db_session.query(Turno).count() == antes
+
+
+def test_crear_reserva_fuera_de_horario(db_session):
+    """Fuera de horario (sábado 10:00): ConflictoTurno horario, sin turnos nuevos."""
+    from backend.app.turnos.service import ConflictoTurno
+
+    ids = _ids(db_session)
+    antes = db_session.query(Turno).count()
+
+    with pytest.raises(ConflictoTurno) as exc_info:
+        _crear_reserva(
+            db_session,
+            ids,
+            nombre="Paciente Reserva Ficticio 3",
+            dni="DNI-RES-003",
+            contacto=None,
+            inicio=datetime(2030, 1, 12, 10, 0, tzinfo=TZ),
+        )
+    assert exc_info.value.causa == "horario"
+    assert db_session.query(Turno).count() == antes
+
+
+def test_crear_reserva_borde_inicio_igual_fin(db_session):
+    """Borde inicio == fin de otro turno: se acepta, 10:30-11:00 (RN-AG-04)."""
+    ids = _ids(db_session)
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=datetime(2030, 1, 7, 10, 0, tzinfo=TZ),
+        fin=datetime(2030, 1, 7, 10, 30, tzinfo=TZ),
+        profesional_id=ids["profesional"],
+        sillon_id=ids["sillon"],
+    )
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Paciente Reserva Ficticio 4",
+        dni="DNI-RES-004",
+        contacto=None,
+        inicio=datetime(2030, 1, 7, 10, 30, tzinfo=TZ),
+    )
+
+    assert res["estado"] == "pendiente"
+    assert res["inicio"] == datetime(2030, 1, 7, 10, 30, tzinfo=TZ)
+    assert res["fin"] == datetime(2030, 1, 7, 11, 0, tzinfo=TZ)
+
+
+def test_crear_reserva_inicio_sin_zona_horaria(db_session):
+    """Inicio sin zona horaria: excepción según (a), sin turnos nuevos."""
+    from backend.app.turnos.service import TurnoInvalido
+
+    ids = _ids(db_session)
+    antes = db_session.query(Turno).count()
+
+    with pytest.raises(TurnoInvalido):
+        _crear_reserva(
+            db_session,
+            ids,
+            nombre="Paciente Reserva Ficticio 5",
+            dni="DNI-RES-005",
+            contacto=None,
+            inicio=datetime(2030, 1, 7, 10, 0),
+        )
+    assert db_session.query(Turno).count() == antes
+
+
+def test_crear_reserva_dni_nuevo_crea_paciente(db_session):
+    """dni nuevo: crea paciente ficticio=True, activo=True; conteo sube en 1."""
+    ids = _ids(db_session)
+    antes = db_session.query(Paciente).count()
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Paciente Nuevo Ficticio",
+        dni="DNI-RES-NUEVO-001",
+        contacto="contacto ficticio",
+        inicio=datetime(2030, 1, 7, 11, 0, tzinfo=TZ),
+    )
+
+    assert db_session.query(Paciente).count() == antes + 1
+    turno = db_session.get(Turno, res["turno_id"])
+    paciente = db_session.get(Paciente, turno.paciente_id)
+    assert paciente.dni == "DNI-RES-NUEVO-001"
+    assert paciente.ficticio is True
+    assert paciente.activo is True
+
+
+def test_crear_reserva_dni_existente_reutiliza(db_session):
+    """dni existente: reutiliza paciente, ignora nombre, no crea otro, misma forma."""
+    ids = _ids(db_session)
+    paciente_existente = db_session.get(Paciente, ids["paciente"])
+    antes = db_session.query(Paciente).count()
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Nombre Distinto Ignorado",
+        dni=paciente_existente.dni,
+        contacto="contacto ignorado",
+        inicio=datetime(2030, 1, 7, 11, 30, tzinfo=TZ),
+    )
+
+    assert db_session.query(Paciente).count() == antes
+    assert set(res.keys()) == {
+        "turno_id",
+        "profesional_id",
+        "prestacion_id",
+        "inicio",
+        "fin",
+        "estado",
+    }
+    turno = db_session.get(Turno, res["turno_id"])
+    assert turno.paciente_id == paciente_existente.id
+
+
+def test_crear_reserva_todos_sillones_ocupados(db_session):
+    """Todos los sillones activos ocupados: ConflictoTurno sillon; sin turno ni paciente nuevos."""
+    from backend.app.turnos.service import ConflictoTurno
+
+    ids = _ids(db_session)
+    inicio = datetime(2030, 1, 7, 12, 0, tzinfo=TZ)
+    fin = datetime(2030, 1, 7, 12, 30, tzinfo=TZ)
+    db_session.add(
+        Profesional(nombre="Odontologo Ficticio 3", matricula="MAT-FICT-003")
+    )
+    db_session.flush()
+    profesional3 = (
+        db_session.query(Profesional).filter_by(matricula="MAT-FICT-003").one().id
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=ids["profesional2"],
+        sillon_id=ids["sillon"],
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=profesional3,
+        sillon_id=ids["sillon2"],
+    )
+    turnos_antes = db_session.query(Turno).count()
+    pacientes_antes = db_session.query(Paciente).count()
+
+    with pytest.raises(ConflictoTurno) as exc_info:
+        _crear_reserva(
+            db_session,
+            ids,
+            nombre="Paciente Reserva Ocupado",
+            dni="DNI-RES-OCUP-001",
+            contacto=None,
+            inicio=inicio,
+        )
+    assert exc_info.value.causa == "sillon"
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
+
+
+def test_crear_reserva_409_dni_nuevo_no_persiste_paciente(db_session):
+    """409 con dni nuevo: no queda paciente nuevo (servicio usa begin_nested/equivalente)."""
+    from backend.app.turnos.service import ConflictoTurno
+
+    ids = _ids(db_session)
+    inicio = datetime(2030, 1, 7, 13, 0, tzinfo=TZ)
+    fin = datetime(2030, 1, 7, 13, 30, tzinfo=TZ)
+    db_session.add(
+        Profesional(nombre="Odontologo Ficticio 4", matricula="MAT-FICT-004")
+    )
+    db_session.flush()
+    profesional4 = (
+        db_session.query(Profesional).filter_by(matricula="MAT-FICT-004").one().id
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=ids["profesional2"],
+        sillon_id=ids["sillon"],
+    )
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=profesional4,
+        sillon_id=ids["sillon2"],
+    )
+    pacientes_antes = db_session.query(Paciente).count()
+
+    with pytest.raises(ConflictoTurno) as exc_info:
+        _crear_reserva(
+            db_session,
+            ids,
+            nombre="Paciente Nuevo Falla 409",
+            dni="DNI-RES-FAIL409-001",
+            contacto=None,
+            inicio=inicio,
+        )
+    assert exc_info.value.causa == "sillon"
+    assert db_session.query(Paciente).count() == pacientes_antes
+    assert (
+        db_session.query(Paciente).filter_by(dni="DNI-RES-FAIL409-001").first()
+        is None
+    )
+
+
+def test_crear_reserva_asignacion_determinista_sillon(db_session):
+    """Con dos sillones libres elige el primero por (nombre, id); sillon_id en DB."""
+    ids = _ids(db_session)
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Paciente Determinista Ficticio",
+        dni="DNI-RES-DET-001",
+        contacto=None,
+        inicio=datetime(2030, 1, 7, 15, 0, tzinfo=TZ),
+    )
+
+    turno = db_session.get(Turno, res["turno_id"])
+    sillones = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .all()
+    )
+    assert sillones
+    assert turno.sillon_id == sillones[0].id
+    assert "sillon_id" not in res
