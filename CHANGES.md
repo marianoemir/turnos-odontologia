@@ -31,6 +31,15 @@
 > - **Migración de C-07 renumerada a `008_recordatorio`**: tras integrar C-12 había quedado como `007_recordatorio`; al integrar C-11, cuyo `007_roles_sucursales` ocupa el 007 sobre `006_catalogo_activo`, pasó a 008 (`down_revision = "007_roles_sucursales"`). Queda un solo head (`008_recordatorio`) y no cambia el contenido de la migración (tabla `recordatorio`, constraints e índice `ix_turnos_inicio_activo`).
 > - **Recorte TP**: ya archivado C-12; restan C-13, C-14, C-15 y C-16.
 
+> **Nota de rectificación (2026-11-09, rev. 7)** — C-11 (`roles-multisucursal-exportacion`) archivado el 2026-11-07 e integrado en `main` (PR #32):
+> - **Estado real recalculado**: 23 changes, **11 archivados** (C-01 a C-07, C-09, C-10, C-11 y C-12) y **12 pendientes** (C-08, C-13..C-22 y C-23). Actualiza el pie y los resúmenes de `AGENTS.md` y `CLAUDE.md` de la rev. 6.
+
+> **Nota de rectificación (2026-11-09, rev. 8)** — con C-07 y C-11 archivados e integrados, se alinea el texto de C-11 y de C-22 con lo realmente implementado (la rev. 5 de documentación había quedado postergada) y se deja listo el arranque de C-08. No cambia ningún estado ni el recuento de la rev. 7:
+> - **C-11 (archivado; su texto NO se reescribe)**: lo implementado difiere del scope original en estos puntos, que se registran acá y no en el change: (1) el control de acceso usa `require_permission()`, `require_admin()` y `require_role()`; (2) **no hay login real**: la identidad llega por el header `X-Actor-Rol` (ausente → `recepcion`), supuesto de implementación y no control de seguridad, y `X-Sucursal-Id` es opcional; (3) la migración quedó como `007_roles_sucursales`; (4) la exportación es JSON de 30 días y la importación de planilla es solo por CLI; (5) depende además de C-12, porque suma `sucursal_id` a los endpoints de profesionales y sillones.
+> - **C-22 (pendiente)**: el scope se corrige para respetar los contratos congelados de C-11 (design D6b): permisos solo lectura, importación solo por CLI (sin preview ni endpoint), alcance por sucursal limitado a profesionales y sillones, y `usuario` como texto libre (no existe `GET /usuarios`).
+> - **C-13/C-14**: el cliente HTTP debe enviar `X-Actor-Rol` (valor del selector de rol de C-14) y, opcionalmente, `X-Sucursal-Id`. Sin el header toda la UI actúa como `recepcion` y las pantallas de admin responden 403.
+> - **Próximo change**: **C-08** `reserva-online` (C-04 y C-07 archivados). Sin otro change en curso; `C-23` puede intercalarse antes de C-13.
+
 ---
 
 ## Cómo usar este documento
@@ -142,7 +151,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03 y C-12 (también están archivados C-04, C-05, C-06, C-07, C-09 y C-10, fuera del recorte). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03 y C-12 (también están archivados C-04, C-05, C-06, C-07, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, pero conviene ejecutarlo antes de C-13 para que la imagen y las migraciones estén verificadas cuando el frontend empiece a consumir la API.
 
@@ -448,7 +457,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - **Cableado del design system**: importar `frontend/design-system/tokens.css` desde `frontend/src/main.tsx` con la ruta relativa `../design-system/tokens.css`; verificar que los tokens se aplican en `npm run dev` (color de fondo y tipografía reales, no los del scaffold de Vite) y que el build de Docker los incluye
   - `react-router-dom`: rutas `/`, `/turnos/nuevo`, `/agenda`, `/catalogo/*`, `/lista-espera`, `/hc/:pacienteId`, `/caja`, `/admin`, `/reservar/:profesional`, `/confirmar/:token`, `/cancelar/:token`; `NotFound` y `ErrorBoundary`
   - Layout shell: nav lateral + topbar, tomado de `components.html`, responsive ≤46rem
-  - Cliente HTTP tipado (`fetch` wrapper): `VITE_API_BASE_URL`, parseo de error del backend (`409` con `causa: profesional|sillon|horario|bloqueo`, `422` de validación) → objeto de error de dominio, sin `any`, timeout y abort
+  - Cliente HTTP tipado (`fetch` wrapper): `VITE_API_BASE_URL`, parseo de error del backend (`409` con `causa: profesional|sillon|horario|bloqueo`, `422` de validación) → objeto de error de dominio, sin `any`, timeout y abort; envía el header `X-Actor-Rol` (rol activo de C-14) y, opcional, `X-Sucursal-Id` (rev. 8, contrato de C-11)
   - Tipos TS espejo de los schemas Pydantic de C-12 y C-03 (`Paciente`, `Profesional`, `SillonBox`, `Prestacion`, `HorarioAtencion`, `Bloqueo`, `Turno`, `EstadoTurno`)
   - `frontend/Dockerfile` multi-stage (node build → nginx) + servicio `web` en `docker-compose.yml` con `VITE_API_BASE_URL`; `.env.example` del frontend
   - **Limpieza del scaffold de Vite**: reemplazar el `<title>` de `frontend/index.html` por el nombre del producto tomado de `frontend/design-system/brand.js` (`Agenda Odontológica`); reescribir `frontend/README.md` (dejar de describirlo como "estructura base sin funcionalidad" y documentar scripts, estructura, variables de entorno y cómo correrlo); eliminar los archivos del template que ya no se usen: `frontend/src/App.css`, `frontend/src/assets/hero.png`, `frontend/src/assets/react.svg`, `frontend/src/assets/vite.svg` y `frontend/public/icons.svg` (conservar `frontend/public/favicon.svg`, referencia vigente de `index.html`). Verificación: `tsc -b` y `npm run build` en verde después de borrarlos, y `grep` sin referencias colgadas a los archivos eliminados
@@ -471,7 +480,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - Componentes base React, traducidos de `components.html` sin redefinir tokens: `Button` (primario/secundario/destructivo), `TextField` (label, help, error, `aria-invalid`), `Select`, `Card`, `EstadoBadge` (5 estados: pendiente, confirmado, atendido, ausente, cancelado — color + texto + forma del punto), `DataTable` (responsive a filas en grilla ≤46rem, orden y vacío), `Modal` (focus trap, `Escape`, retorno de foco), `Toast` (`role="status"`, auto-descarte pausable), `EmptyState`, `Skeleton`
   - Estado de servidor con TanStack Query: `QueryClient` configurado una vez, claves de query por recurso, invalidación tras mutación
   - Formularios con react-hook-form + zod: schemas espejo de las validaciones del backend (dni, `duracion_min > 0`, `desde < hasta`), mapeo de `422` a campos
-  - **Contexto de rol sin login (supuesto de implementación, no regla de negocio)**: `knowledge-base/03_actores_y_roles.md` define dos roles internos con permisos distintos — Recepción escribe turnos y lee toda la agenda; Odontólogo solo lee su agenda y su horario — y el primer change no tiene login ni rutas públicas. Como la identidad de sesión recién llega con C-11, la UI necesita un rol explícito para no inventar un privilegio implícito y para poder probar ambas perspectivas. Se implementa como selector visible (Recepción | Odontólogo) con aviso de "modo interno/test", persistido en `localStorage`, y guard de ruta que solo oculta/navega según la matriz. **No es un control de seguridad**: la autorización real es del backend; al llegar C-11 el guard pasa a leer la identidad de sesión. La KB no regula este selector, por eso queda como supuesto del change.
+  - **Contexto de rol sin login (supuesto de implementación, no regla de negocio)**: `knowledge-base/03_actores_y_roles.md` define dos roles internos con permisos distintos — Recepción escribe turnos y lee toda la agenda; Odontólogo solo lee su agenda y su horario — y el primer change no tiene login ni rutas públicas. Como la identidad de sesión recién llega con C-11, la UI necesita un rol explícito para no inventar un privilegio implícito y para poder probar ambas perspectivas. Se implementa como selector visible (Recepción | Odontólogo) con aviso de "modo interno/test", persistido en `localStorage`, y guard de ruta que solo oculta/navega según la matriz. **No es un control de seguridad**: la autorización real es del backend; al llegar C-11 el guard pasa a leer la identidad de sesión. La KB no regula este selector, por eso queda como supuesto del change. **Rev. 8**: el rol elegido se envía al backend como `X-Actor-Rol` (C-11; sin el header el backend asume `recepcion`), de modo que el selector ya no es solo visual.
   - Tests RTL: render y estados de cada componente, `EstadoBadge` con los 5 estados y sus etiquetas, `DataTable` vacía y con skeleton, `Modal` atrapa foco y cierra con `Escape`, `Toast` anunciado como `status`, zod bloquea submit inválido, guard redirige según rol
 - **Dependencias**: C-13
 - **Governance**: MEDIO
@@ -623,14 +632,15 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ### [C-22] `frontend-admin-roles-export`
 - **Estado**: `[ ]` pendiente
-- **Scope**: Administración y cierre en UI (consume C-11)
-  - `/admin/roles`: alta/edición de roles y asignación de permisos por capability
-  - `/admin/sucursales`: alta de sucursal y asignación usuario–sucursal; el selector de sucursal activa filtra toda la app
-  - `/admin/usuarios`: alta/edición, rol, sucursales; primer login real si C-11 lo define
-  - Exportación en 1 clic: descarga del archivo de C-11, con contrato de salida a 30 días visible antes de descargar
-  - Importación de planilla: preview de filas, resumen de aceptadas/rechazadas y resultado idempotente
-  - Rutas protegidas por `require_admin` en el cliente **y** respaldo del backend (nunca solo en el cliente)
-  - Tests RTL: guard de admin, aislamiento por sucursal en listados, exportación dispara descarga, importación muestra resumen
+- **Scope**: Administración y cierre en UI (consume C-11). Rev. 8: ajustado a los contratos congelados de C-11 (design D6b)
+  - `/admin/roles`: listado de roles y permisos en **solo lectura**; edición únicamente de `descripcion` (los roles canónicos están protegidos: cambiar `nombre` o desactivar → 409 `rol_canonico_protegido`)
+  - `/admin/sucursales`: alta y edición de sucursales; alta de asignaciones usuario–sucursal (`/usuarios-sucursal`, `usuario` como texto libre)
+  - Selector de sucursal activa: envía `X-Sucursal-Id` y filtra **solo profesionales y sillones** (turnos, pacientes, HC y caja siguen globales)
+  - Sin `/admin/usuarios` como pantalla propia: no existe `GET /usuarios`; los usuarios se ven a través de las asignaciones
+  - Exportación en 1 clic: descarga de `GET /export` (JSON, 30 días por defecto y máximo; >30 o rango invertido → 422), con el contrato de salida visible antes de descargar
+  - Importación de planilla: **no hay endpoint** (solo CLI `scripts/import_planilla`); la pantalla se limita a documentar el procedimiento y enlazar la guía `docs/migracion/`
+  - Rutas protegidas por `require_admin` en el cliente **y** respaldo del backend (403 con rol distinto de `admin`; nunca solo en el cliente)
+  - Tests RTL: guard de admin, filtro por sucursal en profesionales/sillones, exportación dispara descarga, rol canónico protegido muestra el 409
 - **Dependencias**: C-11, C-13, C-14
 - **Governance**: ALTO
 - **Leer antes**:
@@ -638,9 +648,10 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - `knowledge-base/01_vision_y_objetivos.md` §Alcance v1
   - `knowledge-base/08_arquitectura_propuesta.md` §Seguridad
   - `knowledge-base/04_modelo_de_datos.md` §Dominios
+  - `docs/export/README.md` y `docs/migracion/README.md`
 
 ---
 
-> **Estado del roadmap al 2026-11-06 (rev. 6)**: 23 changes. Archivados (10): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-09, C-10 y C-12. Pendientes (13): C-08, C-11, C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
+> **Estado del roadmap al 2026-11-09 (rev. 8)**: 23 changes. Archivados (11): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-09, C-10, C-11 y C-12. Pendientes (12): C-08, C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Próximo paso del recorte TP: `/opsx:propose C-13-frontend-foundation` (o `C-23-fix-api-contenedor`, que no bloquea). Habilitados por dependencias y ejecutables en paralelo: C-08 (C-04 + C-07 archivados) y C-11 (C-09 + C-10 archivados).
+> Habilitado por dependencias: C-08 (C-04 + C-07 archivados) — **es el próximo change**. Ningún change en curso.
