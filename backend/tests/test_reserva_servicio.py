@@ -386,3 +386,12 @@ def test_slots_sin_sillon_activo_devuelve_vacio(db_session):
     slots = _slots(db_session, ids, FECHA_LUNES)
 
     assert slots == []
+
+
+def test_slots_no_ofrece_inicios_pasados(db_session):
+    """No se ofrecen inicios pasados (D8, Q-C08-06 pendiente de OK)."""
+    ids = _ids(db_session)
+
+    slots = _slots(db_session, ids, fecha=date(2020, 1, 6))
+
+    assert slots == []

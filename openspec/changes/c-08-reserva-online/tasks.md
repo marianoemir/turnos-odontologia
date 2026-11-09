@@ -7,7 +7,7 @@
 ## 2. Servicio de slots
 
 - [x] 2.1 Escribir `backend/tests/test_reserva_servicio.py` (RED) para `ServicioReservaOnline.slots`: día libre devuelve lista ordenada dentro del horario; turno activo excluye sus solapados; bloqueo aplicable excluye; sábado sin horario devuelve `[]`; cancelado/ausente no excluyen (RN-TU-01); sin `nombre/dni/contacto` de terceros. Verificación: los tests fallan por módulo ausente y cubren los escenarios "Slots libres de un día laboral", "Slot ocupado no se ofrece", "Bloqueo excluye slots" y "Día sin horario devuelve vacío" de `specs/reserva-online/spec.md`.
-- [ ] 2.2 Implementar `backend/app/reserva_online/__init__.py`, `service.py` (enumeración D2 + filtro solo vía `ServicioTurnos.validar`: cada candidato se evalúa con cada sillón activo vía `ServicioTurnos.validar` sin usar `_cubierto_por_horario`/`_bloqueo_aplicable` directamente) y `schemas.py` (respuesta de slots como lista de objetos `{inicio, fin}` ordenada ascendente). Verificación: los tests de 2.1 quedan en verde y `ServicioTurnos.validar` no se modifica.
+- [x] 2.2 Implementar `backend/app/reserva_online/__init__.py`, `service.py` (enumeración D2 + filtro solo vía `ServicioTurnos.validar`: cada candidato se evalúa con cada sillón activo vía `ServicioTurnos.validar` sin usar `_cubierto_por_horario`/`_bloqueo_aplicable` directamente) y `schemas.py` (respuesta de slots como lista de objetos `{inicio, fin}` ordenada ascendente). Verificación: los tests de 2.1 quedan en verde y `ServicioTurnos.validar` no se modifica.
 
 ## 3. Alta pública
 
