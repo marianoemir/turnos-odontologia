@@ -386,7 +386,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-11] `roles-multisucursal-exportacion`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-07)
 - **Scope**: Cierre producción — roles, multi-sucursal básico, exportación total, migración asistida
   - Modelos: `Rol`, `Sucursal`, `UsuarioSucursal`; `PermissionContext`: `require_role()`, `require_admin()` (primer login real acá si se exige)
   - `GET /export` — pacientes + HC + agenda + caja en 1 clic (contrato de salida 30 días documentado en README)
