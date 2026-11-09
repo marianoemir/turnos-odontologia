@@ -218,3 +218,20 @@ def test_exclude_permite_adyacencia_y_cancelado_libera(db_session):
 
 def test_estados_activos_son_pendiente_y_confirmado():
     assert sorted(ESTADOS_ACTIVOS) == ["confirmado", "pendiente"]
+
+
+def test_indice_inicio_activo_declarado_en_modelo():
+    """D17: el indice parcial del job existe tambien en el modelo.
+
+    Evita drift en `alembic autogenerate/check`: la migracion 006 lo crea
+    y `Base.metadata` lo declara con el mismo predicado.
+    """
+    indices = {indice.name: indice for indice in Turno.__table__.indexes}
+
+    assert "ix_turnos_inicio_activo" in indices
+    indice = indices["ix_turnos_inicio_activo"]
+    assert [columna.name for columna in indice.columns] == ["inicio"]
+
+    predicado = str(indice.dialect_options["postgresql"]["where"])
+    assert "estado IN ('pendiente','confirmado')" in predicado
+

@@ -53,5 +53,5 @@ turnos-odontologia/
 | `SECRET_KEY` | Firma JWT (change de auth; valor ficticio en example) | `cambiar-en-produccion-solo-env` | Y |
 | `REDIS_URL` | Solo cuando haya funcionalidad asincrónica (posterior) | `redis://localhost:6379/0` | N |
 | `SEED_FICTICIO` | Activa seed de datos ficticios | `true` | N |
-| `WHATSAPP_TOKEN` | Posterior — no usar en changes de agenda | — | Y |
+| `WHATSAPP_TOKEN` | Opcional (C-07): si existe, el notificador usa el canal `whatsapp` simulado; si falta o está vacía, fallback `log`. Sin valor en el repo y nunca se lee su valor | — | Y |
 | `MP_ACCESS_TOKEN` | Posterior — no usar en changes de agenda | — | Y |

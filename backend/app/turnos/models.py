@@ -61,6 +61,13 @@ class Turno(Base):
                 "estado IN ('pendiente','confirmado')"
             ),
         ),
+        Index(
+            "ix_turnos_inicio_activo",
+            "inicio",
+            postgresql_where=text(
+                "estado IN ('pendiente','confirmado')"
+            ),
+        ),
         Index("ix_turnos_paciente_inicio", "paciente_id", "inicio"),
     )
 
