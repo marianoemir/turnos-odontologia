@@ -2,7 +2,7 @@
 
 ## 1. Verificación previa y esquema
 
-- [ ] 1.1 Verificar el head de Alembic ubicando `backend/alembic.ini` (no asumir `backend/`) y, desde ese directorio, ejecutar `alembic heads`, `alembic current` y `alembic upgrade head` hasta `008_recordatorio`, y, vía MCP `postgres`, confirmar `turnos` (`EXCLUDE` parciales sobre `pendiente`/`confirmado`) y `pacientes.dni UNIQUE`. La base local está en `005_caja_pagos`; antes de testear debe llevarse a `008_recordatorio`. Verificación: salidas de `alembic heads`/`alembic current`/`alembic upgrade head` y descripciones de `postgres_get_object_details` coinciden con los modelos y `alembic_version = 008_recordatorio`. Si el head difiere, frenar y corregir el plan.
+- [x] 1.1 Verificar el head de Alembic ubicando `backend/alembic.ini` (no asumir `backend/`) y, desde ese directorio, ejecutar `alembic heads`, `alembic current` y `alembic upgrade head` hasta `008_recordatorio`, y, vía MCP `postgres`, confirmar `turnos` (`EXCLUDE` parciales sobre `pendiente`/`confirmado`) y `pacientes.dni UNIQUE`. La base local está en `005_caja_pagos`; antes de testear debe llevarse a `008_recordatorio`. Verificación: salidas de `alembic heads`/`alembic current`/`alembic upgrade head` y descripciones de `postgres_get_object_details` coinciden con los modelos y `alembic_version = 008_recordatorio`. Si el head difiere, frenar y corregir el plan.
 
 ## 2. Servicio de slots
 
