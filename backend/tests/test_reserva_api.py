@@ -16,13 +16,14 @@ from __future__ import annotations
 import hashlib
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
-from backend.app.agenda.models import Paciente, Prestacion, Profesional
+from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
 from backend.app.main import app
 from backend.app.recordatorios.models import Recordatorio
 from backend.app.recordatorios.router import get_db as recordatorios_get_db
@@ -262,3 +263,164 @@ def test_hueco_liberado_vuelve_a_aparecer_en_get(client, db_session, ids):
         datetime.fromisoformat(i) == datetime(2030, 1, 7, 12, 0, tzinfo=TZ)
         for i in inicios
     )
+
+
+def _insertar_turno_reserva(
+    db_session, ids, *, profesional_id, sillon_id, inicio, estado="pendiente"
+):
+    fin = inicio + timedelta(minutes=30)
+    nuevo_id = db_session.execute(
+        text(
+            "INSERT INTO turnos (id, paciente_id, profesional_id, "
+            "sillon_id, prestacion_id, inicio, fin, estado) "
+            "VALUES (gen_random_uuid(), :pac, :prof, :sil, :pres, "
+            ":inicio, :fin, :estado) RETURNING id"
+        ),
+        {
+            "pac": ids["paciente"],
+            "prof": profesional_id,
+            "sil": sillon_id,
+            "pres": ids["consulta30"],
+            "inicio": inicio,
+            "fin": fin,
+            "estado": estado,
+        },
+    ).scalar_one()
+    db_session.flush()
+    return nuevo_id
+
+
+def test_post_reservar_409_solape_profesional_api(client, db_session, ids):
+    inicio = datetime(2030, 1, 7, 9, 0, tzinfo=TZ)
+    sillon = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .first()
+    )
+    _insertar_turno_reserva(
+        db_session,
+        ids,
+        profesional_id=ids["profesional"],
+        sillon_id=sillon.id,
+        inicio=inicio,
+    )
+    antes = db_session.query(Turno).count()
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-SOLAPE-001",
+            inicio="2030-01-07T09:00:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 409
+    assert r.json() == {
+        "detail": {
+            "causa": "profesional",
+            "detalle": r.json()["detail"]["detalle"],
+        }
+    }
+    assert r.json()["detail"]["detalle"]
+    assert db_session.query(Turno).count() == antes
+
+
+def test_post_reservar_409_todos_sillones_ocupados_api(client, db_session, ids):
+    inicio = datetime(2030, 1, 7, 9, 30, tzinfo=TZ)
+    sillones = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .all()
+    )
+    otros_profesionales = []
+    for idx, _ in enumerate(sillones, start=1):
+        matricula = f"MAT-FICT-API-{idx:03d}"
+        db_session.add(
+            Profesional(
+                nombre=f"Odontologo Ficticio API {idx}",
+                matricula=matricula,
+            )
+        )
+        db_session.flush()
+        otros_profesionales.append(
+            db_session.query(Profesional).filter_by(matricula=matricula).one().id
+        )
+    for sillon, prof_id in zip(sillones, otros_profesionales):
+        _insertar_turno_reserva(
+            db_session,
+            ids,
+            profesional_id=prof_id,
+            sillon_id=sillon.id,
+            inicio=inicio,
+        )
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-SILLON-001",
+            inicio="2030-01-07T09:30:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 409
+    assert r.json() == {
+        "detail": {
+            "causa": "sillon",
+            "detalle": r.json()["detail"]["detalle"],
+        }
+    }
+    assert r.json()["detail"]["detalle"]
+
+
+def test_post_reservar_dni_vacio_422(client, db_session, ids):
+    turnos_antes = db_session.query(Turno).count()
+    pacientes_antes = db_session.query(Paciente).count()
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="",
+            inicio="2030-01-07T13:00:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
+
+
+def test_post_reservar_textos_demasiado_largos_422(client, db_session, ids):
+    turnos_antes = db_session.query(Turno).count()
+    pacientes_antes = db_session.query(Paciente).count()
+
+    r_dni = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="D" * 33,
+            inicio="2030-01-07T13:30:00-03:00",
+        ),
+    )
+
+    assert r_dni.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
+
+    r_nombre = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-LARGO-001",
+            nombre="N" * 201,
+            inicio="2030-01-07T14:00:00-03:00",
+        ),
+    )
+
+    assert r_nombre.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes

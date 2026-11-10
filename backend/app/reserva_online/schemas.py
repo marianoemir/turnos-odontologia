@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
 class SlotOut(BaseModel):
@@ -14,8 +14,8 @@ class SlotOut(BaseModel):
 class ReservaCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    nombre: str
-    dni: str
+    nombre: str = Field(min_length=1, max_length=200)
+    dni: str = Field(min_length=1, max_length=32)
     contacto: str | None = None
     profesional_id: uuid.UUID
     prestacion_id: uuid.UUID
