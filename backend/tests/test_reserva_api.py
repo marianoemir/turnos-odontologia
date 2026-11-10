@@ -58,40 +58,24 @@ def ids(db_session):
 
 @pytest.fixture()
 def reset_rate_limit_reserva():
-    """Aísla el limitador de rate limit entre tests.
+    """Aísla el limitador de rate limit entre tests."""
+    from backend.app.reserva_online.router import resetear_rate_limit
 
-    Nombre esperado para 4.2: backend.app.reserva_online.router.resetear_rate_limit()
-    (reset del contador en memoria por IP/ventana). Como el router no existe en
-    4.1, el import se difiere al uso del fixture.
-    """
-    try:
-        from backend.app.reserva_online.router import resetear_rate_limit
-
-        resetear_rate_limit()
-    except ImportError:
-        pass
+    resetear_rate_limit()
     yield
-    try:
-        from backend.app.reserva_online.router import resetear_rate_limit
-
-        resetear_rate_limit()
-    except ImportError:
-        pass
+    resetear_rate_limit()
 
 
 @pytest.fixture()
 def client(db_session, reset_rate_limit_reserva):
+    from backend.app.reserva_online.router import get_db as reserva_get_db
+
     def _override_db():
         yield db_session
 
     app.dependency_overrides[turnos_get_db] = _override_db
     app.dependency_overrides[recordatorios_get_db] = _override_db
-    try:
-        from backend.app.reserva_online.router import get_db as reserva_get_db
-
-        app.dependency_overrides[reserva_get_db] = _override_db
-    except ImportError:
-        pass
+    app.dependency_overrides[reserva_get_db] = _override_db
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.clear()
 

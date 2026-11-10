@@ -10,6 +10,7 @@ from backend.app.hc.router import router as hc_router
 from backend.app.lista_espera.router import router as lista_espera_router
 from backend.app.rbac.router import router as rbac_router
 from backend.app.recordatorios.router import router as recordatorios_router
+from backend.app.reserva_online.router import router as reserva_online_router
 from backend.app.turnos.router import router as turnos_router
 
 app = FastAPI()
@@ -22,6 +23,7 @@ app.include_router(caja_router)
 app.include_router(rbac_router)
 app.include_router(export_router)
 app.include_router(recordatorios_router)
+app.include_router(reserva_online_router)
 
 
 @app.get("/health")
