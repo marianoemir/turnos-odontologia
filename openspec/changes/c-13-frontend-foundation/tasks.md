@@ -26,12 +26,12 @@
 
 ## 2. Contratos de datos
 
-- [ ] **2.1 Tipos espejo de los schemas de lectura**
+- [x] **2.1 Tipos espejo de los schemas de lectura**
   - RED: `src/types/api.test.ts` usa `expectTypeOf` de `vitest` para exigir igualdad exacta de tipo, por entidad y sobre la forma de la respuesta real: `expectTypeOf<Paciente>().toEqualTypeOf<{...}>()`, y lo mismo para `Profesional`, `SillonBox`, `Prestacion`, `HorarioAtencion`, `Bloqueo` y `Turno` (incluidos los campos nulos); más un `// @ts-expect-error` sobre un objeto al que le falta un campo obligatorio. `npx tsc -b` falla porque `./api` no existe: el contrato todavía no está escrito.
   - GREEN: `src/types/api.ts` con los campos de `PacienteOut` (`backend/app/agenda/schemas.py:60-68`), `ProfesionalOut` (`:103-110`), `SillonOut` (`:136-142`), `PrestacionOut` (`:168-174`), `HorarioOut` (`:223-231`), `BloqueoOut` (`:251-259`) y `TurnoOut` (`backend/app/turnos/schemas.py:23-34`). `SillonBox` se exporta como alias de `Sillon` (design Q3). `desde`/`hasta` de `HorarioAtencion` son `string` `"HH:MM:SS"`, no `Date`.
   - Verify: `npx tsc -b` verde **y** `npm run test:run` verde. La comprobación es de compilación, no de claves en runtime: un campo de más, de menos o con otro tipo rompe `tsc -b`, y el `@ts-expect-error` falla como "Unused '@ts-expect-error' directive" si el tipo se afloja (un `any` o una firma de índice lo silenciaría, y por eso se detecta). `expectTypeOf` no ejecuta nada: su valor está en que `tsc -b` lo revisa. Chequeo cruzado manual: cada campo se compara contra la línea del schema citado.
 
-- [ ] **2.2 `EstadoTurno` como unión y mapeo exhaustivo**
+- [x] **2.2 `EstadoTurno` como unión y mapeo exhaustivo**
   - RED: test que exige `ESTADO_TURNO_LABELS` con las 5 claves de `backend/app/turnos/models.py:27-33` y que cada etiqueta sea no vacía; falla porque no existe.
   - GREEN: `EstadoTurno` como unión de los 5 valores y `ESTADO_TURNO_LABELS` con un `switch` que termina en `never`.
   - Verify: `npm run test:run` + `npx tsc -b` verdes. Prueba de exhaustividad: agregar temporalmente un sexto estado a la unión → `npx tsc -b` falla por rama no cubierta → revertir.
