@@ -22,8 +22,8 @@
 
 ## 5. Verificación final
 
-- [ ] 5.1 Correr la suite completa desde la RAÍZ con `pytest backend/tests -p no:randomly -q --tb=short` y `openspec validate c-08-reserva-online --strict`. Aclarar que sin `DATABASE_URL` los tests de DB se saltean y reportar los conteos `passed`/`skipped`. Verificación: `passed`/`skipped` reportados y la validación sin issues.
-- [ ] 5.2 Correr `ruff check backend/` y verificar que `POST /turnos`, `GET /agenda` y `POST /confirmar|/cancelar/{token}` siguen en verde (sin regresión en C-03/C-05/C-07). Verificación: salida de ruff limpia y conteo de tests sin fallos.
+- [x] 5.1 Correr la suite completa desde la RAÍZ con `pytest backend/tests -p no:randomly -q --tb=short` y `openspec validate c-08-reserva-online --strict`. Aclarar que sin `DATABASE_URL` los tests de DB se saltean y reportar los conteos `passed`/`skipped`. Verificación: `passed`/`skipped` reportados y la validación sin issues.
+- [x] 5.2 Correr `ruff check backend/` y verificar que `POST /turnos`, `GET /agenda` y `POST /confirmar|/cancelar/{token}` siguen en verde (sin regresión en C-03/C-05/C-07). Verificación: salida de ruff limpia y conteo de tests sin fallos.
 
 ## Workflow follow-up
 
