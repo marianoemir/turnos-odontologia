@@ -40,6 +40,12 @@
 > - **C-13/C-14**: el cliente HTTP debe enviar `X-Actor-Rol` (valor del selector de rol de C-14) y, opcionalmente, `X-Sucursal-Id`. Sin el header toda la UI actúa como `recepcion` y las pantallas de admin responden 403.
 > - **Próximo change**: **C-08** `reserva-online` (C-04 y C-07 archivados). Sin otro change en curso; `C-23` puede intercalarse antes de C-13.
 
+> **Nota de rectificación (2026-11-10, rev. 9)** — C-08 archivado el 2026-11-10. No cambia el texto de scope de C-08. Estado real recalculado: 23 changes, **12 archivados** (C-01 a C-07, C-09, C-10, C-11, C-12 y C-08) y **11 pendientes** (C-13..C-22 y C-23).
+> - **Migración**: C-08 no agregó ninguna (`Select-String` sobre `backend/alembic/versions` sin coincidencias de C-08/reserva; head sigue en `008_recordatorio`, `down_revision = \"007_roles_sucursales\"`).
+> - **Difiere del scope original de C-08 (sección C-08 de este archivo)** y de lo implementado (según `openspec/specs/reserva-online/spec.md` y `openspec/changes/archive/2026-11-10-c-08-reserva-online/design.md`): esa sección hablaba de "reserva 24/7 por link + confirmación/cancelación en 1 toque" y de links que reutilizan C-07; implementado: rutas públicas `GET /reservar/{profesional}?prestacion=&fecha=` (lista `[{inicio,fin}]` ordenada, sin datos de pacientes/sillón) y `POST /reservar` que crea turno `pendiente` vía validación C-03 con respuesta 201 `{turno_id,profesional_id,prestacion_id,inicio,fin,estado}` (spec R1/R2/R7; schemas `SlotOut/ReservaCreate/ReservaOut`), y confirmación/cancelación por tokens/enlaces de C-07 generados por el job, **sin link inmediato en la respuesta 201** (design D7, Q-C08-07). Además: alta pública con `nombre` y `dni` sin verificación de identidad (paciente reutilizado por `dni` ignorando el `nombre` enviado, Q-C08-10, D4); rate limit solo en POST, por IP, en memoria y por proceso (D6); slots validados con el primer paciente activo y sin pacientes activos devuelve `[]` (Q-C08-12); un `dni` de paciente inactivo da 422 con detalle propio (Q-C08-13).
+> - **Preguntas abiertas/decisiones**: Q-C08-01, 05 a 13 pendientes de OK; Q-C08-02, 03 y 04 aceptadas por el autor del TP con los defaults de D2, D4 y D5 (design archivado).
+> - **Tests C-08**: `backend/tests/test_reserva_servicio.py` 21 `def test_`, `backend/tests/test_reserva_api.py` 13 `def test_`. Total suite al cierre: **755 passed** (dato verificado en consola, no recalculado).
+
 ---
 
 ## Cómo usar este documento
@@ -340,7 +346,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-08] `reserva-online`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-10)
 - **Scope**: US-006 — reserva 24/7 por link + confirmación/cancelación en 1 toque (primeras rutas públicas)
   - `GET /reservar/{profesional}?prestacion=&fecha=` (slots reales: horario − bloqueos − turnos activos)
   - `POST /reservar`: crea pendiente vía validación C-03 (rate limit por IP); links de confirmación/cancelación que reutilizan C-07
@@ -652,6 +658,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-09 (rev. 8)**: 23 changes. Archivados (11): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-09, C-10, C-11 y C-12. Pendientes (12): C-08, C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
+> **Estado del roadmap al 2026-11-10 (rev. 9)**: 23 changes. Archivados (12): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11 y C-12. Pendientes (11): C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Habilitado por dependencias: C-08 (C-04 + C-07 archivados) — **es el próximo change**. Ningún change en curso.
+> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-13** (C-23 puede intercalarse antes).
