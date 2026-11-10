@@ -208,7 +208,7 @@ El solape se rechaza en dos niveles: el servicio valida primero y devuelve el `4
 
 ## Variables de entorno
 
-Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola.
+Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola. Reserva online (C-08): `RESERVA_RATE_LIMIT_N` (default `5`) y `RESERVA_RATE_LIMIT_VENTANA_SEG` (default `600`) definidos en `.env.example`.
 
 > **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. C-07 `recordatorios-confirmacion` tampoco lo usa: su procesamiento es determinista y se invoca por cron (ver §Recordatorios 48h/24h). Redis queda reservado para el primer change con funcionalidad asincrónica real.
 
@@ -230,6 +230,32 @@ Salida: `recordatorios: candidatos=N enviados=N omitidos=N fallidos=N`. El códi
 ```cron
 */15 * * * * cd /ruta/al/repo && .venv/bin/python -m backend.app.recordatorios.job >> /var/log/recordatorios.log 2>&1
 ```
+
+## Reserva online (C-08)
+
+Alta pública sin login ni header `X-Actor-Rol` (D3).
+
+- **`GET /reservar/{profesional}?prestacion=<uuid>&fecha=<YYYY-MM-DD>`**: responde 200 con una lista de objetos `{"inicio", "fin"}` ordenada ascendente, sin `sillon_id` ni datos de pacientes. Ofrece un slot si al menos un sillón activo lo permite (validado vía `ServicioTurnos.validar`); solo se listan inicios futuros (`inicio > ahora` local, zona `America/Argentina/Buenos_Aires`).
+- **`POST /reservar`**: body `{"nombre", "dni", "contacto" (opcional), "profesional_id", "prestacion_id", "inicio"}`. Límites: `nombre` 1-200 caracteres, `dni` 1-32 caracteres; `inicio` con zona horaria obligatoria (`AwareDatetime`). Respuesta 201 exacta: `{"turno_id", "profesional_id", "prestacion_id", "inicio", "fin", "estado"}` con `estado` `"pendiente"`.
+
+**Errores**
+
+| Código | Causa / detalle |
+|---|---|
+| 404 | Profesional o prestación inexistente (`detail` string no vacío). |
+| 409 | `{"detail": {"causa", "detalle"}}` con `causa` emitida por el código: `horario`, `profesional`, `sillon` o `bloqueo` (según `ConflictoTurno` de `ServicioTurnos`/servicio de reserva). |
+| 422 | Input inválido (validación FastAPI/Pydantic, ej. body incompleto, fecha inválida, `inicio` sin zona horaria, longitudes de `nombre`/`dni`, o `TurnoInvalido` del servicio con `detail` string). |
+| 429 | `{"detail": {"causa": "rate_limit", "detalle": ...}}` al superar el umbral. |
+
+**Rate limit**: por IP (`request.client.host`), en memoria y por proceso, solo en `POST /reservar`. Cada POST cuenta como intento (aunque luego falle con 409 o 422). Variables: `RESERVA_RATE_LIMIT_N` (default `5`) y `RESERVA_RATE_LIMIT_VENTANA_SEG` (default `600`).
+
+**Límites conocidos**
+- No se verifica la identidad del paciente: se reutiliza por `dni` y se ignora el `nombre` enviado, por lo que cualquiera puede agendar a nombre de un `dni` ajeno (Q-C08-10).
+- Un paciente inactivo con ese `dni` recibe 422 con detalle propio (Q-C08-13).
+- El paciente usado por `GET /reservar` para validar slots es el primer paciente activo; sin pacientes activos devuelve `[]` (Q-C08-12).
+- Un turno reservado con menos de 48 h puede no recibir link de C-07 (Q-C08-07).
+- El rate limit se reinicia con el proceso y no es efectivo con varios procesos.
+- El turno queda con `creado_por` `"reserva_online"` y el paciente creado es `ficticio=true`.
 
 ## Integración MCP: Postgres MCP Pro
 
@@ -351,6 +377,7 @@ Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connect
 
 - `backend/app/turnos/` — dominio de turnos: modelo, servicio, `POST /turnos` (C-03) y cancelar y reprogramar (C-04).
 - `backend/app/agenda/` — horarios, bloqueos y recursos del catálogo (C-02) y `GET /agenda` (C-05).
+- `backend/app/reserva_online/` — reserva pública sin login: `GET /reservar/{profesional}` y `POST /reservar` (C-08).
 - `backend/app/seed/` — datos ficticios.
 - `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).

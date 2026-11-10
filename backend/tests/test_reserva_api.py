@@ -1,0 +1,426 @@
+"""API pública de reserva online (C-08, task 4.1 RED). Solo datos ficticios.
+
+Contratos esperados (router aún no implementado):
+- GET /reservar/{profesional}?prestacion=&fecha= -> 200 lista de {inicio, fin}
+  ascendente, sin X-Actor-Rol.
+- POST /reservar -> 201 sin X-Actor-Rol, cuerpo exactamente
+  {turno_id, profesional_id, prestacion_id, inicio, fin, estado}.
+- 404 profesional/prestación inexistente con cuerpo != {"detail":"Not Found"}
+  (mapeo C-03: detail string).
+- 422 fecha inválida (GET) / body incompleto (POST).
+- 429 rate_limit al superar umbral en POST.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import secrets
+import uuid
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+
+from backend.app.agenda.models import Paciente, Prestacion, Profesional, SillonBox
+from backend.app.main import app
+from backend.app.recordatorios.models import Recordatorio
+from backend.app.recordatorios.router import get_db as recordatorios_get_db
+from backend.app.seed.catalogo import seed_catalogo
+from backend.app.turnos.models import Turno
+from backend.app.turnos.router import get_db as turnos_get_db
+
+pytestmark = pytest.mark.integration
+
+TZ = ZoneInfo("America/Argentina/Buenos_Aires")
+FECHA_LUNES = "2030-01-07"
+INICIO_LUNES_10 = datetime(2030, 1, 7, 10, 0, tzinfo=TZ)
+
+
+@pytest.fixture()
+def ids(db_session):
+    seed_catalogo(db_session)
+    return {
+        "paciente": db_session.query(Paciente)
+        .filter_by(dni="DNI-FICT-001")
+        .one()
+        .id,
+        "profesional": db_session.query(Profesional)
+        .filter_by(matricula="MAT-FICT-001")
+        .one()
+        .id,
+        "consulta30": db_session.query(Prestacion)
+        .filter_by(nombre="Consulta")
+        .one()
+        .id,
+    }
+
+
+@pytest.fixture()
+def reset_rate_limit_reserva():
+    """Aísla el limitador de rate limit entre tests."""
+    from backend.app.reserva_online.router import resetear_rate_limit
+
+    resetear_rate_limit()
+    yield
+    resetear_rate_limit()
+
+
+@pytest.fixture()
+def client(db_session, reset_rate_limit_reserva):
+    from backend.app.reserva_online.router import get_db as reserva_get_db
+
+    def _override_db():
+        yield db_session
+
+    app.dependency_overrides[turnos_get_db] = _override_db
+    app.dependency_overrides[recordatorios_get_db] = _override_db
+    app.dependency_overrides[reserva_get_db] = _override_db
+    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides.clear()
+
+
+def _post_reserva_body(ids, **overrides):
+    body = {
+        "nombre": "Paciente Reserva API Ficticio",
+        "dni": "DNI-RES-API-001",
+        "contacto": "contacto ficticio",
+        "profesional_id": str(ids["profesional"]),
+        "prestacion_id": str(ids["consulta30"]),
+        "inicio": "2030-01-07T10:00:00-03:00",
+    }
+    body.update(overrides)
+    return body
+
+
+def _get_slots(client, profesional_id, prestacion_id, fecha=FECHA_LUNES):
+    return client.get(
+        f"/reservar/{profesional_id}",
+        params={"prestacion": str(prestacion_id), "fecha": fecha},
+    )
+
+
+def _assert_404_no_default_not_found(response):
+    assert response.status_code == 404
+    assert response.json() != {"detail": "Not Found"}
+    assert isinstance(response.json().get("detail"), str)
+    assert response.json()["detail"]
+
+
+def _insertar_recordatorio(db_session, turno):
+    token = secrets.token_urlsafe(32)
+    recordatorio = Recordatorio(
+        turno_id=turno.id,
+        canal="log",
+        etapa="48h",
+        estado="enviado",
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        expira_en=turno.inicio,
+        inicio_turno=turno.inicio,
+    )
+    db_session.add(recordatorio)
+    db_session.flush()
+    return token, recordatorio
+
+
+def test_get_reservar_200_sin_x_actor_rol(client, ids):
+    r = _get_slots(client, ids["profesional"], ids["consulta30"])
+
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    assert data
+    for slot in data:
+        assert set(slot.keys()) == {"inicio", "fin"}
+    inicios = [slot["inicio"] for slot in data]
+    assert inicios == sorted(inicios)
+
+
+def test_post_reservar_201_sin_x_actor_rol(client, ids):
+    r = client.post("/reservar", json=_post_reserva_body(ids))
+
+    assert r.status_code == 201
+    data = r.json()
+    assert set(data.keys()) == {
+        "turno_id",
+        "profesional_id",
+        "prestacion_id",
+        "inicio",
+        "fin",
+        "estado",
+    }
+    assert data["estado"] == "pendiente"
+
+
+def test_profesional_inexistente_get_y_post_404_sin_detail_not_found(client, ids):
+    inexistente = uuid.uuid4()
+
+    r_get = _get_slots(client, inexistente, ids["consulta30"])
+    _assert_404_no_default_not_found(r_get)
+
+    body = _post_reserva_body(ids, profesional_id=str(inexistente))
+    r_post = client.post("/reservar", json=body)
+    _assert_404_no_default_not_found(r_post)
+
+
+def test_prestacion_inexistente_get_y_post_404_sin_detail_not_found(client, ids):
+    inexistente = uuid.uuid4()
+
+    r_get = _get_slots(client, ids["profesional"], inexistente)
+    _assert_404_no_default_not_found(r_get)
+
+    body = _post_reserva_body(ids, prestacion_id=str(inexistente))
+    r_post = client.post("/reservar", json=body)
+    _assert_404_no_default_not_found(r_post)
+
+
+def test_get_reservar_fecha_invalida_422(client, ids):
+    r = client.get(
+        f"/reservar/{ids['profesional']}",
+        params={"prestacion": str(ids["consulta30"]), "fecha": "no-es-fecha"},
+    )
+
+    assert r.status_code == 422
+
+
+def test_post_reservar_body_incompleto_sin_dni_422(client, ids):
+    body = _post_reserva_body(ids)
+    body.pop("dni")
+
+    r = client.post("/reservar", json=body)
+
+    assert r.status_code == 422
+
+
+def test_post_reservar_rate_limit_429(client, db_session, ids, monkeypatch):
+    monkeypatch.setenv("RESERVA_RATE_LIMIT_N", "2")
+    monkeypatch.setenv("RESERVA_RATE_LIMIT_VENTANA_SEG", "60")
+
+    body1 = _post_reserva_body(
+        ids,
+        dni="DNI-RES-RL-001",
+        inicio="2030-01-07T10:00:00-03:00",
+    )
+    body2 = _post_reserva_body(
+        ids,
+        dni="DNI-RES-RL-002",
+        inicio="2030-01-07T10:30:00-03:00",
+    )
+    body3 = _post_reserva_body(
+        ids,
+        dni="DNI-RES-RL-003",
+        inicio="2030-01-07T11:00:00-03:00",
+    )
+
+    r1 = client.post("/reservar", json=body1)
+    r2 = client.post("/reservar", json=body2)
+    antes_tercero = db_session.query(Turno).count()
+    r3 = client.post("/reservar", json=body3)
+
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+    assert r3.status_code == 429
+    detail = r3.json().get("detail")
+    detail_text = str(detail)
+    assert "rate_limit" in detail_text
+    assert db_session.query(Turno).count() == antes_tercero
+
+
+def test_confirmar_token_sobre_turno_creado_por_reserva(client, db_session, ids):
+    r = client.post("/reservar", json=_post_reserva_body(ids))
+    assert r.status_code == 201
+    turno_id = uuid.UUID(r.json()["turno_id"])
+    turno = db_session.get(Turno, turno_id)
+    token, _ = _insertar_recordatorio(db_session, turno)
+
+    rc = client.post(f"/confirmar/{token}")
+
+    assert rc.status_code == 200
+    assert rc.json()["resultado"] == "confirmado"
+    db_session.refresh(turno)
+    assert turno.estado == "confirmado"
+
+
+def test_hueco_liberado_vuelve_a_aparecer_en_get(client, db_session, ids):
+    body = _post_reserva_body(
+        ids,
+        dni="DNI-RES-HUECO-001",
+        inicio="2030-01-07T12:00:00-03:00",
+    )
+    r = client.post("/reservar", json=body)
+    assert r.status_code == 201
+    turno_id = r.json()["turno_id"]
+
+    rc = client.post(f"/turnos/{turno_id}/cancelar")
+    assert rc.status_code == 200
+    assert rc.json()["estado"] == "cancelado"
+
+    slots = _get_slots(client, ids["profesional"], ids["consulta30"])
+    assert slots.status_code == 200
+    inicios = [s["inicio"] for s in slots.json()]
+    assert any(
+        datetime.fromisoformat(i) == datetime(2030, 1, 7, 12, 0, tzinfo=TZ)
+        for i in inicios
+    )
+
+
+def _insertar_turno_reserva(
+    db_session, ids, *, profesional_id, sillon_id, inicio, estado="pendiente"
+):
+    fin = inicio + timedelta(minutes=30)
+    nuevo_id = db_session.execute(
+        text(
+            "INSERT INTO turnos (id, paciente_id, profesional_id, "
+            "sillon_id, prestacion_id, inicio, fin, estado) "
+            "VALUES (gen_random_uuid(), :pac, :prof, :sil, :pres, "
+            ":inicio, :fin, :estado) RETURNING id"
+        ),
+        {
+            "pac": ids["paciente"],
+            "prof": profesional_id,
+            "sil": sillon_id,
+            "pres": ids["consulta30"],
+            "inicio": inicio,
+            "fin": fin,
+            "estado": estado,
+        },
+    ).scalar_one()
+    db_session.flush()
+    return nuevo_id
+
+
+def test_post_reservar_409_solape_profesional_api(client, db_session, ids):
+    inicio = datetime(2030, 1, 7, 9, 0, tzinfo=TZ)
+    sillon = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .first()
+    )
+    _insertar_turno_reserva(
+        db_session,
+        ids,
+        profesional_id=ids["profesional"],
+        sillon_id=sillon.id,
+        inicio=inicio,
+    )
+    antes = db_session.query(Turno).count()
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-SOLAPE-001",
+            inicio="2030-01-07T09:00:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 409
+    assert r.json() == {
+        "detail": {
+            "causa": "profesional",
+            "detalle": r.json()["detail"]["detalle"],
+        }
+    }
+    assert r.json()["detail"]["detalle"]
+    assert db_session.query(Turno).count() == antes
+
+
+def test_post_reservar_409_todos_sillones_ocupados_api(client, db_session, ids):
+    inicio = datetime(2030, 1, 7, 9, 30, tzinfo=TZ)
+    sillones = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .all()
+    )
+    otros_profesionales = []
+    for idx, _ in enumerate(sillones, start=1):
+        matricula = f"MAT-FICT-API-{idx:03d}"
+        db_session.add(
+            Profesional(
+                nombre=f"Odontologo Ficticio API {idx}",
+                matricula=matricula,
+            )
+        )
+        db_session.flush()
+        otros_profesionales.append(
+            db_session.query(Profesional).filter_by(matricula=matricula).one().id
+        )
+    for sillon, prof_id in zip(sillones, otros_profesionales):
+        _insertar_turno_reserva(
+            db_session,
+            ids,
+            profesional_id=prof_id,
+            sillon_id=sillon.id,
+            inicio=inicio,
+        )
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-SILLON-001",
+            inicio="2030-01-07T09:30:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 409
+    assert r.json() == {
+        "detail": {
+            "causa": "sillon",
+            "detalle": r.json()["detail"]["detalle"],
+        }
+    }
+    assert r.json()["detail"]["detalle"]
+
+
+def test_post_reservar_dni_vacio_422(client, db_session, ids):
+    turnos_antes = db_session.query(Turno).count()
+    pacientes_antes = db_session.query(Paciente).count()
+
+    r = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="",
+            inicio="2030-01-07T13:00:00-03:00",
+        ),
+    )
+
+    assert r.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
+
+
+def test_post_reservar_textos_demasiado_largos_422(client, db_session, ids):
+    turnos_antes = db_session.query(Turno).count()
+    pacientes_antes = db_session.query(Paciente).count()
+
+    r_dni = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="D" * 33,
+            inicio="2030-01-07T13:30:00-03:00",
+        ),
+    )
+
+    assert r_dni.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
+
+    r_nombre = client.post(
+        "/reservar",
+        json=_post_reserva_body(
+            ids,
+            dni="DNI-RES-LARGO-001",
+            nombre="N" * 201,
+            inicio="2030-01-07T14:00:00-03:00",
+        ),
+    )
+
+    assert r_nombre.status_code == 422
+    assert db_session.query(Turno).count() == turnos_antes
+    assert db_session.query(Paciente).count() == pacientes_antes
