@@ -713,3 +713,42 @@ def test_crear_reserva_asignacion_determinista_sillon(db_session):
     assert sillones
     assert turno.sillon_id == sillones[0].id
     assert "sillon_id" not in res
+
+
+def test_crear_reserva_usa_siguiente_sillon_si_el_primero_esta_ocupado(
+    db_session,
+):
+    """D5: si el primer sillon esta ocupado, se asigna el siguiente."""
+    ids = _ids(db_session)
+    sillones = (
+        db_session.query(SillonBox)
+        .filter(SillonBox.activo.is_(True))
+        .order_by(SillonBox.nombre, SillonBox.id)
+        .all()
+    )
+    inicio = datetime(2030, 1, 7, 16, 0, tzinfo=TZ)
+    fin = datetime(2030, 1, 7, 16, 30, tzinfo=TZ)
+    _insertar_turno(
+        db_session,
+        ids,
+        estado="pendiente",
+        inicio=inicio,
+        fin=fin,
+        profesional_id=ids["profesional2"],
+        sillon_id=sillones[0].id,
+    )
+    antes = db_session.query(Turno).count()
+
+    res = _crear_reserva(
+        db_session,
+        ids,
+        nombre="Paciente Siguiente Sillon Ficticio",
+        dni="DNI-RES-SIG-001",
+        contacto=None,
+        inicio=inicio,
+    )
+
+    assert res["estado"] == "pendiente"
+    assert db_session.query(Turno).count() == antes + 1
+    turno = db_session.get(Turno, res["turno_id"])
+    assert turno.sillon_id == sillones[1].id
