@@ -153,9 +153,9 @@
                                     "C-15", "C-16", "C-17", "C-18", "C-19", "C-20", "C-21",
                                     "C-22", "C-23"
                                 ],
-                    "revision":  4,
-                    "rectified_at":  "2026-11-03",
-                    "rectification_note":  "Rev. 3: C-23 fix-api-contenedor (FASE 0b, infra, depende de C-03, governance BAJO) — Dockerfile/imagen, docstring de main.py, pins + requirements-dev.txt, compose por entorno. C-13 ampliado con limpieza del scaffold de Vite y job frontend de CI. Total 23 changes, 20 pendientes. C-01..C-11 y sus estados intactos. Recorte TP: C-01..C-03 + C-12..C-16. Rev. 4 (2026-11-03): numeracion de migraciones corregida (C-06 uso la 003 y C-09 la 004), C-08 depende tambien de C-07, estados al dia (archivados C-01 a C-06 y C-09; 16 pendientes) y asignacion documentada. Changes archivados intactos."
+                    "revision":  10,
+                    "rectified_at":  "2026-11-10",
+                    "rectification_note":  "Rev. 3: C-23 fix-api-contenedor (FASE 0b, infra, depende de C-03, governance BAJO) — Dockerfile/imagen, docstring de main.py, pins + requirements-dev.txt, compose por entorno. C-13 ampliado con limpieza del scaffold de Vite y job frontend de CI. Total 23 changes, 20 pendientes. C-01..C-11 y sus estados intactos. Recorte TP: C-01..C-03 + C-12..C-16. Rev. 4 (2026-11-03): numeracion de migraciones corregida (C-06 uso la 003 y C-09 la 004), C-08 depende tambien de C-07, estados al dia (archivados C-01 a C-06 y C-09; 16 pendientes) y asignacion documentada. Changes archivados intactos. Rev. 10 (2026-11-10): estado al dia; las revs. 5 a 9 no actualizaron este archivo (el detalle esta en CHANGES.md y su nota de rectificacion rev. 10). Archivados C-01 a C-12 (12), pendientes C-13 a C-23 (11); proximo C-13; C-23 se cierra al llegar a C-22."
                 },
     "skills":  {
                    "created_by":  "find-skill (externo: sin corrida formal recommend-only; inventario reconciliado desde state.registry)",

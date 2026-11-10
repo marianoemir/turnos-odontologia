@@ -46,6 +46,15 @@
 > - **Preguntas abiertas/decisiones**: Q-C08-01, 05 a 13 pendientes de OK; Q-C08-02, 03 y 04 aceptadas por el autor del TP con los defaults de D2, D4 y D5 (design archivado).
 > - **Tests C-08**: `backend/tests/test_reserva_servicio.py` 21 `def test_`, `backend/tests/test_reserva_api.py` 13 `def test_`. Total suite al cierre: **755 passed** (dato verificado en consola, no recalculado).
 
+> **Nota de rectificación (2026-11-10, rev. 10)** — documentación general. No cambia ningún estado ni el recuento de la rev. 9 (12 archivados y 11 pendientes) ni el texto de los changes archivados:
+> - **Árbol de dependencias**: se agrega **C-12** (hijo de C-02; no figuraba) y se indica que **C-11** depende de C-09 y C-10 y, desde la rev. 8 (viñeta de C-11, punto 5), también de C-12. El campo "Dependencias" de C-11 (archivado) no se reescribe.
+> - **Camino crítico**: la línea del recorte TP omitía a C-08 entre los archivados fuera del recorte; se agregó. C-08 no forma parte del recorte.
+> - **C-23**: decisión de Mariano (2026-11-10): se cierra al llegar a C-22, no antes de C-13. Su sección confirma que depende solo de C-03 y no bloquea a C-13 ni a ningún otro change. Se corrigieron en el lugar las menciones "conviene cerrarlo antes de C-13" / "puede intercalarse antes" de las rev. 3 y 8, del camino crítico, de los gates y del pie de estado; las de las notas de las rev. 3 y 8 se conservan como registro histórico y quedan superadas por esta decisión.
+> - **C-23 (riesgo registrado, sin dependencia formal de C-13)**: sigue sin dependencia formal de C-13 (`Dependencias: C-03`) y la decisión de cerrarlo al llegar a C-22 no cambia, pero queda registrado el riesgo: al ejecutarse C-23 después de C-13, `tests.yml` tendrá tres jobs (`tests`, `lint`, `frontend`) y no dos como dice su sección, y `docker-compose.yml` ya tendrá el servicio `web`. No se reescribe la sección C-23.
+> - **Gates y plan con 3 agentes**: reflejan el plan original, no el orden real (C-07, C-08 y C-11 se archivaron antes de empezar C-13). Ante una diferencia manda el campo "Dependencias" de cada change (rev. 4).
+> - La mención de la rev. 4 ("conviene cerrarlo antes de que C-07 incorpore Redis") quedó superada: C-07 se archivó sin incorporar Redis (sin coincidencias de 'redis' en `docker-compose.yml`, `backend/requirements.txt` ni `backend/app`).
+> - Se actualizaron los resúmenes de `AGENTS.md` y `CLAUDE.md` (que seguían en rev. 6).
+
 ---
 
 ## Cómo usar este documento
@@ -61,23 +70,26 @@
 ## Árbol de dependencias
 
 ```
-C-01 foundation-setup
-  └── C-02 catalogo-recursos
-        ├── C-03 crear-turno-sin-solapamientos
-        │     ├── C-04 cancelar-reprogramar
-        │     │     ├── C-06 lista-de-espera
-        │     │     └── C-07 recordatorios-confirmacion
-        │     │         └── C-08 reserva-online (rev. 4: depende también de C-07)
-        │     │
-        │     ├── C-05 agenda-del-dia
-        │     │
-        │     ├── C-23 fix-api-contenedor (infraestructura, FASE 0b)
-        │     │
-        │     └── C-10 caja-pagos-os-arca
-        │           └── C-11 roles-multisucursal-exportacion ──┐
-        │                                                      │
-        └── C-09 hc-odontograma ──────────────────────────────┘
+C-01 foundation-setup [x]
+└── C-02 catalogo-recursos [x]
+    ├── C-03 crear-turno-sin-solapamientos [x]
+    │   ├── C-04 cancelar-reprogramar [x]
+    │   │   ├── C-06 lista-de-espera [x]
+    │   │   └── C-07 recordatorios-confirmacion [x]
+    │   │       └── C-08 reserva-online [x] (1)
+    │   ├── C-05 agenda-del-dia [x]
+    │   ├── C-23 fix-api-contenedor [ ] (2)
+    │   └── C-10 caja-pagos-os-arca [x]
+    │       └── C-11 roles-multisucursal-exportacion [x] (3)
+    ├── C-09 hc-odontograma [x] ---> C-11
+    └── C-12 catalogo-recursos-api [x] (4) ---> C-11
 ```
+
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-10).
+- (1) Rev. 4: C-08 depende también de C-07.
+- (2) Rev. 10: se cierra al llegar a C-22; comparte docker-compose.yml y tests.yml con C-13.
+- (3) C-11 depende también de C-09 y, desde la rev. 8, de C-12.
+- (4) Rev. 10: C-12 faltaba en el árbol.
 
 ### Árbol del frontend (agregado 2026-10-28)
 
@@ -86,17 +98,32 @@ C-01 foundation-setup
 > Cada change de pantalla cuelga del endpoint que consume, de C-13 y de C-14.
 
 ```
-C-13 frontend-foundation            (depende de C-03)
-  └── C-14 frontend-componentes-base     (C-13)
-        ├── C-15 frontend-catalogo-recursos    (C-12 + C-13 + C-14)
-        │     └── C-16 frontend-crear-turno    (C-13 + C-14 + C-15)
-        ├── C-17 frontend-agenda-turnos        (C-04 + C-05 + C-13 + C-14)
-        ├── C-18 frontend-lista-de-espera      (C-06 + C-13 + C-14)
-        ├── C-19 frontend-hc-odontograma       (C-09 + C-13 + C-14)
-        ├── C-20 frontend-caja-pagos           (C-10 + C-13 + C-14)
-        ├── C-21 frontend-reserva-publica      (C-07 + C-08 + C-13 + C-14)
-        └── C-22 frontend-admin-roles-export   (C-11 + C-13 + C-14)
+C-13 frontend-foundation [ ]
+└── C-14 frontend-componentes-base [ ]
+    ├── C-15 frontend-catalogo-recursos [ ]
+    │   └── C-16 frontend-crear-turno [ ]
+    ├── C-17 frontend-agenda-turnos [ ]
+    ├── C-18 frontend-lista-de-espera [ ]
+    ├── C-19 frontend-hc-odontograma [ ]
+    ├── C-20 frontend-caja-pagos [ ]
+    ├── C-21 frontend-reserva-publica [ ]
+    └── C-22 frontend-admin-roles-export [ ]
 ```
+
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-10).
+
+| Change | Dependencias |
+|--------|--------------|
+| C-13 | C-03 |
+| C-14 | C-13 |
+| C-15 | C-12, C-13, C-14 |
+| C-16 | C-13, C-14, C-15 |
+| C-17 | C-04, C-05, C-13, C-14 |
+| C-18 | C-06, C-13, C-14 |
+| C-19 | C-09, C-13, C-14 |
+| C-20 | C-10, C-13, C-14 |
+| C-21 | C-07, C-08, C-13, C-14 |
+| C-22 | C-11, C-13, C-14 |
 
 ### Paralelismo por fase
 
@@ -118,7 +145,7 @@ GATE 3: C-03 ✓ + C-12 ✓               ← FORK (4 paralelos)
   → C-04 cancelar-reprogramar          [Agente A]
   → C-05 agenda-del-dia                [Agente B]
   → C-13 frontend-foundation           [Agente C]
-  → C-23 fix-api-contenedor            [Agente A2/B2 — infra, cierra el contenedor antes de C-13]
+  → C-23 fix-api-contenedor            [Agente A2/B2 — infra, cierra el contenedor; rev. 10: diferido hasta llegar a C-22]
 
 GATE 4: C-04 ✓ + C-05 ✓ + C-13 ✓      ← FORK (3 paralelos)
   → C-10 caja-pagos-os-arca            [Agente A]
@@ -147,8 +174,7 @@ GATE 8: C-11 ✓
 
 > `Agente C2` es un segundo agente frontend. Con solo 3 agentes, C-18..C-22 se serializan detrás de C-17.
 > `Agente A2/B2` son agentes de refuerzo opcionales: `C-23` (infraestructura) puede tomarlo cualquiera que
-> quede libre después de C-03, porque no comparte archivos con `C-04`/`C-05`/`C-13` (solo `Dockerfile`,
-> `docker-compose.yml`, `requirements*.txt`, `.github/workflows/tests.yml` y el docstring de `main.py`).
+> quede libre después de C-03, porque no comparte archivos con `C-04`/`C-05` y **sí** los comparte con `C-13` (`docker-compose.yml` y `.github/workflows/tests.yml`); también toca `Dockerfile`, `requirements*.txt` y el docstring de `main.py`.
 
 ### Camino crítico
 
@@ -157,9 +183,9 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03 y C-12 (también están archivados C-04, C-05, C-06, C-07, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03 y C-12 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
 
-`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, pero conviene ejecutarlo antes de C-13 para que la imagen y las migraciones estén verificadas cuando el frontend empiece a consumir la API.
+`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 10 (decisión del 2026-11-10) se cierra al llegar a C-22, no antes de C-13.
 
 ### Plan óptimo con 3 agentes
 
@@ -658,6 +684,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-10 (rev. 9)**: 23 changes. Archivados (12): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11 y C-12. Pendientes (11): C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
+> **Estado del roadmap al 2026-11-10 (rev. 10)**: 23 changes. Archivados (12): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11 y C-12. Pendientes (11): C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
 > Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-13** (C-23 puede intercalarse antes).
+> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-13**. C-23 se cierra al llegar a C-22 (rev. 10).
