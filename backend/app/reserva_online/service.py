@@ -106,3 +106,73 @@ class ServicioReservaOnline:
             except (TurnoInvalido, TurnoNoEncontrado):
                 return None
         return None
+
+    @staticmethod
+    def crear_reserva(
+        session,
+        *,
+        nombre,
+        dni,
+        contacto,
+        profesional_id: uuid.UUID,
+        prestacion_id: uuid.UUID,
+        inicio: datetime,
+    ):
+        with session.begin_nested():
+            paciente = session.query(Paciente).filter_by(dni=dni).first()
+            if paciente is None:
+                paciente = Paciente(
+                    nombre=nombre,
+                    dni=dni,
+                    contacto=contacto,
+                    ficticio=True,
+                    activo=True,
+                )
+                session.add(paciente)
+                session.flush()
+            elif paciente.activo is False:
+                raise TurnoInvalido("el paciente esta inactivo")
+
+            sillones = (
+                session.query(SillonBox)
+                .filter(SillonBox.activo.is_(True))
+                .order_by(SillonBox.nombre, SillonBox.id)
+                .all()
+            )
+            if not sillones:
+                raise ConflictoTurno(
+                    "sillon", "no hay sillones activos disponibles"
+                )
+
+            turno = None
+            for sillon in sillones:
+                try:
+                    with session.begin_nested():
+                        turno = ServicioTurnos.crear(
+                            session,
+                            paciente_id=paciente.id,
+                            profesional_id=profesional_id,
+                            sillon_id=sillon.id,
+                            prestacion_id=prestacion_id,
+                            inicio=inicio,
+                            creado_por="reserva_online",
+                        )
+                    break
+                except ConflictoTurno as exc:
+                    if exc.causa == "sillon":
+                        continue
+                    raise
+            if turno is None:
+                raise ConflictoTurno(
+                    "sillon", "todos los sillones activos estan ocupados"
+                )
+
+            return {
+                "turno_id": turno.id,
+                "profesional_id": turno.profesional_id,
+                "prestacion_id": turno.prestacion_id,
+                "inicio": turno.inicio,
+                "fin": turno.fin,
+                "estado": turno.estado,
+            }
+
