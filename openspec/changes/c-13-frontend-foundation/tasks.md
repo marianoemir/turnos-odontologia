@@ -38,22 +38,22 @@
 
 ## 3. Cliente HTTP
 
-- [ ] **3.1 Normalizador de las cuatro formas de error**
+- [x] **3.1 Normalizador de las cuatro formas de error**
   - RED: `src/services/api-error.test.ts` con una tabla de fixtures: 409 `{causa:"profesional",detalle:...}`, 409 con campo extra `accion_previa`, 404 `detail` string, 422 `detail` string, 422 `detail` lista `[{loc,msg,type}]`, 422 `{causa:"rol_desconocido"}`, 403 `{causa:"permiso_denegado"}`, cuerpo vacío y cuerpo HTML. Falla porque el módulo no existe.
   - GREEN: `src/types/errors.ts` (`ApiError`, `CampoError`, `ApiErrorKind`) y `src/services/api-error.ts` discriminando por `typeof detail` (design D5), leyendo solo `causa`/`detalle` e ignorando claves extra; cuerpo entra como `unknown` y se estrecha, sin `any`.
   - Verify: `npm run test:run` verde; los 9 casos producen el `kind` esperado y ningún `any` aparece en el archivo (`npm run lint` en verde).
 
-- [ ] **3.2 Wrapper de `fetch` con timeout, aborto y cabeceras**
+- [x] **3.2 Wrapper de `fetch` con timeout, aborto y cabeceras**
   - RED: `src/services/http.test.ts` con `fetch` stubbeado (`vi.stubGlobal`): 201 con JSON → valor tipado; 409 → `ApiError` de conflicto; `fetch` rechaza con `TypeError` (red caída) → `kind: "red"`; respuesta con cuerpo no JSON → `kind: "red"`; rechazo con `TimeoutError` (lo que produce `AbortSignal.timeout`) → `kind: "timeout"`; `AbortController` del llamador disparado → `kind: "red"`; la request incluye `X-Actor-Rol` y `Content-Type: application/json`.
   - GREEN: `src/services/http.ts` con `AbortSignal.timeout(ms)` combinado con la señal del llamador (`AbortSignal.any`), discriminación por `error.name` antes de parsear el cuerpo (`TimeoutError` → `'timeout'`; `AbortError` → `'red'`; `TypeError` → `'red'`; mapeo exacto en design D5), parseo JSON tolerante (cuerpo ilegible → `'red'`) y delegación en el normalizador de 3.1.
   - Verify: `npm run test:run` verde; `npx tsc -b` verde; cada una de las cuatro causas de D5 (timeout, aborto del llamador, red caída, cuerpo no JSON) produce el `kind` indicado en la tabla, y el `mensaje` de timeout y de aborto se distingue.
 
-- [ ] **3.3 Punto de enganche del rol para C-14**
+- [x] **3.3 Punto de enganche del rol para C-14**
   - RED: `src/services/role.test.ts`: sin selección `getActiveRole()` es `"recepcion"`; `setActiveRole("odontologo")` cambia el valor; `setActiveRole("inventado")` no lo cambia. Falla porque no existe.
   - GREEN: `src/services/role.ts` con `getActiveRole`/`setActiveRole`, unión `Rol` derivada de `ROLES` (`backend/app/rbac/permissions.py:10`) y validación en `setActiveRole` (design D4). Sin `localStorage`: eso es de C-14.
   - Verify: `npm run test:run` verde.
 
-- [ ] **3.4 Cabeceras de identidad en las requests (rol y sucursal)**
+- [x] **3.4 Cabeceras de identidad en las requests (rol y sucursal)**
   - RED: `src/services/http.test.ts` (ampliar) y `src/services/sucursal.test.ts`: sin sucursal seleccionada la request **no** incluye `X-Sucursal-Id`; tras `setActiveSucursalId("<uuid>")` la incluye con ese valor; cambiar la sucursal entre dos requests hace que la segunda envíe el valor nuevo (se lee por request, no al construir el cliente); `setActiveSucursalId("no-es-uuid")` no aplica el valor y `setActiveSucursalId(null)` la vuelve a omitir; una request a ruta pública no incluye `X-Actor-Rol` **ni** `X-Sucursal-Id`. Falla porque `services/sucursal.ts` y esas ramas de `http.ts` no existen.
   - GREEN: `src/services/sucursal.ts` con `getActiveSucursalId(): string | null` y `setActiveSucursalId(id: string | null): void` —estado de módulo, `null` inicial, validación de formato UUID con regex, sin `localStorage` (eso es de C-14/C-22)—; `http.ts` lee rol y sucursal en cada request (no al construirse) y acepta una opción explícita para rutas públicas (design D4).
   - Verify: `npm run test:run` verde; `npx tsc -b` verde; ningún test deja estado de sucursal entre casos (reset en `beforeEach`).
