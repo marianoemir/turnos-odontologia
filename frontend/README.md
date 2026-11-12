@@ -93,3 +93,19 @@ npm run test:run
 
 `npm run build` ya ejecuta `tsc -b`, pero se corre por separado para distinguir un error de
 tipos de un error de empaquetado.
+
+## Empaquetado (contenedor)
+
+Estos archivos existen en `frontend/`, pero **no se verificaron en este entorno** porque
+Docker no está disponible:
+
+- `Dockerfile` multi-stage: `node:24-slim` instala con `npm ci` y compila con
+  `VITE_API_BASE_URL` (build arg, default `/api`); la imagen final es `nginx:alpine` y
+  solo recibe `dist/`.
+- `nginx.conf`: `location /api/` reenvía a `http://api:8000/` quitando el prefijo (el
+  mismo contrato que el proxy de Vite) y `location /` cae en `/index.html`; el
+  `index.html` se sirve con `Cache-Control: no-cache`.
+- `.dockerignore` excluye `node_modules`, `dist` y `.env` del contexto de build.
+- En `docker-compose.yml` (raíz), el servicio `web` construye `frontend` con el build arg
+  `VITE_API_BASE_URL` (default `/api`) y publica el puerto `8080` contra el `80` del
+  contenedor.
