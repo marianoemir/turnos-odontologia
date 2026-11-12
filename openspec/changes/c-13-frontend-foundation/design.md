@@ -341,7 +341,11 @@ no crea capas nuevas de dominio.
 Los estilos del shell **no están en `tokens.css`**: `.app-shell`, `.side`, `.side__brand`,
 `.side__label`, `.side__group`, `.side__link` (con `:hover` y `[aria-current="page"]`), `.app-main` y
 `.app-title` viven en el `<style>` inline de `frontend/design-system/components.html:372-402`, junto
-con su media query de 46rem (`:396-402`). `tokens.css` solo define variables: importarlo no trae
+con su media query de 46rem (`:396-402`). A ese conjunto se suma **una sola** regla tomada de fuera de
+ese rango: la base `.ico` (`components.html:195`), que fija el tamaño de los `svg` que el nav usa en
+las cuatro entradas (`components.html:1031-1046`); sin ella el ícono se renderiza con el tamaño por
+defecto del SVG. Nada más de `components.html` se copia desde fuera de `:372-402` (por ejemplo
+`.ico--sm`, `:196`, no lo usa el shell). `tokens.css` solo define variables: importarlo no trae
 ninguna regla de layout. Copiarlos desde ese bloque no es un detalle de implementación: es de dónde
 sale el aspecto aprobado del shell.
 
@@ -350,6 +354,9 @@ cual del bloque de `components.html` (mismos nombres de clase, mismos valores), 
 `var(--token)` ya definidos por `tokens.css` y **sin redefinir ningún token**. Así el design system
 sigue siendo la única fuente de valores y un cambio de token se propaga al shell sin editarlo. La
 media query de 46rem también vive en este archivo, no duplicada en otro lado.
+
+El alcance de “copiar tal cual” incluye la regla base `.ico` de `components.html:195`: se copia con sus
+mismos valores y es la única excepción al rango `:372-402`.
 
 **Destinos del nav (decidido):** la referencia muestra cuatro enlaces con `href="#navegacion"`
 (`components.html:1031-1046`) y la spec fija esos mismos cuatro; se resuelven con `NavLink` a rutas
@@ -367,6 +374,13 @@ scope de C-15 (`CHANGES.md:531,533`). Las otras tres rutas declaradas —`/turno
 `/lista-espera` y `/admin`— **no** tienen entrada en la navegación de la referencia: C-13 las declara
 y las prueba (4.2) pero no las enlaza; su punto de entrada se decide en el change que construye la
 pantalla (Q4).
+
+**Nota (2026-11-11) — corrección por chequeo visual:** el chequeo de 4.1/4.4 mostró los íconos del nav
+enormes. La causa es que D12 citaba sólo `components.html:372-402`: ahí está `.side__link .ico` (color
+y opacidad) pero no la regla base `.ico` (`:195`) que define `width`, `height`, `flex` y `display`. Se
+amplía esta decisión a esa única regla; se implementa en 4.4 con un test que lee `shell.css` y falla
+si la regla falta. El resto del bloque no cambia y el import de `tokens.css` sigue siendo el único
+punto de contacto con `tokens.css`.
 
 ## Risks / Trade-offs
 

@@ -60,25 +60,28 @@
 
 ## 4. Ruteo, shell y sistema visual
 
-- [ ] **4.1 Cablear `tokens.css` en el punto de entrada**
+- [x] **4.1 Cablear `tokens.css` en el punto de entrada**
   - RED: `npm run build` y luego buscar los tokens en el CSS emitido (`dist/assets/*.css`) no encuentra `--surface-page` ni `--brand-600`: el sistema visual no está aplicado.
   - GREEN: `src/main.tsx` importa `../design-system/tokens.css` (ruta relativa, dentro del root de Vite; `frontend/design-system/README.md:65-71`).
   - Verify: `npm run build` verde y `dist/assets/*.css` contiene `--surface-page` y `--brand-600`. Chequeo manual en `npm run dev`: el fondo es papel cálido y la tipografía del sistema, no los del scaffold.
+  - Nota (2026-11-10, alcance agregado autorizado por el usuario): el chequeo manual no podía pasar con el scaffold intacto, porque `src/index.css` definía tokens propios (`--bg: #fff`, `--border`, …), `background: var(--bg)` en `:root`, `#root` a 1126px centrado y `h1` a 56px. En esta task `src/index.css` se reemplaza por la base mínima de `design-system/components.html:18-29` (`body` + `var(--token)`, sin definir tokens). `App.css` y los assets siguen siendo de 5.3.
 
-- [ ] **4.2 Tabla de rutas y binding de parámetros**
+- [x] **4.2 Tabla de rutas y binding de parámetros**
   - RED: `src/app/router.test.tsx` renderiza el router en cada una de las 11 rutas declaradas y espera el encabezado de su pantalla; falla porque no hay router.
   - GREEN: `src/app/router.tsx` con las 11 rutas y `src/pages/` con una pantalla placeholder por ruta; las rutas con parámetro leen `useParams()`.
   - Verify: `npm run test:run` verde para las 11 rutas; test que navega a `/hc/abc` y verifica que la pantalla recibe `pacienteId === "abc"`.
 
-- [ ] **4.3 No encontrado y parámetro ausente**
+- [x] **4.3 No encontrado y parámetro ausente**
   - RED: test que navega a `/ruta-inexistente` y a `/hc/` esperando el texto de "No encontrado" **y** la navegación del shell visible (los cuatro enlaces del nav, design D12); falla.
   - GREEN: ruta catch-all `*` → `not-found.tsx`, y una ruta sin el segmento obligatorio cae en el catch-all sin lanzar. El `not-found` se renderiza **dentro** del `<Outlet/>` del shell (D10), no como ruta hermana del layout.
   - Verify: `npm run test:run` verde; en los **dos** casos el test afirma además que la navegación sigue visible y operable (los cuatro enlaces presentes y con su `href`) y que la consola del test no registra errores no capturados.
+  - Nota (2026-11-10, inversión autorizada por el usuario): esta task se ejecuta **después** de 4.4. Su RED y su Verify exigen la navegación del shell (design D12), que nace en 4.4; con el orden literal 4.3 → 4.4 la verificación no era satisfacible.
 
-- [ ] **4.4 Shell interno: navegación, topbar y estilos propios**
+- [x] **4.4 Shell interno: navegación, topbar y estilos propios**
   - RED: test que renderiza `/agenda` y espera los cuatro enlaces con su destino —Agenda → `/agenda`, Pacientes → `/catalogo/pacientes`, Sillones → `/catalogo/sillones`, Caja → `/caja`— más el nombre de marca; falla.
-  - GREEN: `src/app/shell.tsx` traducido de `components.html` §Navegación (líneas 1016-1049), con `NavLink` a esas rutas y el nombre de marca en una constante de la app (`design-system/README.md:75`); `src/app/shell.css` importado por el shell, con `.app-shell`, `.side`, `.side__brand`, `.side__label`, `.side__group`, `.side__link` (`:hover` y `[aria-current="page"]`), `.app-main` y `.app-title` copiados de `components.html:372-394`, referenciando solo `var(--token)` y sin redefinir tokens (design D12).
+  - GREEN: `src/app/shell.tsx` traducido de `components.html` §Navegación (líneas 1016-1049), con `NavLink` a esas rutas y el nombre de marca en una constante de la app (`design-system/README.md:75`); `src/app/shell.css` importado por el shell, con `.app-shell`, `.side`, `.side__brand`, `.side__label`, `.side__group`, `.side__link` (`:hover` y `[aria-current="page"]`), `.app-main` y `.app-title` copiados de `components.html:372-394`, más la regla base `.ico` de `components.html:195` (única regla tomada de fuera de ese rango), referenciando solo `var(--token)` y sin redefinir tokens (design D12).
   - Verify: `npm run test:run` verde; `Select-String -Path src/app/shell.css -Pattern "@media|\.app-shell|\.side__link"` encuentra las reglas y `Select-String -Path src/app/shell.css -Pattern "^\s*--[a-z0-9-]+\s*:"` **no** encuentra definiciones de tokens; `npm run build` verde y `dist/assets/*.css` contiene `.side__link` y `.app-shell`.
+  - Nota (2026-11-11, hallazgo del chequeo visual): los íconos del nav se veían enormes porque `.ico` vive en `components.html:195`, fuera del rango 372-394 que citaba D12. Se amplía esta task para copiar **sólo** esa regla de fuera del rango (nada de `.ico--sm` ni del resto de `components.html`); el resto sigue saliendo de `:372-394` y la media query de 4.7. Su RED es `src/app/shell-css.test.ts`, que lee `shell.css` y falla si falta el bloque `.ico` con `width` y `height`.
 
 - [ ] **4.5 Límite de error dentro del shell**
   - RED: test que monta el shell con un hijo que lanza durante el render y espera el fallback **y** la navegación visible; falla.
@@ -116,6 +119,7 @@
   - RED: `Select-String -Path frontend/src/*,frontend/index.html -Pattern "hero.png|react.svg|vite.svg|icons.svg|App.css"` encuentra referencias, y `index.html:7` tiene `<title>frontend</title>`.
   - GREEN: `<title>` con el nombre de marca de `design-system/brand.js:14`; borrar `src/App.css`, `src/assets/hero.png`, `src/assets/react.svg`, `src/assets/vite.svg`, `public/icons.svg`; conservar `public/favicon.svg` (`index.html:5`); reescribir `README.md` con scripts, estructura, variables de entorno, cómo correrlo, el proxy `/api` y la advertencia de que `VITE_API_BASE_URL` exige rebuild.
   - Verify: el `Select-String` del RED no devuelve coincidencias; `npx tsc -b` y `npm run build` verdes después de borrar.
+  - Nota (2026-11-10): `src/index.css` ya se redujo a la base mínima dentro de 4.1 (alcance agregado autorizado); 5.3 no lo borra, solo confirma que no reintroduce tokens ni valores del scaffold.
 
 ## 6. Integración continua y cierre
 
