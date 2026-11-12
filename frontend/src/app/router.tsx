@@ -3,7 +3,7 @@
  *
  * Declara las 11 rutas de la spec de C-13 y resuelve cada una a su pantalla
  * registrada. Las rutas internas viven bajo el shell con navegación; las tres
- * rutas del paciente quedan planas hasta que 4.6 les dé el layout público.
+ * rutas del paciente viven bajo el layout público, sin navegación interna.
  *
  * Las rutas con parámetro exponen el segmento por `useParams()` en la pantalla
  * correspondiente.
@@ -22,6 +22,7 @@ import ListaEsperaPage from "../pages/lista-espera";
 import ReservarPage from "../pages/reservar";
 import TurnoNuevoPage from "../pages/turno-nuevo";
 import NotFound from "./not-found";
+import PublicLayout from "./public-layout";
 import Shell from "./shell";
 
 export const routes: RouteObject[] = [
@@ -40,7 +41,12 @@ export const routes: RouteObject[] = [
       { path: "*", element: <NotFound /> },
     ],
   },
-  { path: "/reservar/:profesional", element: <ReservarPage /> },
-  { path: "/confirmar/:token", element: <ConfirmarPage /> },
-  { path: "/cancelar/:token", element: <CancelarPage /> },
+  {
+    element: <PublicLayout />,
+    children: [
+      { path: "/reservar/:profesional", element: <ReservarPage /> },
+      { path: "/confirmar/:token", element: <ConfirmarPage /> },
+      { path: "/cancelar/:token", element: <CancelarPage /> },
+    ],
+  },
 ];

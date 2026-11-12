@@ -83,23 +83,25 @@
   - Verify: `npm run test:run` verde; `Select-String -Path src/app/shell.css -Pattern "@media|\.app-shell|\.side__link"` encuentra las reglas y `Select-String -Path src/app/shell.css -Pattern "^\s*--[a-z0-9-]+\s*:"` **no** encuentra definiciones de tokens; `npm run build` verde y `dist/assets/*.css` contiene `.side__link` y `.app-shell`.
   - Nota (2026-11-11, hallazgo del chequeo visual): los íconos del nav se veían enormes porque `.ico` vive en `components.html:195`, fuera del rango 372-394 que citaba D12. Se amplía esta task para copiar **sólo** esa regla de fuera del rango (nada de `.ico--sm` ni del resto de `components.html`); el resto sigue saliendo de `:372-394` y la media query de 4.7. Su RED es `src/app/shell-css.test.ts`, que lee `shell.css` y falla si falta el bloque `.ico` con `width` y `height`.
 
-- [ ] **4.5 Límite de error dentro del shell**
+- [x] **4.5 Límite de error dentro del shell**
   - RED: test que monta el shell con un hijo que lanza durante el render y espera el fallback **y** la navegación visible; falla.
   - GREEN: `src/app/error-boundary.tsx` (class component con `getDerivedStateFromError`) montado dentro del shell, no por fuera.
   - Verify: `npm run test:run` verde; `console.error` del error esperado silenciado en el test.
 
-- [ ] **4.6 Layout público sin navegación interna**
+- [x] **4.6 Layout público sin navegación interna**
   - RED: test que renderiza `/reservar/abc`, `/confirmar/abc` y `/cancelar/abc` y afirma que **no** existe el landmark de navegación interna; falla.
   - GREEN: `src/app/public-layout.tsx` y las tres rutas anidadas bajo él (design D10).
   - Verify: `npm run test:run` verde.
 
-- [ ] **4.7 Navegación compacta ≤46rem**
+- [x] **4.7 Navegación compacta ≤46rem**
   - RED: el CSS emitido no contiene la regla de 46rem para la navegación del shell; falla.
   - GREEN: `@media (max-width: 46rem)` copiada de `components.html:396-402` a `src/app/shell.css` (`.app-shell` a una columna, `.side` como franja inferior, `.side__group` en flex con wrap, `.side__label` oculta, `.app-main` con padding reducido); no va en `tokens.css` y no redefine tokens (design D12).
-  - Verify: `npm run build` y `grep -c "@media (max-width: 46rem)" dist/assets/*.css` ≥ 1, con `.side__group` y `.side__label` dentro de ese bloque; chequeo manual a 390×844: `document.documentElement.scrollWidth === window.innerWidth` y la navegación se ve como franja compacta.
+  - Verify: `npm run build` y `grep -c "46rem" dist/assets/*.css` ≥ 1, con `.side__group` y `.side__label` dentro de ese bloque; chequeo manual a 390×844: `document.documentElement.scrollWidth === window.innerWidth` y la navegación se ve como franja compacta.
+  - Nota (2026-11-11): el Verify original pedía `grep -c "@media (max-width: 46rem)" dist/assets/*.css` = 1. El minificador de Vite 8 reescribe la consulta a sintaxis de rango (`@media (width<=46rem)`), así que ese literal da 0 aunque la regla esté emitida una sola vez y completa. Se verifica buscando `46rem` en el CSS emitido y revisando que `.side__group` y `.side__label` estén dentro de ese bloque.
 
-- [ ] **4.8 Proxy de desarrollo en `vite.config.ts`**
-  - RED: con el backend levantado (`docker compose up -d api`, o `uvicorn app.main:app --port 8000` desde `backend/`) y `npm run dev` en marcha, `curl localhost:5173/api/health` **no** devuelve `{"status":"ok"}`: sin `server.proxy`, Vite responde el `index.html` del SPA (200 HTML), porque `/api/health` no es un asset del proyecto.
+- [x] **4.8 Proxy de desarrollo en `vite.config.ts`**
+  - RED: con el backend levantado (`docker compose up -d api`, o `python -m uvicorn backend.app.main:app --port 8000` desde la raíz del repo) y `npm run dev` en marcha, `curl localhost:5173/api/health` **no** devuelve `{"status":"ok"}`: sin `server.proxy`, Vite responde el `index.html` del SPA (200 HTML), porque `/api/health` no es un asset del proyecto.
+  - Nota (2026-11-11): el comando original (`uvicorn app.main:app --port 8000` desde `backend/`) no arranca: `backend/app/main.py` importa `backend.app.*`, así que sin la raíz del repo en el path falla con `ModuleNotFoundError: No module named 'backend'`. Desde la raíz el arranque es `python -m uvicorn backend.app.main:app --port 8000` (requiere las dependencias de `backend/requirements.txt` instaladas).
   - GREEN: `vite.config.ts` con `server.proxy: { "/api": { target: "http://localhost:8000", rewrite: (path) => path.replace(/^\/api/, "") } }` (design D1). Es la contraparte de desarrollo del `location /api/` de nginx (design D3): mismo prefijo, mismo rewrite que deja `/health`.
   - Verify: `curl localhost:5173/api/health` → `{"status":"ok"}` con el backend levantado; `curl -s -o /dev/null -w "%{http_code}" localhost:5173/reservar/abc` → 200 con HTML (las rutas del SPA **no** se proxean, D1); con el backend abajo el proxy responde 500/502 y no el HTML del SPA, de modo que el fallo es visible y no silencioso.
 

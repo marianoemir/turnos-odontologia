@@ -8,8 +8,9 @@
  * navegación aprobada (Q4): se declaran en la tabla de rutas, no acá.
  */
 import type { ReactNode } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import ErrorBoundary from "./error-boundary";
 import "./shell.css";
 
 /**
@@ -60,6 +61,8 @@ const ENLACES: Enlace[] = [
 ];
 
 export default function Shell() {
+  const { pathname } = useLocation();
+
   return (
     <div className="app-shell">
       <nav className="side" aria-label="Navegación principal">
@@ -91,7 +94,11 @@ export default function Shell() {
       </nav>
 
       <main className="app-main">
-        <Outlet />
+        {/* `key`: si una pantalla deja el límite en error, cambiar de ruta lo
+            remonta y la app se recupera sin recargar el navegador. */}
+        <ErrorBoundary key={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );
