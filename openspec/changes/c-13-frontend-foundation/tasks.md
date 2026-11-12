@@ -133,5 +133,5 @@
   - Verify: el YAML parsea (`python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/tests.yml'))"`); el job corre en verde en el PR; romper a propósito cada gate hace fallar el job: un `any` explícito en `src/` (lint), un error de tipos (tsc), un import roto (build) y un `expect` falso en un test (`test:run`).
   - Nota de alcance: el quinto paso **agranda en uno el alcance de C-13 registrado en `CHANGES.md`** (rev. 10 describe cuatro pasos). La decisión es provisoria y requiere confirmación del equipo; no se edita `CHANGES.md` desde este change (design D9).
 
-- [ ] **6.2 Verificación final del change**
+- [x] **6.2 Verificación final del change**
   - Verify: desde `frontend/`: `npm ci`, `npm run lint`, `npx tsc -b`, `npm run build`, `npm run test:run` — los cinco en verde. Desde la raíz: `git status --short` sin `__any_probe__`, `__implicit_any_probe__` ni `dist/`; `git diff --stat` sin archivos de `backend/` ni `CHANGES.md`; `cmd /c "openspec validate c-13-frontend-foundation --strict"` → válido.
