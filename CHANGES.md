@@ -692,6 +692,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-13 (rev. 11)**: 23 changes. Archivados (13): C-01 a C-13. Pendientes (10): C-14 a C-23. C-13 quedó archivado con la task 5.2 abierta, que cierra C-23.
+> **Estado del roadmap al 2026-11-13 (rev. 11)**: 23 changes. Archivados (14): C-01 a C-13 y C-23. Pendientes (9): C-14 a C-22. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
 > Ningún otro change de frontend está implementado; C-23 `fix-api-contenedor` está pendiente y no implementado.
 > Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-14**, precedido por C-23 y el change de JWT (decisión 2026-11-12).
