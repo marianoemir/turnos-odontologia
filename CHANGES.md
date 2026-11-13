@@ -55,6 +55,14 @@
 > - La mención de la rev. 4 ("conviene cerrarlo antes de que C-07 incorpore Redis") quedó superada: C-07 se archivó sin incorporar Redis (sin coincidencias de 'redis' en `docker-compose.yml`, `backend/requirements.txt` ni `backend/app`).
 > - Se actualizaron los resúmenes de `AGENTS.md` y `CLAUDE.md` (que seguían en rev. 6).
 
+> **Nota de rectificación (2026-11-13, rev. 11)** — C-13 `frontend-foundation` archivado el 2026-11-12. Se actualiza el estado, el orden de C-23 y la deuda de stack; no se reescribe el texto de scope ni el Estado de ningún change:
+> - **C-13 archivado con una task abierta a propósito**: la task 5.2 quedó SIN marcar: el servicio `web` se levanta, pero `/api/health` no se pudo verificar porque el servicio `api` no arranca en contenedor (`ModuleNotFoundError: No module named 'backend'`). La task 5.1 está verificada. La verificación completa se cierra con C-23 (repetir `/health` por compose). PR #38, merge `1c548ba`.
+> - **CI del frontend**: el job `frontend` de `.github/workflows/tests.yml` tiene cinco pasos (los cuatro de la rev. 10 más `npm run test:run`). `tests.yml` tiene tres jobs: `tests`, `lint` y `frontend`. Al cerrar C-23, su texto "los dos jobs" debe leerse como tres.
+> - **Convención de escenarios en las specs**: palabras clave GIVEN/WHEN/THEN en negrita con el contenido en español (spec archivada de C-08); la spec de C-13 usa "**Dado** (GIVEN)" / "**Cuando** (WHEN)" / "**Entonces** (THEN)" y también pasa `openspec validate --strict`. Se deja así.
+> - **C-23 se adelanta**: se hace antes de C-14. Reemplaza la decisión de la rev. 10 (cerrarlo al llegar a C-22), que figuraba en el árbol, los gates, el camino crítico y el pie de estado.
+> - **JWT**: el stack impuesto por el profesor (2026-10-07) incluye JWT y el proyecto no lo implementa. La KB lo prevé en `02_descripcion_general.md:10`, `08_arquitectura_propuesta.md:41` y `:53`, `09_decisiones_y_supuestos.md:37` y `10_preguntas_abiertas.md:24` (Q6). C-11 entregó el header `X-Actor-Rol` en su lugar y ningún change cumplió el JWT. Se define un change nuevo (nombre provisorio C-24 `auth-jwt`) con `/opsx:propose`; va antes de C-14. En esta nota no se agrega su sección ni cambia el total de 23 changes: eso se hace cuando el change esté propuesto. La viñeta de la rev. 8 que dice que el cliente HTTP debe enviar `X-Actor-Rol` queda superada por ese change.
+> - **Redis**: el stack lo pide "para lo asincrónico que corresponda" y no hay Redis en `docker-compose.yml`, `requirements` ni código (verificado el 2026-11-10). Es una decisión PENDIENTE (primero se revisa cómo resolvió C-07 los recordatorios); no está resuelta.
+
 ---
 
 ## Cómo usar este documento
@@ -87,7 +95,7 @@ C-01 foundation-setup [x]
 
 - Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-10).
 - (1) Rev. 4: C-08 depende también de C-07.
-- (2) Rev. 10: se cierra al llegar a C-22; comparte docker-compose.yml y tests.yml con C-13.
+- (2) Rev. 11: se adelanta y se hace antes de C-14; C-13 ya está archivado, así que ya no hay choque con sus archivos.
 - (3) C-11 depende también de C-09 y, desde la rev. 8, de C-12.
 - (4) Rev. 10: C-12 faltaba en el árbol.
 
@@ -98,7 +106,7 @@ C-01 foundation-setup [x]
 > Cada change de pantalla cuelga del endpoint que consume, de C-13 y de C-14.
 
 ```
-C-13 frontend-foundation [ ]
+C-13 frontend-foundation [x]
 └── C-14 frontend-componentes-base [ ]
     ├── C-15 frontend-catalogo-recursos [ ]
     │   └── C-16 frontend-crear-turno [ ]
@@ -110,7 +118,7 @@ C-13 frontend-foundation [ ]
     └── C-22 frontend-admin-roles-export [ ]
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-10).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-13).
 
 | Change | Dependencias |
 |--------|--------------|
@@ -145,7 +153,7 @@ GATE 3: C-03 ✓ + C-12 ✓               ← FORK (4 paralelos)
   → C-04 cancelar-reprogramar          [Agente A]
   → C-05 agenda-del-dia                [Agente B]
   → C-13 frontend-foundation           [Agente C]
-  → C-23 fix-api-contenedor            [Agente A2/B2 — infra, cierra el contenedor; rev. 10: diferido hasta llegar a C-22]
+  → C-23 fix-api-contenedor            [Agente A2/B2 — infra, cierra el contenedor; rev. 11: se adelanta, se hace antes de C-14]
 
 GATE 4: C-04 ✓ + C-05 ✓ + C-13 ✓      ← FORK (3 paralelos)
   → C-10 caja-pagos-os-arca            [Agente A]
@@ -174,7 +182,7 @@ GATE 8: C-11 ✓
 
 > `Agente C2` es un segundo agente frontend. Con solo 3 agentes, C-18..C-22 se serializan detrás de C-17.
 > `Agente A2/B2` son agentes de refuerzo opcionales: `C-23` (infraestructura) puede tomarlo cualquiera que
-> quede libre después de C-03, porque no comparte archivos con `C-04`/`C-05` y **sí** los comparte con `C-13` (`docker-compose.yml` y `.github/workflows/tests.yml`); también toca `Dockerfile`, `requirements*.txt` y el docstring de `main.py`.
+> quede libre después de C-03, porque no comparte archivos con `C-04`/`C-05` y **sí** los comparte con `C-13` (`docker-compose.yml` y `.github/workflows/tests.yml`); también toca `Dockerfile`, `requirements*.txt` y el docstring de `main.py`. Desde la rev. 11 C-13 ya está archivado, así que ese choque ya no aplica; `tests.yml` queda con tres jobs.
 
 ### Camino crítico
 
@@ -183,9 +191,9 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03 y C-12 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-13, C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03, C-12 y C-13 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-14, C-15, C-16**.
 
-`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 10 (decisión del 2026-11-10) se cierra al llegar a C-22, no antes de C-13.
+`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22).
 
 ### Plan óptimo con 3 agentes
 
@@ -684,6 +692,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-10 (rev. 10)**: 23 changes. Archivados (12): C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11 y C-12. Pendientes (11): C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22 y C-23.
-> Ningún change de frontend está implementado ni marcado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-13**. C-23 se cierra al llegar a C-22 (rev. 10).
+> **Estado del roadmap al 2026-11-13 (rev. 11)**: 23 changes. Archivados (13): C-01 a C-13. Pendientes (10): C-14 a C-23. C-13 quedó archivado con la task 5.2 abierta, que cierra C-23.
+> Ningún otro change de frontend está implementado; C-23 `fix-api-contenedor` está pendiente y no implementado.
+> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-14**, precedido por C-23 y el change de JWT (decisión 2026-11-12).
