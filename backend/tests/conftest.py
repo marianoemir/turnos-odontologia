@@ -15,6 +15,9 @@ import pytest
 from sqlalchemy import text
 
 os.environ.setdefault("TZ", "America/Argentina/Buenos_Aires")
+os.environ.setdefault(
+    "SECRET_KEY", "test-secret-key-ficticia-de-mas-de-32-caracteres-para-la-suite"
+)
 
 
 def pytest_configure(config):
@@ -119,7 +122,7 @@ _CATALOGO_TABLES = (
     "prestaciones, horarios, bloqueos, turnos, lista_espera, "
     "entrada_hc, odontograma, plan_item, plan_tratamiento, historia_clinica, "
     "caja, cobro, liquidacion_os, recordatorio, "
-    "roles, sucursales, usuarios_sucursal"
+    "roles, sucursales, usuarios_sucursal, usuarios"
 )
 
 
