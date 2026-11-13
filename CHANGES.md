@@ -484,7 +484,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 > Regla dura: ningún change de frontend se adelanta al endpoint que consume.
 
 ### [C-13] `frontend-foundation`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-12)
 - **Scope**: Base ejecutable del frontend: shell, ruteo y contratos (sin componentes de UI ni pantallas de negocio)
   - **Cableado del design system**: importar `frontend/design-system/tokens.css` desde `frontend/src/main.tsx` con la ruta relativa `../design-system/tokens.css`; verificar que los tokens se aplican en `npm run dev` (color de fondo y tipografía reales, no los del scaffold de Vite) y que el build de Docker los incluye
   - `react-router-dom`: rutas `/`, `/turnos/nuevo`, `/agenda`, `/catalogo/*`, `/lista-espera`, `/hc/:pacienteId`, `/caja`, `/admin`, `/reservar/:profesional`, `/confirmar/:token`, `/cancelar/:token`; `NotFound` y `ErrorBoundary`
