@@ -121,14 +121,16 @@ def main() -> None:
     if os.environ.get("SEED_FICTICIO") != "true":
         raise SystemExit("Seed no ejecutado: SEED_FICTICIO != 'true'.")
     from backend.app.db import get_session
+    from backend.app.seed.usuario import seed_usuario
 
     sesion = get_session()()
     try:
         conteos = seed_catalogo(sesion)
+        res_usuario = seed_usuario(sesion)
         sesion.commit()
     finally:
         sesion.close()
-    print(f"seed ok: {conteos}")
+    print(f"seed ok: {conteos} | usuario: {res_usuario}")
 
 
 if __name__ == "__main__":

@@ -75,11 +75,11 @@ Convenciones: cada grupo sigue RED (los tests nuevos fallan por la razón correc
 
 ## 6. Seed de usuario ficticio
 
-- [ ] 6.1 RED: `backend/tests/test_auth_seed.py` con los escenarios "Seed crea un único usuario y es repetible", "Seed sin contraseña definida genera una al azar" y "Seed inactivo no crea usuarios".
+- [x] 6.1 RED: `backend/tests/test_auth_seed.py` con los escenarios "Seed crea un único usuario y es repetible", "Seed sin contraseña definida genera una al azar" y "Seed inactivo no crea usuarios".
   Verificación: `pytest backend/tests/test_auth_seed.py -p no:randomly -q --tb=short` falla por falta de la función.
-- [ ] 6.2 GREEN: función de seed de usuarios en `backend/app/seed`, invocada desde el punto de entrada que exista (0.1), sin contraseñas literales. La migración 009 no inserta nada.
+- [x] 6.2 GREEN: función de seed de usuarios en `backend/app/seed`, invocada desde el punto de entrada que exista (0.1), sin contraseñas literales. La migración 009 no inserta nada.
   Verificación: el mismo comando en verde; `Select-String` de `password` con valor literal sobre `backend\app\seed` sin coincidencias, con control positivo sobre el mismo archivo.
-- [ ] 6.3 Suite completa.
+- [x] 6.3 Suite completa.
   Verificación: `pytest backend/tests -p no:randomly -q --tb=short` sin fallos nuevos.
 
 ## 7. Configuración, CI y documentación
