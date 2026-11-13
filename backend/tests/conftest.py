@@ -14,6 +14,8 @@ import os
 import pytest
 from sqlalchemy import text
 
+pytest_plugins = ["backend.tests.fixtures_auth"]
+
 os.environ.setdefault("TZ", "America/Argentina/Buenos_Aires")
 os.environ.setdefault(
     "SECRET_KEY", "test-secret-key-ficticia-de-mas-de-32-caracteres-para-la-suite"

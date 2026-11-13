@@ -48,15 +48,15 @@ Convenciones: cada grupo sigue RED (los tests nuevos fallan por la razón correc
 
 ## 4. Login y rate limit
 
-- [ ] 4.1 RED: `backend/tests/test_auth_login.py` con los escenarios de "Login con emisión de JWT": exitoso, credenciales inválidas, cuenta inactiva, body inválido, varias sucursales, sucursal no asociada, usuario sin sucursales y límite de intentos. Los usuarios y contraseñas los crea el propio test.
+- [x] 4.1 RED: `backend/tests/test_auth_login.py` con los escenarios de "Login con emisión de JWT": exitoso, credenciales inválidas, cuenta inactiva, body inválido, varias sucursales, sucursal no asociada, usuario sin sucursales y límite de intentos. Los usuarios y contraseñas los crea el propio test.
   Verificación: `pytest backend/tests/test_auth_login.py -p no:randomly -q --tb=short` falla porque `POST /login` no existe.
-- [ ] 4.2 GREEN: emisión de token (claims `sub`, `rol`, `sucursal_id` opcional, `iat`, `exp`), resolución de sucursal según Q-C24-06, `POST /login` público con cuerpo de error `causa` y `detalle`, hash de relleno para DNI inexistente y rate limit por IP con el patrón de C-08.
+- [x] 4.2 GREEN: emisión de token (claims `sub`, `rol`, `sucursal_id` opcional, `iat`, `exp`), resolución de sucursal según Q-C24-06, `POST /login` público con cuerpo de error `causa` y `detalle`, hash de relleno para DNI inexistente y rate limit por IP con el patrón de C-08.
   Verificación: el mismo comando en verde.
-- [ ] 4.3 Fixture de tests que obtiene un token real (rol y sucursal parametrizables) y un cliente autenticado, para usar en el grupo 5.
+- [x] 4.3 Fixture de tests que obtiene un token real (rol y sucursal parametrizables) y un cliente autenticado, para usar en el grupo 5.
   Verificación: un test mínimo del fixture en `backend/tests/test_auth_login.py` en verde.
-- [ ] 4.4 Suite completa.
+- [x] 4.4 Suite completa.
   Verificación: `pytest backend/tests -p no:randomly -q --tb=short` sin fallos nuevos.
-- [ ] 4.5 Mutación: quitar el hash de relleno para DNI inexistente en el login. Verificación: el escenario "Credenciales inválidas responden 401 sin distinguir la causa" (tarea 4.1) debe fallar al medir con `monkeypatch` las llamadas al hash; revertir con `git restore`.
+- [x] 4.5 Mutación: quitar el hash de relleno para DNI inexistente en el login. Verificación: el escenario "Credenciales inválidas responden 401 sin distinguir la causa" (tarea 4.1) debe fallar al medir con `monkeypatch` las llamadas al hash; revertir con `git restore`.
 
 ## 5. Identidad solo por JWT
 
