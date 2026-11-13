@@ -24,6 +24,7 @@ jobs:
     env:
       TZ: America/Argentina/Buenos_Aires
       DATABASE_URL: postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos
+      SECRET_KEY: ci-test-secret-key-32-chars-minimum-safe
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

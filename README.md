@@ -385,6 +385,15 @@ Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connect
 - Hay una vulnerabilidad registrada (CVE-2026-85620) sobre la versión 0.3.0 que permitía saltear el modo restringido. No pudimos confirmar la versión de nuestra imagen; por eso se usa solo con datos ficticios en una base local. Recomendación de los autores: usar un usuario de base de solo lectura (pendiente de decidir en este proyecto).
 
 
+## Autenticación (JWT) y Configuración
+
+A partir de C-24, la app requiere autenticación mediante tokens JWT firmados con algoritmo HS256:
+
+1. **SECRET_KEY**: obligatoria en el entorno para arrancar la aplicación (`SECRET_KEY=...`). Debe tener al menos 32 caracteres y ser distinta del valor por defecto de `.env.example` (`cambiar-en-produccion-solo-env`). Si falta o es insegura, la app se niega a iniciar.
+2. **Login**: se realiza enviando un `POST /login` con `dni` y `password`. Devuelve un JWT que debe enviarse en todas las solicitudes protegidas bajo la cabecera `Authorization: Bearer <token>`.
+3. **Seed de usuario ficticio**: al ejecutar el seed con `SEED_FICTICIO=true`, se crea un usuario de prueba con DNI `USUARIO-FICT-001` y rol `admin`. La contraseña se define mediante `SEED_USUARIO_PASSWORD`; si no se define, se genera una contraseña aleatoria segura y se muestra en la consola una sola vez.
+4. **Cabeceras antiguas**: las cabeceras `X-Actor-Rol`, `X-Actor-Usuario` y `X-Sucursal-Id` y el rol por defecto `recepcion` quedan obsoletos y ya no otorgan identidad ni permisos; toda ruta protegida sin un token JWT válido responde `401 Unauthorized` (`token_ausente`).
+
 ## Estructura del repositorio
 
 - `backend/app/turnos/` — dominio de turnos: modelo, servicio, `POST /turnos` (C-03) y cancelar y reprogramar (C-04).

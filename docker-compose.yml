@@ -25,6 +25,7 @@ services:
     environment:
       TZ: ${TZ:-America/Argentina/Buenos_Aires}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-odontologia}:${POSTGRES_PASSWORD:-odontologia}@postgres:5432/${POSTGRES_DB:-turnos}
+      SECRET_KEY: ${SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy

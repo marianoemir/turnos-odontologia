@@ -84,15 +84,15 @@ Convenciones: cada grupo sigue RED (los tests nuevos fallan por la razón correc
 
 ## 7. Configuración, CI y documentación
 
-- [ ] 7.1 Actualizar `.env.example`: `SECRET_KEY` con un valor de ejemplo que la app rechaza, `ACCESS_TOKEN_EXPIRES_MIN`, `SEED_USUARIO_PASSWORD` vacía. Sin variable de algoritmo ni de refresh.
+- [x] 7.1 Actualizar `.env.example`: `SECRET_KEY` con un valor de ejemplo que la app rechaza, `ACCESS_TOKEN_EXPIRES_MIN`, `SEED_USUARIO_PASSWORD` vacía. Sin variable de algoritmo ni de refresh.
   Verificación: `Select-String -Path .env.example -Pattern 'ALGORITHM|REFRESH' -Encoding UTF8` sin coincidencias, con control positivo sobre `SECRET_KEY` en el mismo archivo.
-- [ ] 7.2 Pasar `SECRET_KEY` al servicio de la API en `docker-compose.yml` leyéndola del entorno.
+- [x] 7.2 Pasar `SECRET_KEY` al servicio de la API en `docker-compose.yml` leyéndola del entorno.
   Verificación doble: con `SECRET_KEY` definida en el entorno, `docker compose config` muestra la variable en el servicio api; con `SECRET_KEY` sin definir, `docker compose up -d postgres` no falla (si falla, se ajusta el compose y se registra la decisión en `design.md`). Además, la verificación de `/health` de C-23 se repite con `SECRET_KEY` definida.
-- [ ] 7.3 Agregar `SECRET_KEY` con valor ficticio de más de 32 caracteres al job de tests en `.github/workflows/tests.yml` (sin tocar los jobs de otros changes).
+- [x] 7.3 Agregar `SECRET_KEY` con valor ficticio de más de 32 caracteres al job de tests en `.github/workflows/tests.yml` (sin tocar los jobs de otros changes).
   Verificación: `Select-String -Path .github\workflows\tests.yml -Pattern 'SECRET_KEY' -Encoding UTF8` devuelve la línea; el CI de la PR en verde.
-- [ ] 7.4 README: cómo definir `SECRET_KEY`, cómo hacer login con el usuario del seed y qué pasa con el header antiguo.
+- [x] 7.4 README: cómo definir `SECRET_KEY`, cómo hacer login con el usuario del seed y qué pasa con el header antiguo.
   Verificación: `Select-String -Path README.md -Pattern 'SECRET_KEY' -Encoding UTF8` devuelve coincidencias.
-- [ ] 7.5 Confirmar que no se commitea ninguna credencial.
+- [x] 7.5 Confirmar que no se commitea ninguna credencial.
   Verificación: `git --no-pager diff --stat` y `git --no-pager diff` sin contraseñas ni claves reales; `git status --short` solo con archivos del change.
 
 ## 8. Cierre
