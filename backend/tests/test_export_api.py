@@ -19,15 +19,20 @@ from backend.app.agenda.models import (
     Profesional,
     SillonBox,
 )
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.caja.models import Caja, Cobro, LiquidacionOS
 from backend.app.export.router import get_ahora as export_get_ahora
 from backend.app.hc.models import EntradaHC, HistoriaClinica
 from backend.app.main import app
+from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 from backend.app.turnos.models import Turno
 from backend.app.turnos.router import get_db
 from backend.app.turnos.service import ZONA
 
-ADMIN = {"X-Actor-Rol": "admin"}
+ADMIN = {}  # Reemplazado por token JWT dinámico en fixture
 AHORA_FIJO = datetime(2026, 11, 6, 10, 0, 0, tzinfo=ZONA)
 
 CLAVES_ENVELOPE = {
@@ -46,11 +51,36 @@ CLAVES_CAJA = {"cajas", "cobros", "liquidaciones_os"}
 
 
 @pytest.fixture()
-def client(db_session):
+def admin_headers(db_session):
+    rol = db_session.query(Rol).filter_by(nombre="admin").first()
+    if not rol:
+        rol = Rol(nombre="admin")
+        db_session.add(rol)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni="99999901").first()
+    if not u:
+        u = Usuario(
+            dni="99999901",
+            password_hash=hashear_password("pwd-admin"),
+            rol_id=rol.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="admin")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def client(db_session, admin_headers):
+    global ADMIN
+    ADMIN = admin_headers
     app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_sucursal_session] = lambda: db_session
     app.dependency_overrides[export_get_ahora] = lambda: AHORA_FIJO
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_sucursal_session, None)
     app.dependency_overrides.pop(export_get_ahora, None)
 
 
@@ -279,20 +309,47 @@ def test_periodo_personalizado_10_dias(client, db_session) -> None:
 
 
 @pytest.mark.parametrize("rol", ["recepcion", "odontologo", "paciente"])
-def test_roles_no_admin_dan_403(client, rol: str) -> None:
-    r = client.get("/export", headers={"X-Actor-Rol": rol})
+def test_roles_no_admin_dan_403(client, db_session, rol: str) -> None:
+    rol_obj = db_session.query(Rol).filter_by(nombre=rol).first()
+    if not rol_obj:
+        rol_obj = Rol(nombre=rol)
+        db_session.add(rol_obj)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni=f"88888{rol[:3]}").first()
+    if not u:
+        u = Usuario(
+            dni=f"88888{rol[:3]}",
+            password_hash=hashear_password("pwd"),
+            rol_id=rol_obj.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol=rol)
+    r = client.get("/export", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403, r.text
     assert r.json()["detail"]["causa"] == "permiso_denegado"
 
 
-def test_sin_header_da_403_default(client) -> None:
+def test_sin_header_da_401_token_ausente(client) -> None:
     r = client.get("/export")
-    assert r.status_code == 403, r.text
-    assert r.json()["detail"]["causa"] == "permiso_denegado"
+    assert r.status_code == 401, r.text
+    assert r.json()["detail"]["causa"] == "token_ausente"
 
 
 def test_sin_secretos_en_la_respuesta(client, db_session) -> None:
     _semilla(db_session)
     texto = client.get("/export", headers=ADMIN).text.lower()
-    for secreto in ("secret_key", "mp_access_token", "arca", "bearer"):
+    for secreto in ("secret_key", "mp_access_token", "arca", "bearer", "password_hash"):
         assert secreto not in texto
+
+
+def test_export_no_incluye_usuarios(client, db_session) -> None:
+    """Verificación de tarea 5.3: GET /export no debe incluir la tabla de usuarios."""
+    _semilla(db_session)
+    data = client.get("/export", headers=ADMIN).json()
+    assert "usuarios" not in data
+    # Ni en ninguna de las secciones
+    for seccion in ("pacientes", "historia_clinica", "agenda", "caja"):
+        if isinstance(data.get(seccion), dict):
+            assert "usuarios" not in data[seccion]

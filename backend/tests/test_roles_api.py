@@ -7,13 +7,20 @@ siembra los 4 roles en esa misma sesión.
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.main import app
+from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 from backend.app.turnos.router import get_db
 
-ADMIN = {"X-Actor-Rol": "admin"}
+ADMIN = {}
 
 PERMISOS_ADMIN_ESPERADOS = sorted(
     [
@@ -42,10 +49,31 @@ PERMISOS_ODONTOLOGO_ESPERADOS = sorted(
 
 
 @pytest.fixture()
-def client(db_session, roles_canonicos):
+def admin_headers(db_session, roles_canonicos):
+    admin_rol = db_session.query(Rol).filter_by(nombre="admin").first()
+    u = db_session.query(Usuario).filter_by(dni="99999902").first()
+    if not u:
+        u = Usuario(
+            dni="99999902",
+            password_hash=hashear_password("pwd-admin"),
+            rol_id=admin_rol.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="admin")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def client(db_session, roles_canonicos, admin_headers):
+    global ADMIN
+    ADMIN = admin_headers
     app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_sucursal_session] = lambda: db_session
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_sucursal_session, None)
 
 
 def _crear_rol_no_canonico(client, nombre="auditor"):
@@ -69,15 +97,27 @@ def test_get_roles_admin_lista_cuatro_con_permisos(client) -> None:
         assert "*" not in rol["permisos"]
 
 
-def test_get_roles_sin_header_da_403(client) -> None:
+def test_get_roles_sin_header_da_401(client) -> None:
     r = client.get("/roles")
-    assert r.status_code == 403, r.text
-    assert r.json()["detail"]["causa"] == "permiso_denegado"
+    assert r.status_code == 401, r.text
+    assert r.json()["detail"]["causa"] == "token_ausente"
 
 
 @pytest.mark.parametrize("rol", ["recepcion", "odontologo", "paciente"])
-def test_get_roles_roles_no_admin_dan_403(client, rol: str) -> None:
-    r = client.get("/roles", headers={"X-Actor-Rol": rol})
+def test_get_roles_roles_no_admin_dan_403(client, db_session, roles_canonicos, rol: str) -> None:
+    rol_obj = db_session.query(Rol).filter_by(nombre=rol).first()
+    u = db_session.query(Usuario).filter_by(dni=f"88887{rol[:3]}").first()
+    if not u:
+        u = Usuario(
+            dni=f"88887{rol[:3]}",
+            password_hash=hashear_password("pwd"),
+            rol_id=rol_obj.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol=rol)
+    r = client.get("/roles", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403, r.text
     assert r.json()["detail"]["causa"] == "permiso_denegado"
 
@@ -175,11 +215,20 @@ def test_patch_rol_nombre_duplicado_da_409(client) -> None:
     assert r.json()["detail"]["causa"] == "duplicate_nombre_rol"
 
 
-def test_rol_no_canonico_como_actor_da_422(client) -> None:
-    _crear_rol_no_canonico(client, "auditor")
-    r = client.get("/roles", headers={"X-Actor-Rol": "auditor"})
-    assert r.status_code == 422, r.text
-    assert r.json()["detail"]["causa"] == "rol_desconocido"
+def test_rol_no_canonico_como_actor_da_401_sesion_invalida(client, db_session) -> None:
+    auditor = _crear_rol_no_canonico(client, "auditor")
+    u = Usuario(
+        dni="88887aud",
+        password_hash=hashear_password("pwd"),
+        rol_id=uuid.UUID(auditor["id"]),
+        activo=True,
+    )
+    db_session.add(u)
+    db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="auditor")
+    r = client.get("/roles", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401, r.text
+    assert r.json()["detail"]["causa"] == "sesion_invalida"
 
 
 def test_rol_de_baja_no_aparece_sin_incluir_inactivos(client) -> None:

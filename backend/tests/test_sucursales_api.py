@@ -11,17 +11,47 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.main import app
+from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 from backend.app.turnos.router import get_db
 
-ADMIN = {"X-Actor-Rol": "admin"}
+ADMIN = {}
 
 
 @pytest.fixture()
-def client(db_session):
+def admin_headers(db_session):
+    rol = db_session.query(Rol).filter_by(nombre="admin").first()
+    if not rol:
+        rol = Rol(nombre="admin")
+        db_session.add(rol)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni="99999903").first()
+    if not u:
+        u = Usuario(
+            dni="99999903",
+            password_hash=hashear_password("pwd-admin"),
+            rol_id=rol.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="admin")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def client(db_session, admin_headers):
+    global ADMIN
+    ADMIN = admin_headers
     app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_sucursal_session] = lambda: db_session
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_sucursal_session, None)
 
 
 def _crear_sucursal(client, nombre: str, direccion: str | None = None):
@@ -116,35 +146,83 @@ def test_patch_invalido_y_extra_dan_422(client) -> None:
 
 
 @pytest.mark.parametrize("rol", ["recepcion", "odontologo", "paciente"])
-def test_get_roles_no_admin_dan_403(client, rol: str) -> None:
-    r = client.get("/sucursales", headers={"X-Actor-Rol": rol})
+def test_get_roles_no_admin_dan_403(client, db_session, rol: str) -> None:
+    rol_obj = db_session.query(Rol).filter_by(nombre=rol).first()
+    if not rol_obj:
+        rol_obj = Rol(nombre=rol)
+        db_session.add(rol_obj)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni=f"88886{rol[:3]}").first()
+    if not u:
+        u = Usuario(
+            dni=f"88886{rol[:3]}",
+            password_hash=hashear_password("pwd"),
+            rol_id=rol_obj.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol=rol)
+    r = client.get("/sucursales", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403, r.text
     assert r.json()["detail"]["causa"] == "permiso_denegado"
 
 
 @pytest.mark.parametrize("rol", ["recepcion", "odontologo", "paciente"])
-def test_post_roles_no_admin_dan_403(client, rol: str) -> None:
+def test_post_roles_no_admin_dan_403(client, db_session, rol: str) -> None:
+    rol_obj = db_session.query(Rol).filter_by(nombre=rol).first()
+    if not rol_obj:
+        rol_obj = Rol(nombre=rol)
+        db_session.add(rol_obj)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni=f"88886{rol[:3]}").first()
+    if not u:
+        u = Usuario(
+            dni=f"88886{rol[:3]}",
+            password_hash=hashear_password("pwd"),
+            rol_id=rol_obj.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol=rol)
     r = client.post(
-        "/sucursales", json={"nombre": "X"}, headers={"X-Actor-Rol": rol}
+        "/sucursales", json={"nombre": "X"}, headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 403, r.text
     assert r.json()["detail"]["causa"] == "permiso_denegado"
 
 
 @pytest.mark.parametrize("rol", ["recepcion", "odontologo", "paciente"])
-def test_patch_roles_no_admin_dan_403(client, rol: str) -> None:
+def test_patch_roles_no_admin_dan_403(client, db_session, rol: str) -> None:
     suc = _crear_sucursal(client, "Centro")
+    rol_obj = db_session.query(Rol).filter_by(nombre=rol).first()
+    if not rol_obj:
+        rol_obj = Rol(nombre=rol)
+        db_session.add(rol_obj)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni=f"88886{rol[:3]}").first()
+    if not u:
+        u = Usuario(
+            dni=f"88886{rol[:3]}",
+            password_hash=hashear_password("pwd"),
+            rol_id=rol_obj.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol=rol)
     r = client.patch(
         f"/sucursales/{suc['id']}",
         json={"activo": False},
-        headers={"X-Actor-Rol": rol},
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 403, r.text
     assert r.json()["detail"]["causa"] == "permiso_denegado"
 
 
 @pytest.mark.parametrize("metodo", ["GET", "POST", "PATCH"])
-def test_sin_header_da_403_en_los_tres(client, metodo: str) -> None:
+def test_sin_header_da_401_en_los_tres(client, metodo: str) -> None:
     if metodo == "GET":
         r = client.get("/sucursales")
     elif metodo == "POST":
@@ -152,5 +230,5 @@ def test_sin_header_da_403_en_los_tres(client, metodo: str) -> None:
     else:
         suc = _crear_sucursal(client, "Centro")
         r = client.patch(f"/sucursales/{suc['id']}", json={"activo": False})
-    assert r.status_code == 403, r.text
-    assert r.json()["detail"]["causa"] == "permiso_denegado"
+    assert r.status_code == 401, r.text
+    assert r.json()["detail"]["causa"] == "token_ausente"

@@ -6,6 +6,9 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.caja.reloj import ZONA
 from backend.app.caja.router import (
     get_ahora,
@@ -15,6 +18,8 @@ from backend.app.caja.router import (
 )
 from backend.app.caja.service import ServicioCaja
 from backend.app.main import app
+from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 
 pytestmark = pytest.mark.integration
 
@@ -44,8 +49,30 @@ def client(db_session):
     def _override_db():
         yield db_session
 
+    rol = db_session.query(Rol).filter_by(nombre="recepcion").first()
+    if not rol:
+        rol = Rol(nombre="recepcion")
+        db_session.add(rol)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni="99999911").first()
+    if not u:
+        u = Usuario(
+            dni="99999911",
+            password_hash=hashear_password("pwd-caja"),
+            rol_id=rol.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="recepcion")
+
     app.dependency_overrides[caja_get_db] = _override_db
-    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides[get_sucursal_session] = _override_db
+    yield TestClient(
+        app,
+        headers={"Authorization": f"Bearer {token}"},
+        raise_server_exceptions=False,
+    )
     app.dependency_overrides.clear()
 
 

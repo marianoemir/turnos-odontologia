@@ -2,8 +2,7 @@
 
 RBAC: cada endpoint usa `Depends(require_permission(...))` evaluado ANTES del handler
 según D2/D11. La dependencia lanza 403 `permiso_denegado` si el rol no tiene la
-capability; 422 si el header X-Actor-Rol es desconocido; never 401 (usa default
-recepcion cuando falta identidad, D1).
+capability; 401 si falta token, expiró o es inválido (C-24).
 """
 
 from __future__ import annotations

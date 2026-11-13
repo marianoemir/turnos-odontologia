@@ -12,7 +12,7 @@
 | Capa | Tecnología | Versión |
 |------|------------|---------|
 | Backend | Python + FastAPI + SQLAlchemy + Alembic | Python 3.12+, FastAPI 0.115+, SQLAlchemy 2.0+ |
-| Auth | JWT impuesto por el profesor (2026-10-07), hoy NO implementado: la identidad llega por el header `X-Actor-Rol` (ausente → `recepcion`) y `X-Sucursal-Id` es opcional. Es un supuesto de C-11, no un control de seguridad, y no cumple el stack. Change de JWT pendiente (provisorio C-24 `auth-jwt`, antes de C-14). | — |
+| Auth | JWT HS256 implementado en backend (C-24 archivado). Identidad resuelta exclusivamente por `Authorization: Bearer <token>`, emitido vía `POST /login`. Cabeceras de C-11 (`X-Actor-Rol`, `X-Actor-Usuario`, `X-Sucursal-Id`) y default `recepcion` eliminados. Pantalla de login y cliente HTTP en frontend pendientes en change posterior. | PyJWT 2.10.1 |
 | Persistencia | PostgreSQL vía Docker Compose | Postgres 16+ |
 | Async | Redis — solo con funcionalidad asincrónica (posterior) | Redis 7+ |
 | Frontend | React + TypeScript + Vite (C-13 archivado (2026-11-12); C-14 a C-22 pendientes; el backend C-01..C-12 ya está archivado) | — |

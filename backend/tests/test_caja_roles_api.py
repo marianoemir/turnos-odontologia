@@ -13,8 +13,13 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.caja.router import get_db as caja_get_db
 from backend.app.main import app
+from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 from backend.app.rbac.permissions import roles_con_permiso
 
 # Matriz D3 escrita a mano: endpoint -> roles permitidos (allow).
@@ -84,16 +89,42 @@ def _llamar(client, endpoint: str, headers: dict | None):
 
 
 @pytest.fixture()
+def tokens_por_rol(db_session):
+    tokens = {}
+    for rol_nombre in ROLES:
+        rol_obj = db_session.query(Rol).filter_by(nombre=rol_nombre).first()
+        if not rol_obj:
+            rol_obj = Rol(nombre=rol_nombre)
+            db_session.add(rol_obj)
+            db_session.flush()
+        u = db_session.query(Usuario).filter_by(dni=f"88884{rol_nombre[:3]}").first()
+        if not u:
+            u = Usuario(
+                dni=f"88884{rol_nombre[:3]}",
+                password_hash=hashear_password("pwd"),
+                rol_id=rol_obj.id,
+                activo=True,
+            )
+            db_session.add(u)
+            db_session.commit()
+        tokens[rol_nombre] = emitir_token(usuario_id=u.id, rol=rol_nombre)
+    return tokens
+
+
+@pytest.fixture()
 def client(db_session):
     app.dependency_overrides[caja_get_db] = lambda: db_session
+    app.dependency_overrides[get_sucursal_session] = lambda: db_session
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.pop(caja_get_db, None)
+    app.dependency_overrides.pop(get_sucursal_session, None)
 
 
 @pytest.mark.parametrize("endpoint", sorted(PERMITIDOS_D3))
 @pytest.mark.parametrize("rol", ROLES)
-def test_matriz_9x4(client, endpoint: str, rol: str) -> None:
-    r = _llamar(client, endpoint, headers={"X-Actor-Rol": rol})
+def test_matriz_9x4(client, tokens_por_rol, endpoint: str, rol: str) -> None:
+    token = tokens_por_rol[rol]
+    r = _llamar(client, endpoint, headers={"Authorization": f"Bearer {token}"})
     if rol in PERMITIDOS_D3[endpoint]:
         assert r.status_code not in (401, 403, 500), (
             f"{endpoint} con {rol} debía pasar; status={r.status_code} {r.text}"
@@ -114,26 +145,20 @@ def test_matriz_coincide_con_roles_con_permiso() -> None:
 
 
 @pytest.mark.parametrize("endpoint", sorted(PERMITIDOS_D3))
-def test_sin_header_se_comporta_como_recepcion(client, endpoint: str) -> None:
-    """Sin header, el default recepcion decide: como recepcion es allow en
-    los 9 endpoints (D3), ningún sin-header puede dar 403. Los endpoints
-    de lectura se comparan contra el status con header recepcion."""
+def test_sin_header_da_401_token_ausente(client, endpoint: str) -> None:
+    """Sin header, toda ruta de caja responde 401 token_ausente (C-24)."""
     r_sin = _llamar(client, endpoint, headers=None)
-    assert r_sin.status_code != 403, (endpoint, r_sin.text)
-    if endpoint in ("caja_id", "caja", "cobro_id", "liquidaciones"):
-        r_rec = _llamar(client, endpoint, headers={"X-Actor-Rol": "recepcion"})
-        assert r_sin.status_code == r_rec.status_code, (
-            f"{endpoint}: sin header={r_sin.status_code} "
-            f"recepcion={r_rec.status_code}"
-        )
+    assert r_sin.status_code == 401, (endpoint, r_sin.text)
+    assert r_sin.json()["detail"]["causa"] == "token_ausente"
 
 
 @pytest.mark.parametrize("endpoint", sorted(PERMITIDOS_D3))
-def test_ningun_denegado_se_convierte_en_500(client, endpoint: str) -> None:
+def test_ningun_denegado_se_convierte_en_500(client, tokens_por_rol, endpoint: str) -> None:
     """Todo rol denegado responde exactamente 403, nunca 500."""
     for rol in ROLES:
         if rol in PERMITIDOS_D3[endpoint]:
             continue
-        r = _llamar(client, endpoint, headers={"X-Actor-Rol": rol})
+        token = tokens_por_rol[rol]
+        r = _llamar(client, endpoint, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 403, (endpoint, rol, r.status_code, r.text)
         assert r.status_code != 500

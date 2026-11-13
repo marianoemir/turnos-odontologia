@@ -50,12 +50,12 @@ La frontera de aislamiento SHALL ser: ningún recurso asignado a una sucursal A 
 
 ### Requirement: Límites explícitos del aislamiento por sucursal
 
-En este change el aislamiento SHALL aplicarse únicamente a los listados de profesionales y sillones; turnos, pacientes, historia clínica, caja, cobros y liquidaciones SHALL seguir siendo globales, y la caja SHALL mantener una única fila por fecha global. **Límite aceptado:** el catálogo acepta `sucursal_id` sin RBAC (contrato de C-12), así que el aislamiento es una frontera de lectura, no de escritura.
+En este change el aislamiento SHALL aplicarse únicamente a los listados de profesionales y sillones; turnos, pacientes, historia clínica, caja, cobros y liquidaciones SHALL seguir siendo globales, y la caja SHALL mantener una única fila por fecha global. La sucursal del contexto proviene del claim `sucursal_id` del token JWT (con `origen = "jwt"`).
 
 #### Scenario: La caja sigue siendo global
 
-- **GIVEN** una caja abierta desde un contexto con `X-Sucursal-Id` de la sucursal A
-- **WHEN** se consulta `GET /caja` desde un contexto con `X-Sucursal-Id` de la sucursal B
+- **GIVEN** una caja abierta desde un contexto con token cuya sucursal es A
+- **WHEN** se consulta `GET /caja` desde un contexto con token cuya sucursal es B
 - **THEN** la misma caja se devuelve, porque la caja no está particionada por sucursal en C-11
 
 #### Scenario: Los turnos no se filtran por sucursal

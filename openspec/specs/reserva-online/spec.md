@@ -133,16 +133,16 @@ El sistema SHALL responder 429 cuando la misma IP supere el umbral configurable 
 
 ### Requirement: Rutas públicas sin login ni rol
 
-El sistema SHALL atender `GET /reservar/{profesional}` y `POST /reservar` sin exigir `X-Actor-Rol`, sin responder 403 por ausencia del header.
+El sistema SHALL atender `GET /reservar/{profesional}` y `POST /reservar` como rutas públicas sin requerir autenticación JWT ni cabeceras de rol, permitiendo el acceso sin token ni responder 401/403.
 
 #### Scenario: Reserva sin header de rol
 
-- **GIVEN** una petición sin header `X-Actor-Rol` y con slot libre
+- **GIVEN** una petición sin header `Authorization` y con slot libre
 - **WHEN** se envía `POST /reservar` válido
-- **THEN** responde 201 y nunca 403 por ausencia del header
+- **THEN** responde 201 y nunca 401 ni 403 por ausencia de credenciales
 
 #### Scenario: Consulta sin header de rol
 
-- **GIVEN** una petición sin header `X-Actor-Rol`
-- **WHEN** se pide `GET /reservar/{profesional}?prestacion={id}&fecha=2026-11-10`
-- **THEN** responde 200 con slots y nunca 403 por ausencia del header
+- **GIVEN** una petición sin header `Authorization` para consultar slots
+- **WHEN** se consulta `GET /reservar/{profesional}` con fecha y prestación válidas
+- **THEN** responde 200 con los slots y nunca 401 ni 403
