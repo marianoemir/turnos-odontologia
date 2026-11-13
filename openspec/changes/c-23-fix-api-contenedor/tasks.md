@@ -98,15 +98,15 @@
 
 ## 6. Alembic dentro del contenedor
 
-- [ ] 6.1 Verificar que la imagen incluye el ini y las revisiones, consultando la revisión aplicada desde adentro del contenedor.
+- [x] 6.1 Verificar que la imagen incluye el ini y las revisiones, consultando la revisión aplicada desde adentro del contenedor.
   **Cómo se verifica**: `docker compose up -d api`, `docker compose exec api python -m alembic -c backend/alembic.ini current`.
   **Resultado esperado**: el comando termina con exit 0, sin `No such file or directory` ni error de `script_location`, e imprime la revisión aplicada que reporta la base (o vacío si la base está sin migrar). Si apareciera un error de `script_location`, se ajusta `backend/alembic.ini` **y se registra la evidencia** antes de seguir (Q4).
 
-- [ ] 6.2 Correr `upgrade head` y probar que la segunda corrida es idempotente.
+- [x] 6.2 Correr `upgrade head` y probar que la segunda corrida es idempotente.
   **Cómo se verifica**: `docker compose exec api python -m alembic -c backend/alembic.ini upgrade head`, luego el mismo comando una segunda vez.
   **Resultado esperado**: la primera corrida aplica las revisiones pendientes hasta `head` (o informa que ya está al día) con exit 0; la segunda corrida termina con exit 0 **sin aplicar ninguna revisión nueva**.
 
-- [ ] 6.3 Probar el borde de rollback y re-aplicación dentro del contenedor.
+- [x] 6.3 Probar el borde de rollback y re-aplicación dentro del contenedor.
   **Cómo se verifica**: `docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1`, luego `docker compose exec api python -m alembic -c backend/alembic.ini upgrade head` y por último `docker compose exec api python -m alembic -c backend/alembic.ini current`.
   **Resultado esperado**: `downgrade -1` y `upgrade head` terminan con exit 0, y el `current` final devuelve la misma revisión que había antes del `downgrade`. Se anota que estos comandos operan sobre la base local de datos ficticios.
 
@@ -1490,3 +1490,81 @@ America/Argentina/Buenos_Aires
 **Límite de esta verificación, sin sobreafirmar:** el volumen `turnos-odontologia_pgdata` ya existía (fue inicializado antes, con `odontologia`/`turnos`). El `healthy` prueba que el contenedor arranca y acepta conexiones con esos valores en el entorno del contenedor, **no** que los defaults de compose inicialicen una base nueva: Postgres aplica `POSTGRES_*` solo al inicializar un volumen vacío. Probar la inicialización limpia requiere `docker compose down -v` (borra datos; solo aceptable con datos ficticios) y está previsto en la task 8.3. Con el `.env` ignorado no se corrió `up`, solo `config` (el mapeo publicaría `5432`, que en esta máquina está ocupado: por eso el `.env` local usa `5433`).
 
 Efecto colateral registrado: `docker compose down` removió también los contenedores `api` y `web`; tras `up -d postgres` solo queda `postgres` corriendo. `api` se vuelve a levantar en el grupo 9.
+
+### Grupo 6 — Alembic dentro del contenedor (2026-11-13)
+
+Estado previo verificado: HEAD `ee38cc5 build(compose): configura postgres y api por entorno (c-23 grupo 5)`, árbol limpio, `api` Up y `postgres` healthy. No se editó `backend/alembic.ini`, `backend/alembic/env.py` ni ningún archivo salvo este `tasks.md`. Todos los comandos se corrieron desde la raíz del repo, en PowerShell 5.1, con `2>&1`, y **operan sobre la base local de datos ficticios** del volumen `turnos-odontologia_pgdata` (no se hizo `down`, ni `down -v`, ni se borró ningún volumen).
+
+Nota sobre la salida: `backend/alembic.ini` solo declara `[alembic]` (sin secciones de logging) y `backend/alembic/env.py` no llama a `fileConfig`, así que alembic no emite los `INFO` habituales. El juicio va por el exit code y por `current`.
+
+#### 6.1 — Revisión antes de tocar nada
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini current 2>&1
+008_recordatorio (head)
+exit 0
+```
+
+Cumple: exit 0, sin `No such file or directory` ni error de `script_location`, e imprime la revisión. **REV_ANTES = `008_recordatorio`**.
+
+#### 6.2 — `upgrade head` idempotente
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini upgrade head 2>&1
+exit 0
+```
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini upgrade head 2>&1
+exit 0
+```
+
+Las dos corridas terminan con exit 0 y ninguna imprime `Running upgrade` (la base ya estaba en head, no había pendientes). `current` después:
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini current 2>&1
+008_recordatorio (head)
+exit 0
+```
+
+Cumple el resultado esperado: la segunda corrida no aplica nada. **REV_HEAD = `008_recordatorio`**.
+
+#### 6.3 — `downgrade -1` + `upgrade head`
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1 2>&1
+exit 0
+```
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini upgrade head 2>&1
+exit 0
+```
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini current 2>&1
+008_recordatorio (head)
+exit 0
+```
+
+Cumple: `downgrade` y `upgrade` con exit 0 y `current` final igual a REV_HEAD (`008_recordatorio`). Estos comandos operan sobre la base local de datos ficticios.
+
+Comando extra (no está en la task; como alembic no emite log, el efecto del `downgrade` no se veía. Repite el ciclo mostrando el estado intermedio y deja la base otra vez en head):
+
+```
+PS> docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1 2>&1
+exit 0
+
+PS> docker compose exec api python -m alembic -c backend/alembic.ini current 2>&1
+007_roles_sucursales
+exit 0
+
+PS> docker compose exec api python -m alembic -c backend/alembic.ini upgrade head 2>&1
+exit 0
+
+PS> docker compose exec api python -m alembic -c backend/alembic.ini current 2>&1
+008_recordatorio (head)
+exit 0
+```
+
+Con eso queda probado que `downgrade -1` sí movía la revisión (`008_recordatorio` → `007_roles_sucursales`) y que `upgrade head` la devuelve, aunque sin log visible.
