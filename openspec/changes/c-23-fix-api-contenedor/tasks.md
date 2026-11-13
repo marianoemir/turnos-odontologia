@@ -76,23 +76,23 @@
 
 ## 5. Compose por entorno: credenciales, `TZ` y puerto
 
-- [ ] 5.1 Interpolar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `TZ` con `${VAR:-default}` ficticio en `postgres` y reutilizar los mismos valores en el `healthcheck` (`pg_isready -U ... -d ...`) y en el `DATABASE_URL` de `api` con host `postgres` y puerto interno `5432`.
+- [x] 5.1 Interpolar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `TZ` con `${VAR:-default}` ficticio en `postgres` y reutilizar los mismos valores en el `healthcheck` (`pg_isready -U ... -d ...`) y en el `DATABASE_URL` de `api` con host `postgres` y puerto interno `5432`.
   **Cómo se verifica**: `docker compose config | Select-String -Pattern 'POSTGRES_|pg_isready|DATABASE_URL|TZ'`.
   **Resultado esperado**: el YAML resuelto muestra `odontologia` / `odontologia` / `turnos` / `America/Argentina/Buenos_Aires` en los tres lugares (`environment` de `postgres`, `healthcheck.test` y `DATABASE_URL` de `api`), y el `DATABASE_URL` de `api` apunta a `postgres:5432`.
 
-- [ ] 5.2 Comprobar que cambiar `POSTGRES_DB` y `POSTGRES_USER` en el entorno se refleja en `api`, y que `POSTGRES_PORT` solo mueve el mapeo del host.
+- [x] 5.2 Comprobar que cambiar `POSTGRES_DB` y `POSTGRES_USER` en el entorno se refleja en `api`, y que `POSTGRES_PORT` solo mueve el mapeo del host.
   **Cómo se verifica**: `$env:POSTGRES_DB = "turnos_test"; $env:POSTGRES_USER = "otro"; docker compose config | Select-String -Pattern "DATABASE_URL"; Remove-Item Env:POSTGRES_DB; Remove-Item Env:POSTGRES_USER` y después `$env:POSTGRES_PORT = "5433"; docker compose config | Select-String -Pattern "published|target|5432|5433"; Remove-Item Env:POSTGRES_PORT`.
   **Resultado esperado**: en el primer bloque el `DATABASE_URL` sale como `postgresql+psycopg://otro:odontologia@postgres:5432/turnos_test` (usuario y base del entorno, puerto interno 5432). En el segundo bloque el mapeo de `postgres` sale `published: "5433"` con `target: 5432` **y** el `DATABASE_URL` de `api` sigue en `postgres:5432` (el puerto del entorno no contamina la URL interna).
 
-- [ ] 5.3 Confirmar que no quedan secretos ni credenciales reales en archivos versionados.
+- [x] 5.3 Confirmar que no quedan secretos ni credenciales reales en archivos versionados.
   **Cómo se verifica**: `git grep -n -i "password"`.
   **Resultado esperado**: todas las coincidencias son defaults ficticios (`odontologia`) o referencias `${POSTGRES_PASSWORD:-...}` en `docker-compose.yml`, `.env.example`, `README.md` o `knowledge-base/`; ninguna credencial real, token ni valor de producción.
 
-- [ ] 5.4 Agregar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_PORT` a `.env.example` con los defaults ficticios y un comentario de que los valores reales van solo en un `.env` no versionado.
+- [x] 5.4 Agregar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_PORT` a `.env.example` con los defaults ficticios y un comentario de que los valores reales van solo en un `.env` no versionado.
   **Cómo se verifica**: `Select-String -Path .env.example -Pattern '^(POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|POSTGRES_PORT)='`.
   **Resultado esperado**: 4 coincidencias, todas con valores ficticios (`odontologia`, `odontologia`, `turnos`, `5433` o `5432` según lo que el README documente), sin ningún valor real.
 
-- [ ] 5.5 Verificar que `postgres` levanta `healthy` solo con los defaults, sin variables de entorno definidas.
+- [x] 5.5 Verificar que `postgres` levanta `healthy` solo con los defaults, sin variables de entorno definidas.
   **Cómo se verifica**: `docker compose down`, `docker compose up -d postgres`, esperar y `docker compose ps --format "{{.Name}} {{.Status}}"`.
   **Resultado esperado**: el contenedor de `postgres` aparece `Up ... (healthy)` sin haber definido ninguna variable `POSTGRES_*` en la shell. **Nota:** si el volumen `pgdata` ya existía, conserva las credenciales y la base con las que se inicializó; los defaults de la shell no lo re-inicializan (ver el riesgo del volumen en `design.md` §Risks y la task 8.3 para el `docker compose down -v`).
 
@@ -1241,3 +1241,252 @@ PS> (docker compose exec api python -m pip list | Select-String -Pattern '^(fast
 ```
 
 **0 coincidencias** para `pytest`/`ruff`/`httpx` (la imagen no lleva dev) y **5 coincidencias** de runtime con la versión pinneada. **4.5 se marca `[x]`.**
+
+### Grupo 5 — Compose por entorno: credenciales, `TZ` y puerto (2026-11-13)
+
+Archivos: `docker-compose.yml` (solo `postgres.environment`, `postgres.healthcheck` y `api.environment`), `.env.example` y este `tasks.md`. No se tocaron el servicio `web`, el `build` de `api`, `requirements`, README ni `tests.yml`. El `.env` real **no** se editó.
+
+#### Lectura previa del `.env` (solo nombres y valores permitidos)
+
+```
+PS> Get-Content .env | ForEach-Object { ($_ -split '=')[0] }
+POSTGRES_PORT
+```
+
+```
+PS> (Get-Content .env | Where-Object { $_ -match '^POSTGRES_PORT=' })
+POSTGRES_PORT=5433
+POSTGRES_USER definida: False
+POSTGRES_DB definida: False
+TZ definida: False
+```
+
+```
+PS> git check-ignore -v .env
+.gitignore:10:.env	.env
+```
+
+El `.env` define **solo** `POSTGRES_PORT=5433`. Por eso 5.1, 5.2 y 5.5 se corrieron dos veces: con el `.env` real y con `docker compose --env-file "$env:TEMP\empty.env"` (archivo vacío, 0 bytes) para ver los defaults puros. En 5.1 y en el primer bloque de 5.2 las dos salidas son idénticas porque `POSTGRES_PORT` no interviene ahí; la diferencia aparece en el mapeo del host.
+
+Valor de `POSTGRES_PORT` en `.env.example`: **5432**, porque el README documenta ese default (`${POSTGRES_PORT:-5432}`) y trata 5433 como el escape cuando 5432 está ocupado (README líneas 93, 297 y 365-366).
+
+#### 5.1 — Interpolación de credenciales y `TZ`
+
+```
+PS> docker compose config | Select-String -Pattern 'POSTGRES_|pg_isready|DATABASE_URL|TZ'
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@postgres:5432/turnos
+      TZ: America/Argentina/Buenos_Aires
+      POSTGRES_DB: turnos
+      POSTGRES_PASSWORD: odontologia
+      POSTGRES_USER: odontologia
+      TZ: America/Argentina/Buenos_Aires
+        - pg_isready -U odontologia -d turnos
+```
+
+```
+PS> docker compose --env-file "$env:TEMP\empty.env" config | Select-String -Pattern 'POSTGRES_|pg_isready|DATABASE_URL|TZ'
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@postgres:5432/turnos
+      TZ: America/Argentina/Buenos_Aires
+      POSTGRES_DB: turnos
+      POSTGRES_PASSWORD: odontologia
+      POSTGRES_USER: odontologia
+      TZ: America/Argentina/Buenos_Aires
+        - pg_isready -U odontologia -d turnos
+```
+
+Los tres lugares resuelven `odontologia` / `odontologia` / `turnos` / `America/Argentina/Buenos_Aires` y el `DATABASE_URL` de `api` apunta a `postgres:5432`. Salidas idénticas con y sin `.env`.
+
+#### 5.2 — Bloque 1: base y usuario desde el entorno
+
+```
+PS> $env:POSTGRES_DB = "turnos_test"; $env:POSTGRES_USER = "otro"; docker compose config | Select-String -Pattern "DATABASE_URL"
+      DATABASE_URL: postgresql+psycopg://otro:odontologia@postgres:5432/turnos_test
+
+PS> docker compose --env-file "$env:TEMP\empty.env" config | Select-String -Pattern "DATABASE_URL"
+      DATABASE_URL: postgresql+psycopg://otro:odontologia@postgres:5432/turnos_test
+
+PS> Remove-Item Env:POSTGRES_DB; Remove-Item Env:POSTGRES_USER; Get-ChildItem Env:POSTGRES*
+<ninguna>
+```
+
+Usuario y base vienen del entorno; la contraseña queda en el default y el puerto interno sigue en `5432`.
+
+#### 5.2 — Bloque 2: `POSTGRES_PORT` solo mueve el mapeo del host
+
+```
+PS> $env:POSTGRES_PORT = "5433"; docker compose config | Select-String -Pattern "published|target|5432|5433"
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@postgres:5432/turnos
+        target: 8000
+        published: "8000"
+        target: 5432
+        published: "5433"
+        target: /var/lib/postgresql/data
+        target: 80
+        published: "8080"
+
+PS> docker compose --env-file "$env:TEMP\empty.env" config | Select-String -Pattern "published|target|5432|5433"
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@postgres:5432/turnos
+        target: 8000
+        published: "8000"
+        target: 5432
+        published: "5433"
+        target: /var/lib/postgresql/data
+        target: 80
+        published: "8080"
+
+PS> Remove-Item Env:POSTGRES_PORT; Get-ChildItem Env:POSTGRES*
+<ninguna>
+```
+
+En las dos salidas `postgres` queda `target: 5432` con `published: "5433"` y el `DATABASE_URL` de `api` sigue en `postgres:5432`. Acá la variable de la shell gana sobre el `.env` en ambos casos, así que las dos corridas coinciden.
+
+Comando extra (no está en la task; muestra el default puro del mapeo, sin variable de shell y sin `.env`):
+
+```
+PS> docker compose --env-file "$env:TEMP\empty.env" config | Select-String -Pattern "published|target: 5432"
+        published: "8000"
+        target: 5432
+        published: "5432"
+        published: "8080"
+
+PS> docker compose config | Select-String -Pattern "published|target: 5432"
+        published: "8000"
+        target: 5432
+        published: "5433"
+        published: "8080"
+```
+
+Con el env-file vacío el host publica `5432`; con el `.env` real, `5433`. Ese es el único efecto de `POSTGRES_PORT`.
+
+#### 5.3 — Sin secretos reales en archivos versionados
+
+```
+PS> git grep -n -i "password"
+.env.example:5:POSTGRES_PASSWORD=odontologia
+.github/workflows/tests.yml:15:          POSTGRES_PASSWORD: odontologia
+CHANGES.md:276:  - **Compose por entorno**: leer credenciales de Postgres y `TZ` desde variables de entorno con defaults ficticios — `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `TZ` con `${VAR:-valor_ficticio}` en `docker-compose.yml`, reutilizadas en el healthcheck y en el `DATABASE_URL` del servicio `api` (sin credenciales reales ni secretos escritos). **Verificación**: `docker compose config` muestra la interpolación resuelta; `docker compose up -d postgres` con los defaults levanta la base y `docker compose ps` la reporta `healthy`; con `POSTGRES_DB=turnos_test POSTGRES_USER=otro docker compose config` el `DATABASE_URL` de `api` refleja esos valores; `git grep -i "password"` sobre archivos versionados no muestra secretos reales (solo defaults ficticios y `${VAR}`)
+README.md:93:**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto. Síntoma típico: `alembic` o el seed fallan con «la autenticación password falló para el usuario odontologia»; en Windows suele ser un servicio de PostgreSQL instalado que ocupa el 5432. Antes de migrar, esperá a que `docker compose ps` muestre el servicio `postgres` como `healthy`.
+README.md:286:CREATE ROLE mcp_readonly LOGIN PASSWORD '<clave-ficticia-del-rol>';
+README.md:364:- **Síntoma:** al conectar, `autentificación password falló` aunque la clave era correcta.
+docker-compose.yml:6:      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odontologia}
+docker-compose.yml:27:      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-odontologia}:${POSTGRES_PASSWORD:-odontologia}@postgres:5432/${POSTGRES_DB:-turnos}
+openspec/changes/c-23-fix-api-contenedor/design.md:38:      POSTGRES_PASSWORD: odontologia
+openspec/changes/c-23-fix-api-contenedor/design.md:182:      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odontologia}
+openspec/changes/c-23-fix-api-contenedor/design.md:193:      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-odontologia}:${POSTGRES_PASSWORD:-odontologia}@postgres:5432/${POSTGRES_DB:-turnos}
+openspec/changes/c-23-fix-api-contenedor/design.md:200:**Tradeoff:** la interpolación de `POSTGRES_*` en el `healthcheck` hace que `docker compose config` muestre el valor resuelto; con defaults ficticios no hay secreto, pero quien ponga una password real en la shell la verá en el YAML resuelto. Aceptado: es el mismo comportamiento que ya tiene `POSTGRES_PORT` y no hay forma de interpolación que oculte eso.
+openspec/changes/c-23-fix-api-contenedor/design.md:202:**`.env.example`:** se agregan `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` junto a los valores ficticios ya presentes. Decisión tomada acá (el proposal lo dejaba a confirmar): **sí**, porque el README pasa a documentar el arranque por compose y sin esas variables el archivo queda incompleto. Sin valores reales.
+openspec/changes/c-23-fix-api-contenedor/design.md:267:DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-odontologia}:${POSTGRES_PASSWORD:-odontologia}@postgres:5432/${POSTGRES_DB:-turnos}
+openspec/changes/c-23-fix-api-contenedor/design.md:312:- **Riesgo de fuga de credenciales al migrar a `${VAR}`** → los defaults siguen siendo ficticios (`odontologia`), `.env.example` no lleva valores reales y se verifica con `git grep -n -i "password"` que no aparezca nada más que defaults ficticios y `${VAR}`.
+openspec/changes/c-23-fix-api-contenedor/design.md:313:- **Cambiar `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` con un volumen `pgdata` ya inicializado no tiene efecto** → Postgres aplica esas variables solo al inicializar el volumen; con un `pgdata` existente conserva las credenciales y la base viejas, así que `api` falla la autenticación (o la base pedida no existe) aunque `docker compose config` muestre los valores nuevos. Remedio documentado: `docker compose down -v` y volver a levantar, **solo con datos ficticios**. Se documenta en el README (task 8.3) y se anota en la task 5.5.
+openspec/changes/c-23-fix-api-contenedor/proposal.md:13:- **`docker-compose.yml` con contexto raíz para `api`**: `build.context: .` + `build.dockerfile: backend/Dockerfile`, y credenciales/`TZ` leídas de variables de entorno con defaults ficticios (`${POSTGRES_USER:-...}`, `${POSTGRES_PASSWORD:-...}`, `${POSTGRES_DB:-...}`, `${TZ:-...}`), reutilizadas en el healthcheck de `postgres` y en el `DATABASE_URL` de `api`. `POSTGRES_PORT` sigue afectando solo el mapeo host→contenedor; dentro de la red de compose el puerto es siempre 5432. **BREAKING (entorno local)**: `docker compose build api` deja de cachear igual que antes (contexto distinto) y quien tenga `POSTGRES_PORT=5433` debe seguir usándolo igual que hoy; no cambia ningún contrato HTTP.
+openspec/changes/c-23-fix-api-contenedor/proposal.md:33:- **Archivos que se modifican en apply**: `backend/Dockerfile`, `docker-compose.yml`, `backend/requirements.txt`, nuevo `backend/requirements-dev.txt`, nuevo `.dockerignore` (raíz), `backend/app/main.py` (solo el docstring), `README.md`, `.github/workflows/tests.yml`. Opcionalmente `.env.example` si se agregan las variables nuevas (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`) — a confirmar en design.
+openspec/changes/c-23-fix-api-contenedor/specs/api-contenedor/spec.md:49:`docker-compose.yml` SHALL leer `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `TZ` desde el entorno con defaults ficticios, SHALL reutilizarlas en el healthcheck de `postgres` y en el `DATABASE_URL` de `api`, y SHALL NOT contener credenciales reales ni secretos versionados.
+openspec/changes/c-23-fix-api-contenedor/specs/api-contenedor/spec.md:66:- **WHEN** se busca `password` en los archivos versionados con `git grep -n -i "password"`
+openspec/changes/c-23-fix-api-contenedor/tasks.md:79:- [x] 5.1 Interpolar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `TZ` con `${VAR:-default}` ficticio en `postgres` y reutilizar los mismos valores en el `healthcheck` (`pg_isready -U ... -d ...`) y en el `DATABASE_URL` de `api` con host `postgres` y puerto interno `5432`.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:88:  **Cómo se verifica**: `git grep -n -i "password"`.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:89:  **Resultado esperado**: todas las coincidencias son defaults ficticios (`odontologia`) o referencias `${POSTGRES_PASSWORD:-...}` en `docker-compose.yml`, `.env.example`, `README.md` o `knowledge-base/`; ninguna credencial real, token ni valor de producción.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:91:- [x] 5.4 Agregar `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_PORT` a `.env.example` con los defaults ficticios y un comentario de que los valores reales van solo en un `.env` no versionado.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:92:  **Cómo se verifica**: `Select-String -Path .env.example -Pattern '^(POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|POSTGRES_PORT)='`.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:135:  **Resultado esperado**: al menos 1 coincidencia por patrón: el README muestra `docker compose exec api python -m alembic -c backend/alembic.ini upgrade head` (y `current` / `downgrade -1`) dentro del contenedor, `docker compose up --build` como forma de levantar API + web, y **una nota que explica que cambiar `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` con un volumen `pgdata` ya inicializado no tiene efecto y hace fallar la autenticación de `api`, con `docker compose down -v` como remedio, aclarando que eso borra los datos y solo es aceptable con datos ficticios**.
+openspec/changes/c-23-fix-api-contenedor/tasks.md:1140:PS> docker compose config | Select-String -Pattern 'POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|5433|published'
+openspec/changes/c-23-fix-api-contenedor/tasks.md:1143:      POSTGRES_PASSWORD: odontologia
+```
+
+**28 coincidencias, ninguna es un valor real.** Detalle por archivo:
+
+- `.env.example:5` → `odontologia`, default ficticio.
+- `.github/workflows/tests.yml:15` → `odontologia`, contraseña ficticia del servicio de CI (no se modifica en este grupo; es el grupo 8).
+- `docker-compose.yml:6` y `:27` → referencias `${POSTGRES_PASSWORD:-odontologia}`.
+- `README.md:93`, `:364` → texto que explica el síntoma de autenticación fallida; `README.md:286` → placeholder `<clave-ficticia-del-rol>`.
+- `CHANGES.md`, `design.md`, `proposal.md`, `specs/`, `tasks.md` → documentación del propio change y las notas de apply; mencionan la variable, el default ficticio o el comando de verificación.
+
+Los números de línea de `tasks.md` corresponden al estado anterior a agregar esta sección de notas; al pegarla, esas líneas se corren hacia abajo (esta sección también aporta coincidencias del mismo tipo).
+
+#### 5.4 — `.env.example`
+
+```
+PS> Select-String -Path .env.example -Pattern '^(POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|POSTGRES_PORT)='
+         4 POSTGRES_USER=odontologia
+         5 POSTGRES_PASSWORD=odontologia
+         6 POSTGRES_DB=turnos
+         7 POSTGRES_PORT=5432
+
+PS> (Select-String -Path .env.example -Pattern '^(POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|POSTGRES_PORT)=').Count
+4
+```
+
+Contenido agregado (encabezado del archivo):
+
+```
+# Valores ficticios de ejemplo. Nunca commitear un .env real con secretos.
+# Postgres del compose: estos son los defaults ficticios; los valores reales
+# van solo en un .env local (ignorado por git), nunca en un archivo versionado.
+POSTGRES_USER=odontologia
+POSTGRES_PASSWORD=odontologia
+POSTGRES_DB=turnos
+POSTGRES_PORT=5432
+TZ=America/Argentina/Buenos_Aires
+```
+
+4 coincidencias, todas ficticias; `5432` es el default que documenta el README.
+
+#### 5.5 — `postgres` levanta `healthy` sin variables en la shell
+
+```
+PS> Get-ChildItem Env:POSTGRES*
+<ninguna>
+
+PS> docker compose down
+ Container turnos-odontologia-web-1 Stopping
+ Container turnos-odontologia-web-1 Stopped
+ Container turnos-odontologia-web-1 Removing
+ Container turnos-odontologia-web-1 Removed
+ Container turnos-odontologia-api-1 Stopping
+ Container turnos-odontologia-api-1 Stopped
+ Container turnos-odontologia-api-1 Removing
+ Container turnos-odontologia-api-1 Removed
+ Container turnos-odontologia-postgres-1 Stopping
+ Container turnos-odontologia-postgres-1 Stopped
+ Container turnos-odontologia-postgres-1 Removing
+ Container turnos-odontologia-postgres-1 Removed
+ Network turnos-odontologia_default Removing
+ Network turnos-odontologia_default Removed
+EXIT=0
+
+PS> docker compose up -d postgres
+ Network turnos-odontologia_default Creating
+ Network turnos-odontologia_default Created
+ Container turnos-odontologia-postgres-1 Creating
+ Container turnos-odontologia-postgres-1 Created
+ Container turnos-odontologia-postgres-1 Starting
+ Container turnos-odontologia-postgres-1 Started
+EXIT=0
+
+PS> Start-Sleep -Seconds 20; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-postgres-1 Up 23 seconds (healthy)
+```
+
+`down` se corrió **sin `-v`**: los contenedores y la red se removieron, el volumen no. Lo confirma el log de arranque, que reutiliza los datos existentes en vez de inicializar:
+
+```
+postgres-1  | 2026-11-13 12:16:45.441 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+postgres-1  | 2026-11-13 12:16:45.442 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+postgres-1  | 2026-11-13 12:16:45.446 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+postgres-1  | 2026-11-13 12:16:45.455 UTC [29] LOG:  database system was shut down at 2026-11-13 12:16:43 UTC
+postgres-1  | 2026-11-13 12:16:45.462 UTC [1] LOG:  database system is ready to accept connections
+```
+
+```
+PS> docker volume ls --filter "name=pgdata" --format "{{.Name}}"
+prueba-limpia_pgdata
+turnos-odontologia_pgdata
+
+PS> docker compose exec postgres printenv POSTGRES_USER POSTGRES_DB TZ
+odontologia
+turnos
+America/Argentina/Buenos_Aires
+```
+
+**Límite de esta verificación, sin sobreafirmar:** el volumen `turnos-odontologia_pgdata` ya existía (fue inicializado antes, con `odontologia`/`turnos`). El `healthy` prueba que el contenedor arranca y acepta conexiones con esos valores en el entorno del contenedor, **no** que los defaults de compose inicialicen una base nueva: Postgres aplica `POSTGRES_*` solo al inicializar un volumen vacío. Probar la inicialización limpia requiere `docker compose down -v` (borra datos; solo aceptable con datos ficticios) y está previsto en la task 8.3. Con el `.env` ignorado no se corrió `up`, solo `config` (el mapeo publicaría `5432`, que en esta máquina está ocupado: por eso el `.env` local usa `5433`).
+
+Efecto colateral registrado: `docker compose down` removió también los contenedores `api` y `web`; tras `up -d postgres` solo queda `postgres` corriendo. `api` se vuelve a levantar en el grupo 9.
