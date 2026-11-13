@@ -1,4 +1,10 @@
-"""App FastAPI minima (C-01): solo GET /health, sin DB ni SQLAlchemy."""
+"""App FastAPI del sistema de turnos odontológicos.
+
+Expone `GET /health` y monta los routers de turnos, agenda, catálogo,
+lista de espera, historia clínica, caja, RBAC, export, recordatorios y
+reserva online. Todos acceden a PostgreSQL con SQLAlchemy a través de
+la variable de entorno `DATABASE_URL`.
+"""
 
 from fastapi import FastAPI
 

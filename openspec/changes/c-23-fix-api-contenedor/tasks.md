@@ -112,11 +112,11 @@
 
 ## 7. Docstring real de `backend/app/main.py`
 
-- [ ] 7.1 Reemplazar el docstring `"""App FastAPI minima (C-01): solo GET /health, sin DB ni SQLAlchemy."""` por una descripción real: app FastAPI que expone `/health` y monta los routers de turnos, agenda, catálogo, lista de espera, historia clínica, caja, RBAC, export, recordatorios y reserva online, todos con SQLAlchemy sobre `DATABASE_URL`.
+- [x] 7.1 Reemplazar el docstring `"""App FastAPI minima (C-01): solo GET /health, sin DB ni SQLAlchemy."""` por una descripción real: app FastAPI que expone `/health` y monta los routers de turnos, agenda, catálogo, lista de espera, historia clínica, caja, RBAC, export, recordatorios y reserva online, todos con SQLAlchemy sobre `DATABASE_URL`.
   **Cómo se verifica**: `Select-String -Path backend/app/main.py -Pattern "solo GET /health"` y `Select-String -Path backend/app/main.py -Pattern "sin DB"` y `Select-String -Path backend/app/main.py -Pattern "routers"`.
   **Resultado esperado**: 0 coincidencias en los primeros dos comandos y al menos 1 coincidencia en el tercero (el docstring menciona los routers montados).
 
-- [ ] 7.2 Confirmar que la corrección del docstring no tocó rutas ni comportamiento.
+- [x] 7.2 Confirmar que la corrección del docstring no tocó rutas ni comportamiento.
   **Cómo se verifica**: `git --no-pager diff -U0 backend/app/main.py | Select-String -Pattern '^[+-]@app|^[+-]app\.include_router'` y después `& "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/` (el venv 3.13 de la task 4.4, todavía sin borrar; el `.venv` de la raíz en 3.14 **no** se usa para verificar).
   **Resultado esperado**: 0 coincidencias en el diff filtrado (ninguna línea de `@app` ni de `include_router` cambió) y `ruff` informa `All checks passed!`.
 
@@ -1568,3 +1568,88 @@ exit 0
 ```
 
 Con eso queda probado que `downgrade -1` sí movía la revisión (`008_recordatorio` → `007_roles_sucursales`) y que `upgrade head` la devuelve, aunque sin log visible.
+
+### Grupo 7 — Docstring real de `backend/app/main.py` (2026-11-13)
+
+Estado previo verificado: HEAD `fd59a88 docs(c-23): verifica alembic dentro del contenedor (grupo 6)`, árbol limpio, `$env:TEMP\venv-verif\Scripts\python.exe` presente. Archivos tocados: `backend/app/main.py` (solo el docstring de módulo) y este `tasks.md`. No se cambiaron rutas, imports, `include_router`, `@app` ni finales de línea (CRLF conservados: `CR=37`, `LF=37` antes y después; sin BOM, primeros bytes `34,34,34`).
+
+#### 7.1 — Estado del archivo antes de editar
+
+```
+PS> Select-String -Path backend/app/main.py -Pattern "include_router"
+
+backend\app\main.py:17:app.include_router(turnos_router)
+backend\app\main.py:18:app.include_router(agenda_router)
+backend\app\main.py:19:app.include_router(catalogo_router)
+backend\app\main.py:20:app.include_router(lista_espera_router)
+backend\app\main.py:21:app.include_router(hc_router)
+backend\app\main.py:22:app.include_router(caja_router)
+backend\app\main.py:23:app.include_router(rbac_router)
+backend\app\main.py:24:app.include_router(export_router)
+backend\app\main.py:25:app.include_router(recordatorios_router)
+backend\app\main.py:26:app.include_router(reserva_online_router)
+
+PS> (Select-String -Path backend/app/main.py -Pattern "include_router").Count
+10
+
+PS> Select-String -Path backend/app/main.py -Pattern '^"""'
+backend\app\main.py:1:"""App FastAPI minima (C-01): solo GET /health, sin DB ni SQLAlchemy."""
+```
+
+Los 10 `include_router` reales coinciden **exactamente** con la lista de referencia de la task (turnos, agenda, catálogo, lista de espera, historia clínica, caja, RBAC, export, recordatorios y reserva online), así que no hubo diferencia que anotar entre la task y el código.
+
+Docstring nuevo (línea 1, reemplaza solo al anterior):
+
+```python
+"""App FastAPI del sistema de turnos odontológicos.
+
+Expone `GET /health` y monta los routers de turnos, agenda, catálogo,
+lista de espera, historia clínica, caja, RBAC, export, recordatorios y
+reserva online. Todos acceden a PostgreSQL con SQLAlchemy a través de
+la variable de entorno `DATABASE_URL`.
+"""
+```
+
+Verificación:
+
+```
+PS> Select-String -Path backend/app/main.py -Pattern "solo GET /health"
+<sin coincidencias>
+
+PS> Select-String -Path backend/app/main.py -Pattern "sin DB"
+<sin coincidencias>
+
+PS> Select-String -Path backend/app/main.py -Pattern "routers"
+
+backend\app\main.py:3:Expone `GET /health` y monta los routers de turnos, agenda, catálogo,
+
+PS> Select-String -Path backend/app/main.py -Pattern "FastAPI"
+backend\app\main.py:1:"""App FastAPI del sistema de turnos odontológicos.
+backend\app\main.py:9:from fastapi import FastAPI
+backend\app\main.py:22:app = FastAPI()
+```
+
+Cumple: las dos primeras sin coincidencias, la tercera con 1 y el control positivo con 3 líneas (el comando sin salida no estaba mal escrito).
+
+#### 7.2 — Nada fuera del docstring y `ruff` en verde
+
+```
+PS> git --no-pager diff -U0 backend/app/main.py | Select-String -Pattern '^[+-]@app|^[+-]app\.include_router'
+<sin coincidencias>
+exit 0
+```
+
+```
+PS> git --no-pager diff --stat backend/app/main.py
+ backend/app/main.py | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+exit 0
+```
+
+```
+PS> & "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/
+All checks passed!
+exit 0
+```
+
+Cumple: el filtro del diff no muestra cambios en `@app` ni en `include_router` (el control positivo confirma que el archivo sí está modificado: 7 inserciones y 1 borrado, todas del docstring) y `ruff` termina con `exit 0` y `All checks passed!`.
