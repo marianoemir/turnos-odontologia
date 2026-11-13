@@ -144,19 +144,19 @@
 
 ## 9. Verificación end-to-end y cierre de la task 5.2 de C-13
 
-- [ ] 9.1 Levantar el stack completo desde cero.
+- [x] 9.1 Levantar el stack completo desde cero.
   **Cómo se verifica**: `docker compose down`, `docker compose up --build -d`, esperar a que `postgres` esté `healthy`, luego `docker compose ps --format "{{.Name}} {{.Status}}"`.
   **Resultado esperado**: `postgres` `Up ... (healthy)`, `api` `Up` **sin** `(restarting)` ni reinicios, y `web` `Up`. Ninguno de los tres aparece `exited`.
 
-- [ ] 9.2 Verificar `/health` directo contra `api`.
+- [x] 9.2 Verificar `/health` directo contra `api`.
   **Cómo se verifica**: con cualquier `uvicorn` del host detenido (paso 5 del README), `curl.exe -s -o NUL -w "%{http_code}" http://localhost:8000/health` y `curl.exe -s http://localhost:8000/health`. Fallback si `curl.exe` del host no está disponible: `docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read().decode())"`.
   **Resultado esperado**: el primer comando imprime `200` y el segundo imprime exactamente `{"status":"ok"}` (el fallback imprime lo mismo desde adentro del contenedor).
 
-- [ ] 9.3 Verificar `/api/health` a través de nginx (`web`) y **cerrar la task 5.2 de C-13** con la evidencia.
+- [x] 9.3 Verificar `/api/health` a través de nginx (`web`) y **cerrar la task 5.2 de C-13** con la evidencia.
   **Cómo se verifica**: `curl.exe -s -o NUL -w "%{http_code}" http://localhost:8080/api/health` y `curl.exe -s http://localhost:8080/api/health`.
   **Resultado esperado**: `200` y `{"status":"ok"}`. La salida literal de ambos comandos se pega en las notas de apply de este `tasks.md` como evidencia del cierre de la task 5.2 de C-13 (el archivo archivado de C-13 **no se edita**).
 
-- [ ] 9.4 Confirmar que C-23 no rompió el servicio `web` de C-13.
+- [x] 9.4 Confirmar que C-23 no rompió el servicio `web` de C-13.
   **Cómo se verifica**: `docker compose config --services` y `(docker compose config --services | Measure-Object -Line).Lines`.
   **Resultado esperado**: exactamente `postgres`, `api` y `web` (3 líneas, sin servicios faltantes ni agregados).
 
@@ -1952,3 +1952,235 @@ Cumple: `FROM` y los dos `python-version` declaran 3.13 y el README lo nombra co
 1. **`README.md:93` contradice `POSTGRES_PORT` y no se reescribió** (la regla de 8.3 lo pedía así). Texto literal: `**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en docker-compose.yml el mapeo "5432:5432" por "5433:5432" y usá el puerto 5433 en la DATABASE_URL. ...`. Hoy el mapeo ya es `${POSTGRES_PORT:-5432}` y la forma correcta es definir `POSTGRES_PORT` (como dice la nota de "Problema de instalación resuelto: puerto 5432 ocupado", línea 366).
 2. **`README.md:36`** — la tabla del roadmap sigue con `| C-23 | fix-api-contenedor | pendiente |`. Los estados de los changes los lleva `CHANGES.md`; no se tocó el README.
 3. **Contadores de tests del README desactualizados** — línea 81 dice `24 passed, 131 skipped` sin PostgreSQL y línea 133 dice `155 passed, 0 skipped`. La corrida real del grupo 4 sobre esta rama dio `139 passed, 614 skipped` sin `DATABASE_URL` y `755 passed` con `turnos_test`. Fuera del alcance de 8.1–8.5; no se tocaron.
+
+### Grupo 9 — Verificación end-to-end y cierre de la task 5.2 de C-13 (2026-11-13)
+
+Estado previo verificado: HEAD `28a1d9b docs(c-23): README y CI con requirements-dev y migraciones en contenedor (grupo 8)`, árbol limpio. Contenedores corriendo antes de empezar:
+
+```
+PS> docker compose ps
+turnos-odontologia-api-1        turnos-odontologia-api   "uvicorn backend.app…"   api        25 minutes ago   Up 25 minutes             0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+turnos-odontologia-postgres-1   postgres:16              "docker-entrypoint.s…"   postgres   34 minutes ago   Up 34 minutes (healthy)   0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+```
+
+No corría `web` (había quedado removido por el `down` del grupo 5). Puertos del host:
+
+```
+PS> Get-NetTCPConnection -LocalPort 8000,8080 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { "$($_.LocalPort) pid=$($_.OwningProcess) " + (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName }
+8000 pid=16896 com.docker.backend
+```
+
+Solo escucha `com.docker.backend` en 8000 (es el mapeo de Docker, no un uvicorn del host); 8080 estaba libre. No se mató ningún proceso.
+
+#### 9.1 — Stack completo desde cero
+
+```
+PS> docker compose down 2>&1
+Container turnos-odontologia-api-1 Stopping
+ Container turnos-odontologia-api-1 Stopped 
+ Container turnos-odontologia-api-1 Removing 
+ Container turnos-odontologia-api-1 Removed 
+ Container turnos-odontologia-postgres-1 Stopping 
+ Container turnos-odontologia-postgres-1 Stopped 
+ Container turnos-odontologia-postgres-1 Removing 
+ Container turnos-odontologia-postgres-1 Removed 
+ Network turnos-odontologia_default Removing 
+ Network turnos-odontologia_default Removed 
+exit 0
+```
+
+```
+PS> docker compose up --build -d 2>&1
+ Image turnos-odontologia-web Building 
+ Image turnos-odontologia-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.19kB done
+#1 DONE 0.0s
+
+#2 [api internal] load build definition from Dockerfile
+#2 transferring dockerfile: 295B done
+#2 DONE 0.0s
+
+#3 [web internal] load build definition from Dockerfile
+#3 transferring dockerfile: 561B 0.0s done
+#3 DONE 0.1s
+
+#4 [web internal] load metadata for docker.io/library/nginx:alpine
+#4 DONE 1.4s
+
+#5 [api internal] load metadata for docker.io/library/python:3.13-slim
+#5 DONE 1.1s
+
+#6 [api internal] load .dockerignore
+#6 transferring context: 91B done
+#6 DONE 0.0s
+
+#7 [api internal] load build context
+#7 transferring context: 9.31kB 0.0s done
+#7 DONE 0.0s
+
+#8 [api 1/5] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#8 resolve docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 0.0s done
+#8 DONE 0.0s
+
+#9 [api 2/5] WORKDIR /code
+#9 CACHED
+
+#10 [api 3/5] COPY backend/requirements.txt ./backend/requirements.txt
+#10 CACHED
+
+#11 [api 4/5] RUN pip install --no-cache-dir -r backend/requirements.txt
+#11 CACHED
+
+#12 [api 5/5] COPY backend/ ./backend/
+#12 DONE 0.1s
+
+#13 [web internal] load metadata for docker.io/library/node:24-slim
+#13 DONE 1.4s
+
+#16 [web build 1/6] FROM docker.io/library/node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+#16 resolve docker.io/library/node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 0.0s done
+#16 DONE 0.1s
+
+#17 [web stage-1 1/3] FROM docker.io/library/nginx:alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11
+#17 resolve docker.io/library/nginx:alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11 0.0s done
+#17 DONE 0.1s
+
+#15 [api] exporting to image
+#15 exporting layers 0.2s done
+#15 exporting manifest sha256:9664745567e3d9e02c52ade7bf886741b2ef09ed56e8a614b0ed51c06c429442 0.0s done
+#15 exporting config sha256:1f9e3a432aeb2c99bd23566fe45f9f23d582702a8e75905302dbaaa4deeaf5ff 0.0s done
+#15 exporting attestation manifest sha256:d22dca241ca76339e15550a5a82f6a55683a947f3ff68e6ff863a95955aa145 0.0s done
+#15 exporting manifest list sha256:f4850657a28b391ac30450149fec5bd38b80a2000b3d93804742ee43fe1f786c 0.0s done
+#15 naming to docker.io/library/turnos-odontologia-api:latest done
+#15 unpacking to docker.io/library/turnos-odontologia-api:latest 0.1s done
+#15 DONE 0.5s
+
+#18 [web internal] load build context
+#18 transferring context: 173.22kB 0.2s done
+#18 DONE 0.2s
+
+#19 [web build 2/6] WORKDIR /app
+#19 CACHED
+
+#20 [web build 4/6] RUN npm ci
+#20 CACHED
+
+#21 [web build 5/6] COPY . .
+#21 CACHED
+
+#22 [web build 6/6] RUN npm run build
+#22 CACHED
+
+#23 [web build 3/6] COPY package.json package-lock.json ./
+#23 CACHED
+
+#24 [web stage-1 2/3] COPY nginx.conf /etc/nginx/conf.d/default.conf
+#24 CACHED
+
+#25 [web stage-1 3/3] COPY --from=build /app/dist /usr/share/nginx/html
+#25 CACHED
+
+#26 [web] exporting to image
+#26 exporting layers done
+#26 exporting manifest sha256:baf4b1fa599cbbbabb0f42dba62311409c6f6a737ab985c4f021c293282efb36 done
+#26 exporting config sha256:74adc935c902fa56f843038bbcdc554b1e3d8da31695daa12f00230cf98c5f24 done
+#26 exporting attestation manifest sha256:e757d0cd473e028fa669250dfa2228f6c20d4ce395104058330fb5724ac71ab4 0.0s done
+#26 exporting manifest list sha256:77e779193b35365795b39a1152fbb8f06db1bcc683cae6803e1fbee8f02ebbe9 0.0s done
+#26 naming to docker.io/library/turnos-odontologia-web:latest 0.0s done
+#26 unpacking to docker.io/library/turnos-odontologia-web:latest 0.0s done
+#26 DONE 0.2s
+
+#27 [api] resolving provenance for metadata file
+#27 DONE 0.0s
+
+#28 [web] resolving provenance for metadata file
+#28 DONE 0.0s
+ Image turnos-odontologia-api Built 
+ Image turnos-odontologia-web Built 
+ Network turnos-odontologia_default Creating 
+ Network turnos-odontologia_default Created 
+ Container turnos-odontologia-postgres-1 Creating 
+ Container turnos-odontologia-postgres-1 Created 
+ Container turnos-odontologia-api-1 Creating 
+ Container turnos-odontologia-api-1 Created 
+ Container turnos-odontologia-web-1 Creating 
+ Container turnos-odontologia-web-1 Created 
+ Container turnos-odontologia-postgres-1 Starting 
+ Container turnos-odontologia-postgres-1 Started 
+ Container turnos-odontologia-postgres-1 Waiting 
+ Container turnos-odontologia-postgres-1 Healthy 
+ Container turnos-odontologia-api-1 Starting 
+ Container turnos-odontologia-api-1 Started 
+ Container turnos-odontologia-web-1 Starting 
+ Container turnos-odontologia-web-1 Started 
+exit 0
+```
+
+Espera de healthy (reintentos de `ps` con pausas cortas, sin `Start-Sleep` largos):
+
+```
+PS> Start-Sleep -Seconds 5; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-api-1 Up 13 seconds
+turnos-odontologia-postgres-1 Up 19 seconds (healthy)
+turnos-odontologia-web-1 Up 13 seconds
+
+PS> Start-Sleep -Seconds 5; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-api-1 Up 18 seconds
+turnos-odontologia-postgres-1 Up 24 seconds (healthy)
+turnos-odontologia-web-1 Up 18 seconds
+
+PS> docker inspect -f "{{.Name}} restarts={{.RestartCount}}" turnos-odontologia-api-1
+/turnos-odontologia-api-1 restarts=0
+```
+
+Cumple: `postgres` `Up (healthy)`, `api` `Up` (sin `restarting`) con `restarts=0`, `web` `Up` y ninguno `exited`. No se usó `down -v` ni se tocó ningún volumen.
+
+#### 9.2 — `/health` directo contra `api`
+
+```
+PS> curl.exe -s -o NUL -w "%{http_code}" http://localhost:8000/health
+200
+
+PS> curl.exe -s http://localhost:8000/health
+{"status":"ok"}
+```
+
+Cumple: `200` y exactamente `{"status":"ok"}`.
+
+#### 9.3 — `/api/health` a través de nginx (web) y cierre de la task 5.2 de C-13
+
+**Cierre de la task 5.2 de C-13**
+
+```
+PS> curl.exe -s -o NUL -w "%{http_code}" http://localhost:8080/api/health
+200
+
+PS> curl.exe -s http://localhost:8080/api/health
+{"status":"ok"}
+```
+
+Control extra (raíz del sitio servido por nginx):
+
+```
+PS> curl.exe -s -o NUL -w "%{http_code}" http://localhost:8080/
+200
+```
+
+Cumple: `200` y `{"status":"ok"}` a través de nginx en el puerto 8080. La evidencia de la task 5.2 de C-13 vive **solo** en este archivo; no se editó `openspec/changes/archive/2026-11-12-c-13-frontend-foundation/tasks.md`.
+
+#### 9.4 — El web no se rompió
+
+```
+PS> docker compose config --services
+postgres
+api
+web
+
+PS> (docker compose config --services | Measure-Object -Line).Lines
+3
+```
+
+Cumple: exactamente `postgres`, `api` y `web`, y el conteo `3`.
+
+Los contenedores quedaron corriendo al terminar (el `down` final es de la task 9.6, que no se ejecutó).
