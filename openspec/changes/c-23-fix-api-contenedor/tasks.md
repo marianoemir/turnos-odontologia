@@ -40,15 +40,15 @@
 
 ## 3. `backend/Dockerfile` y contexto de build
 
-- [ ] 3.1 Reescribir `backend/Dockerfile` para el contexto raíz: `FROM python:3.13-slim` (sujeto a Q1), `WORKDIR /code`, `COPY backend/requirements.txt ./backend/requirements.txt`, `RUN pip install --no-cache-dir -r backend/requirements.txt`, `COPY backend/ ./backend/`, `CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]`.
+- [x] 3.1 Reescribir `backend/Dockerfile` para el contexto raíz: `FROM python:3.13-slim` (sujeto a Q1), `WORKDIR /code`, `COPY backend/requirements.txt ./backend/requirements.txt`, `RUN pip install --no-cache-dir -r backend/requirements.txt`, `COPY backend/ ./backend/`, `CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]`.
   **Cómo se verifica**: `Select-String -Path backend/Dockerfile -Pattern '^COPY backend/ \./backend/$'` y `Select-String -Path backend/Dockerfile -Pattern '^CMD \["uvicorn", "backend\.app\.main:app"'` y `Select-String -Path backend/Dockerfile -Pattern '^WORKDIR /code$'`.
   **Resultado esperado**: una coincidencia en cada comando (3 en total). No queda ninguna línea con `COPY app ./app` ni con `uvicorn app.main:app`.
 
-- [ ] 3.2 Cambiar el build de `api` en `docker-compose.yml` a contexto raíz: `build: { context: ., dockerfile: backend/Dockerfile }`.
+- [x] 3.2 Cambiar el build de `api` en `docker-compose.yml` a contexto raíz: `build: { context: ., dockerfile: backend/Dockerfile }`.
   **Cómo se verifica**: `docker compose config | Select-String -Pattern 'context: |dockerfile: '`.
   **Resultado esperado**: la salida del servicio `api` muestra `context: ...\turnos-odontologia` (la raíz absoluta) y `dockerfile: backend/Dockerfile`; el servicio `web` sigue mostrando `context: ...\frontend`. No aparece `build: backend` en ningún lado.
 
-- [ ] 3.3 Construir la imagen y probar que el paquete `backend` es importable dentro del contenedor.
+- [x] 3.3 Construir la imagen y probar que el paquete `backend` es importable dentro del contenedor.
   **Cómo se verifica**: `docker compose build api`, `docker compose up -d postgres`, esperar a que `docker compose ps --format "{{.Name}} {{.Status}}"` muestre el contenedor de `postgres` como `healthy`, luego `docker compose up -d api` y `docker compose exec api python -c "import backend.app.main"`.
   **Resultado esperado**: el build termina con exit code 0; el último comando termina sin salida y sin `ModuleNotFoundError` (exit 0). `docker compose ps --format "{{.Name}} {{.Status}}"` muestra `api` como `Up` sin `(restarting)`.
 
@@ -453,3 +453,301 @@ PS> git status --short frontend/.dockerignore
 PS> git status --short
 ?? .dockerignore
 ```
+
+### Grupo 3 — `backend/Dockerfile` y contexto de build (2026-11-13)
+
+Archivos: `backend/Dockerfile` (reescrito), `docker-compose.yml` (solo el `build` del servicio `api`) y este `tasks.md`. No se tocaron el servicio `web`, el servicio `postgres`, las variables de entorno de `api`, `requirements`, README ni `tests.yml`.
+
+**WORKDIR elegido: `/code` (raíz del repo).** Por qué (design D2): es el único directorio desde el cual `import backend.app.main` resuelve sin `PYTHONPATH`, porque `backend/__init__.py` existe y alcanza con que el directorio que contiene `backend/` esté en `sys.path`; es además el mismo punto de partida que el README usa desde el host (`python -m uvicorn backend.app.main:app`), así que `-c backend/alembic.ini` sirve igual adentro y afuera. `COPY backend/ ./backend/` reproduce el layout del repo (app + `alembic/` + `alembic.ini` + requirements) y el `COPY` de requirements va separado y antes del código para mantener cacheada la capa de `pip install`.
+
+#### 3.1 — `backend/Dockerfile`
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern '^COPY backend/ \./backend/$'
+
+backend\Dockerfile:5:COPY backend/ ./backend/
+
+```
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern '^CMD \["uvicorn", "backend\.app\.main:app"'
+
+backend\Dockerfile:6:CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+```
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern '^WORKDIR /code$'
+
+backend\Dockerfile:2:WORKDIR /code
+
+```
+
+Comando extra (no está en la task; comprueba que no quedaron los patrones viejos):
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern 'COPY app \./app|uvicorn app\.main:app' | Measure-Object | Select-Object -ExpandProperty Count
+0
+```
+
+#### 3.2 — `build` de `api` con contexto raíz
+
+```
+PS> docker compose config | Select-String -Pattern 'context: |dockerfile: '
+      context: C:\Users\Mariano_Chirino\Documents\GitHub\turnos-odontologia
+      dockerfile: backend/Dockerfile
+      context: C:\Users\Mariano_Chirino\Documents\GitHub\turnos-odontologia\frontend
+      dockerfile: Dockerfile
+```
+
+`api` resuelve al contexto raíz con `dockerfile: backend/Dockerfile`; `web` sigue con `context: ...\frontend`. No aparece `build: backend` en ningún lado.
+
+#### 3.3 — Build, recreación del contenedor e import del paquete
+
+```
+PS> docker compose build api
+ Image turnos-odontologia-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 602B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 295B done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/python:3.13-slim
+#3 DONE 2.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 735.25kB 0.1s done
+#5 DONE 0.2s
+
+#6 [1/5] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#6 resolve docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 0.0s done
+#6 sha256:0069ea31add00b9f63dbb3f0bcee44990654c5e2c17ccfeaeae47e74edf44498 0B / 1.29MB 0.2s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 0B / 11.92MB 0.2s
+#6 sha256:f7a79299dedd5c817d47e3f61cf6eecae73b92cb193a1ef52180a46b0161c50a 0B / 248B 0.2s
+#6 sha256:0069ea31add00b9f63dbb3f0bcee44990654c5e2c17ccfeaeae47e74edf44498 1.29MB / 1.29MB 0.4s done
+#6 sha256:f7a79299dedd5c817d47e3f61cf6eecae73b92cb193a1ef52180a46b0161c50a 248B / 248B 0.5s done
+#6 extracting sha256:0069ea31add00b9f63dbb3f0bcee44990654c5e2c17ccfeaeae47e74edf44498
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 1.05MB / 11.92MB 0.8s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 2.10MB / 11.92MB 0.9s
+#6 extracting sha256:0069ea31add00b9f63dbb3f0bcee44990654c5e2c17ccfeaeae47e74edf44498 0.3s done
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 4.19MB / 11.92MB 1.1s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 6.29MB / 11.92MB 1.4s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 7.34MB / 11.92MB 1.5s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 8.39MB / 11.92MB 1.7s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 9.44MB / 11.92MB 1.8s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 11.53MB / 11.92MB 2.0s
+#6 sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 11.92MB / 11.92MB 2.0s done
+#6 extracting sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565
+#6 extracting sha256:faa890a31e98e11bc3138d9549c86441024fdb24bd555bb0bca17dc9a6c5b565 1.0s done
+#6 DONE 3.2s
+
+#6 [1/5] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#6 extracting sha256:f7a79299dedd5c817d47e3f61cf6eecae73b92cb193a1ef52180a46b0161c50a 0.0s done
+#6 DONE 3.2s
+
+#7 [2/5] WORKDIR /code
+#7 DONE 0.2s
+
+#8 [3/5] COPY backend/requirements.txt ./backend/requirements.txt
+#8 DONE 0.1s
+
+#9 [4/5] RUN pip install --no-cache-dir -r backend/requirements.txt
+#9 2.481 Collecting fastapi>=0.115 (from -r backend/requirements.txt (line 1))
+#9 2.675   Downloading fastapi-0.162.5-py3-none-any.whl.metadata (27 kB)
+#9 3.228 Collecting sqlalchemy>=2.0 (from -r backend/requirements.txt (line 2))
+#9 3.259   Downloading sqlalchemy-2.1.8-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (9.7 kB)
+#9 3.346 Collecting alembic (from -r backend/requirements.txt (line 3))
+#9 3.368   Downloading alembic-1.20.1-py3-none-any.whl.metadata (7.3 kB)
+#9 3.420 Collecting psycopg>=3.1 (from psycopg[binary]>=3.1->-r backend/requirements.txt (line 4))
+#9 3.443   Downloading psycopg-3.3.9-py3-none-any.whl.metadata (4.4 kB)
+#9 3.504 Collecting uvicorn (from -r backend/requirements.txt (line 5))
+#9 3.528   Downloading uvicorn-0.54.0-py3-none-any.whl.metadata (6.6 kB)
+#9 3.572 Collecting httpx (from -r backend/requirements.txt (line 6))
+#9 3.597   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+#9 3.645 Collecting pytest>=8 (from -r backend/requirements.txt (line 7))
+#9 3.670   Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+#9 4.113 Collecting ruff (from -r backend/requirements.txt (line 8))
+#9 4.151   Downloading ruff-0.17.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (20 kB)
+#9 4.186 Collecting tzdata (from -r backend/requirements.txt (line 9))
+#9 4.209   Downloading tzdata-2026.6-py2.py3-none-any.whl.metadata (1.4 kB)
+#9 4.253 Collecting starlette>=0.46.0 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.277   Downloading starlette-1.10.0-py3-none-any.whl.metadata (6.6 kB)
+#9 4.319 Collecting anyio>=4.1.0 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.343   Downloading anyio-4.16.0-py3-none-any.whl.metadata (4.7 kB)
+#9 4.484 Collecting pydantic>=2.9.0 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.508   Downloading pydantic-2.14.3-py3-none-any.whl.metadata (141 kB)
+#9 4.632 Collecting typing-extensions>=4.8.0 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.661   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+#9 4.695 Collecting typing-inspection>=0.4.2 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.722   Downloading typing_inspection-0.4.5-py3-none-any.whl.metadata (2.6 kB)
+#9 4.758 Collecting annotated-doc>=0.0.2 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.785   Downloading annotated_doc-0.0.6-py3-none-any.whl.metadata (6.5 kB)
+#9 4.827 Collecting opentelemetry-api>=1.44.0 (from fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 4.850   Downloading opentelemetry_api-1.45.2-py3-none-any.whl.metadata (1.4 kB)
+#9 4.890 Collecting Mako (from alembic->-r backend/requirements.txt (line 3))
+#9 4.915   Downloading mako-1.4.3-py3-none-any.whl.metadata (2.9 kB)
+#9 4.953 Collecting click>=7.0 (from uvicorn->-r backend/requirements.txt (line 5))
+#9 4.982   Downloading click-8.5.1-py3-none-any.whl.metadata (2.6 kB)
+#9 5.017 Collecting h11>=0.8 (from uvicorn->-r backend/requirements.txt (line 5))
+#9 5.042   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+#9 5.083 Collecting certifi (from httpx->-r backend/requirements.txt (line 6))
+#9 5.106   Downloading certifi-2026.10.23-py3-none-any.whl.metadata (2.5 kB)
+#9 5.141 Collecting httpcore==1.* (from httpx->-r backend/requirements.txt (line 6))
+#9 5.164   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+#9 5.206 Collecting idna (from httpx->-r backend/requirements.txt (line 6))
+#9 5.233   Downloading idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+#9 5.267 Collecting iniconfig>=2 (from pytest>=8->-r backend/requirements.txt (line 7))
+#9 5.291   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+#9 5.325 Collecting packaging>=24 (from pytest>=8->-r backend/requirements.txt (line 7))
+#9 5.349   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+#9 5.382 Collecting pluggy<2,>=1.6 (from pytest>=8->-r backend/requirements.txt (line 7))
+#9 5.405   Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+#9 5.443 Collecting pygments>=2.15 (from pytest>=8->-r backend/requirements.txt (line 7))
+#9 5.485   Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+#9 5.686 Collecting psycopg-binary==3.3.9 (from psycopg[binary]>=3.1->-r backend/requirements.txt (line 4))
+#9 5.710   Downloading psycopg_binary-3.3.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.7 kB)
+#9 5.739 Collecting annotated-types>=0.6.0 (from pydantic>=2.9.0->fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 5.762   Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+#9 6.686 Collecting pydantic-core==2.50.4 (from pydantic>=2.9.0->fastapi>=0.115->-r backend/requirements.txt (line 1))
+#9 6.711   Downloading pydantic_core-2.50.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.6 kB)
+#9 6.806 Collecting MarkupSafe>=2.0 (from Mako->alembic->-r backend/requirements.txt (line 3))
+#9 6.833   Downloading markupsafe-3.0.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+#9 6.862 Downloading fastapi-0.162.5-py3-none-any.whl (151 kB)
+#9 6.954 Downloading sqlalchemy-2.1.8-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.7 MB)
+#9 8.441    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 3.2 MB/s  0:00:01
+#9 8.465 Downloading alembic-1.20.1-py3-none-any.whl (270 kB)
+#9 8.578 Downloading psycopg-3.3.9-py3-none-any.whl (219 kB)
+#9 8.664 Downloading uvicorn-0.54.0-py3-none-any.whl (87 kB)
+#9 8.721 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+#9 8.763 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+#9 8.814 Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+#9 8.956 Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+#9 8.986 Downloading ruff-0.17.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (10.6 MB)
+#9 11.89    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.6/10.6 MB 3.7 MB/s  0:00:02
+#9 11.93 Downloading tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+#9 12.06 Downloading annotated_doc-0.0.6-py3-none-any.whl (5.3 kB)
+#9 12.09 Downloading anyio-4.16.0-py3-none-any.whl (134 kB)
+#9 12.18 Downloading click-8.5.1-py3-none-any.whl (126 kB)
+#9 12.26 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#9 12.30 Downloading idna-3.20-py3-none-any.whl (69 kB)
+#9 12.36 Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+#9 12.38 Downloading opentelemetry_api-1.45.2-py3-none-any.whl (60 kB)
+#9 12.44 Downloading packaging-26.3-py3-none-any.whl (129 kB)
+#9 12.52 Downloading psycopg_binary-3.3.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.9 MB)
+#9 13.93    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.9/3.9 MB 2.8 MB/s  0:00:01
+#9 13.96 Downloading pydantic-2.14.3-py3-none-any.whl (494 kB)
+#9 14.16 Downloading pydantic_core-2.50.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.3 MB)
+#9 15.19    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 2.2 MB/s  0:00:01
+#9 15.21 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+#9 15.24 Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+#9 15.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 3.2 MB/s  0:00:00
+#9 15.67 Downloading starlette-1.10.0-py3-none-any.whl (80 kB)
+#9 15.72 Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+#9 15.75 Downloading typing_inspection-0.4.5-py3-none-any.whl (14 kB)
+#9 15.78 Downloading certifi-2026.10.23-py3-none-any.whl (135 kB)
+#9 15.84 Downloading mako-1.4.3-py3-none-any.whl (80 kB)
+#9 15.89 Downloading markupsafe-3.0.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (23 kB)
+#9 16.10 Installing collected packages: tzdata, typing-extensions, ruff, pygments, psycopg-binary, psycopg, pluggy, packaging, MarkupSafe, iniconfig, idna, h11, click, certifi, annotated-types, annotated-doc, uvicorn, typing-inspection, sqlalchemy, pytest, pydantic-core, opentelemetry-api, Mako, httpcore, anyio, starlette, pydantic, httpx, alembic, fastapi
+#9 20.22 
+#9 20.23 Successfully installed Mako-1.4.3 MarkupSafe-3.0.4 alembic-1.20.1 annotated-doc-0.0.6 annotated-types-0.8.0 anyio-4.16.0 certifi-2026.10.23 click-8.5.1 fastapi-0.162.5 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.20 iniconfig-2.3.1 opentelemetry-api-1.45.2 packaging-26.3 pluggy-1.7.0 psycopg-3.3.9 psycopg-binary-3.3.9 pydantic-2.14.3 pydantic-core-2.50.4 pygments-2.21.0 pytest-9.2.0 ruff-0.17.5 sqlalchemy-2.1.8 starlette-1.10.0 typing-extensions-4.16.0 typing-inspection-0.4.5 tzdata-2026.6 uvicorn-0.54.0
+#9 20.23 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#9 20.23 
+#9 20.23 [notice] A new release of pip is available: 26.2.2 -> 26.3
+#9 20.23 [notice] To update, run: pip install --upgrade pip
+#9 DONE 20.7s
+
+#10 [5/5] COPY backend/ ./backend/
+#10 DONE 0.1s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 4.0s done
+#11 exporting manifest sha256:60c9cad5c3a7792c34cd0b5a6a854fd224afe003f448517dfda5fb90c5d7cefd 0.0s done
+#11 exporting config sha256:ea3ea73dbe9ac24be2316b300916da3b942d123ef5ccc86e5592a2b7ec3476a3 0.0s done
+#11 exporting attestation manifest sha256:396c650ab64f5252d939ffa6d4e119d1a4a3939e300950a0e0e324c052c3c1ea 0.0s done
+#11 exporting manifest list sha256:23e773a5340e696a852daf1f584c0c27c77c0a18946330bd82ace50482b2fe82 0.0s done
+#11 naming to docker.io/library/turnos-odontologia-api:latest done
+#11 unpacking to docker.io/library/turnos-odontologia-api:latest
+#11 unpacking to docker.io/library/turnos-odontologia-api:latest 1.6s done
+#11 DONE 5.7s
+
+#12 resolving provenance for metadata file
+#12 DONE 0.0s
+ Image turnos-odontologia-api Built 
+```
+
+Contexto de build informado por BuildKit: `.dockerignore` 91B y contexto **735.25kB** (antes, con `context: backend`, era 11.30kB). Segunda corrida para capturar el exit code:
+
+```
+PS> docker compose build api 2>$null | Out-Null; Write-Output ("EXIT=" + $LASTEXITCODE)
+EXIT=0
+```
+
+```
+PS> docker compose up -d postgres
+ Container turnos-odontologia-postgres-1 Running 
+```
+
+```
+PS> docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-postgres-1 Up 10 hours (healthy)
+```
+
+```
+PS> docker compose up -d api
+ Container turnos-odontologia-postgres-1 Running 
+ Container turnos-odontologia-api-1 Recreate 
+ Container turnos-odontologia-api-1 Recreated 
+ Container turnos-odontologia-postgres-1 Waiting 
+ Container turnos-odontologia-postgres-1 Healthy 
+ Container turnos-odontologia-api-1 Starting 
+ Container turnos-odontologia-api-1 Started 
+```
+
+```
+PS> Start-Sleep -Seconds 5; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-api-1 Up 9 seconds
+turnos-odontologia-postgres-1 Up 10 hours (healthy)
+```
+
+```
+PS> docker compose exec api python -c "import backend.app.main"
+<sin salida>
+```
+
+```
+PS> docker compose exec api python -c "import backend.app.main"; Write-Output ("EXIT=" + $LASTEXITCODE)
+EXIT=0
+```
+
+El contenedor `api-1` se **recreó** (el `up -d` informó `Recreate`/`Recreated`, sin `--force-recreate`). Imagen del contenedor vs. tag `latest`:
+
+```
+PS> docker compose ps -a
+NAME                            IMAGE                    COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+turnos-odontologia-api-1        turnos-odontologia-api   "uvicorn backend.app…"   api        16 seconds ago   Up 15 seconds             0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+turnos-odontologia-postgres-1   postgres:16              "docker-entrypoint.s…"   postgres   9 days ago       Up 10 hours (healthy)     0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+turnos-odontologia-web-1        turnos-odontologia-web   "/docker-entrypoint.…"   web        10 hours ago     Exited (0) 10 hours ago   
+```
+
+```
+PS> docker inspect turnos-odontologia-api-1 --format "{{.Image}}"
+sha256:0d895e7ce227ff3691b5f45406e54cd4ed6ada16ffbaeef64f8376836f0fd2a8
+```
+
+```
+PS> docker image ls turnos-odontologia-api --digests
+REPOSITORY               TAG       DIGEST                                                                    IMAGE ID       CREATED          SIZE
+turnos-odontologia-api   latest    sha256:0d895e7ce227ff3691b5f45406e54cd4ed6ada16ffbaeef64f8376836f0fd2a8   0d895e7ce227   34 seconds ago   335MB
+```
+
+**Coinciden:** la imagen del contenedor es `sha256:0d895e7ce227...` y `turnos-odontologia-api:latest` tiene el mismo digest y el mismo ID `0d895e7ce227` (335MB, creada 34 segundos antes de la consulta). A diferencia del grupo 1, el contenedor ahora sí corre la imagen construida en esta corrida.
+
+`turnos-odontologia-web-1 Exited (0) 10 hours ago` sigue siendo un contenedor preexistente de C-13; no se tocó su servicio.
