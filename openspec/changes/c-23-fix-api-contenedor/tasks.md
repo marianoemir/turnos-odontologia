@@ -160,11 +160,11 @@
   **Cómo se verifica**: `docker compose config --services` y `(docker compose config --services | Measure-Object -Line).Lines`.
   **Resultado esperado**: exactamente `postgres`, `api` y `web` (3 líneas, sin servicios faltantes ni agregados).
 
-- [ ] 9.5 Correr la suite y el lint completos, y validar el change.
+- [x] 9.5 Correr la suite y el lint completos, y validar el change.
   **Cómo se verifica**: `& "$env:TEMP\venv-verif\Scripts\python.exe" -m pytest -rs backend/tests` y `& "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/` y `openspec validate c-23-fix-api-contenedor --strict`. Se usa el venv 3.13 de la task 4.4, que todavía no se borró; el `.venv` de la raíz en 3.14 **no** se usa para verificar.
   **Resultado esperado**: `pytest` sin fallos (los tests de DB necesitan `DATABASE_URL` apuntando a `turnos` o a una base terminada en `_test`; sin ella se saltean y hay que reportar los conteos reales), `ruff` con `All checks passed!` y la validación de OpenSpec sin issues.
 
-- [ ] 9.6 Dejar el entorno limpio, sin contenedores corriendo, y borrar el venv de verificación.
+- [x] 9.6 Dejar el entorno limpio, sin contenedores corriendo, y borrar el venv de verificación.
   **Cómo se verifica**: `docker compose down` y `docker compose ps`, luego `Remove-Item -Recurse -Force $env:TEMP\venv-verif` (recién ahora, después de 9.5) y `Remove-Item -Force $env:TEMP\freeze.txt`.
   **Resultado esperado**: `docker compose ps` sin filas de servicios en ejecución (solo el encabezado). El volumen `pgdata` se conserva, no se borra con `-v`. El venv y el freeze de `$env:TEMP` ya no existen y `git status --short` no muestra archivos nuevos fuera de lo esperado.
 
@@ -2184,3 +2184,130 @@ PS> (docker compose config --services | Measure-Object -Line).Lines
 Cumple: exactamente `postgres`, `api` y `web`, y el conteo `3`.
 
 Los contenedores quedaron corriendo al terminar (el `down` final es de la task 9.6, que no se ejecutó).
+
+#### 9.5 — Suite, lint y validación del change
+
+Estado previo: HEAD `2b44112 docs(c-23): verifica el stack y cierra la 5.2 de C-13 (grupo 9, 9.1 a 9.4)`, árbol limpio, `postgres` `Up (healthy)` y `api`/`web` apagados (como se pidió: para pytest solo hace falta la base). `$env:TEMP\venv-verif\Scripts\python.exe` presente (`True`); `$env:TEMP\freeze.txt` **no existía** de antemano (`False`).
+
+a) Suite con `turnos_test` (misma URL que 4.4 (bis)):
+
+```
+PS> $env:DATABASE_URL = "postgresql+psycopg://odontologia:odontologia@localhost:5433/turnos_test"; & "$env:TEMP\venv-verif\Scripts\python.exe" -m pytest -rs backend/tests 2>&1 | Select-Object -Last 40
+backend\tests\test_recordatorio_token.py ...................             [ 72%]
+backend\tests\test_recordatorios_api.py ..............                   [ 74%]
+backend\tests\test_recursos.py ....                                      [ 74%]
+backend\tests\test_reserva_api.py .............                          [ 76%]
+backend\tests\test_reserva_servicio.py .....................             [ 79%]
+backend\tests\test_roles_api.py ....................                     [ 81%]
+backend\tests\test_seed.py ..                                            [ 81%]
+backend\tests\test_sucursales_api.py ....................                [ 84%]
+backend\tests\test_turno_modelo.py ........                              [ 85%]
+backend\tests\test_turno_servicio.py ................................... [ 90%]
+.................                                                        [ 92%]
+backend\tests\test_turnos_api.py .....................                   [ 95%]
+backend\tests\test_usuarios_sucursal_api.py ............................ [ 99%]
+....                                                                     [ 99%]
+backend\tests\test_zona_horaria.py ...                                   [100%]
+
+============================== warnings summary ===============================
+..\..\..\..\MARIAN~1\AppData\Local\Temp\venv-verif\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\MARIAN~1\AppData\Local\Temp\venv-verif\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+backend/tests/test_rbac_contexto.py::test_rol_desconocido_da_422
+backend/tests/test_rbac_contexto.py::test_rol_mayusculas_da_422
+backend/tests/test_rbac_contexto.py::test_rol_con_espacio_da_422
+backend/tests/test_rbac_contexto.py::test_sucursal_no_uuid_da_422
+backend/tests/test_rbac_contexto.py::test_sucursal_uuid_inexistente_da_422
+backend/tests/test_roles_api.py::test_rol_no_canonico_como_actor_da_422
+  C:\Users\MARIAN~1\AppData\Local\Temp\venv-verif\Lib\site-packages\anyio\_backends\_asyncio.py:1124: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = context.run(func, *args)
+
+backend/tests/test_usuarios_sucursal_api.py::test_filtro_sucursal_id_mal_formado_da_422
+  C:\Users\Mariano_Chirino\Documents\GitHub\turnos-odontologia\backend\app\rbac\service.py:213: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    sucursal_uuid = _parse_uuid_filtro(sucursal_id, "sucursal_id")
+
+backend/tests/test_usuarios_sucursal_api.py::test_filtro_rol_id_mal_formado_da_422
+  C:\Users\Mariano_Chirino\Documents\GitHub\turnos-odontologia\backend\app\rbac\service.py:222: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    rol_uuid = _parse_uuid_filtro(rol_id, "rol_id")
+
+-- Docs: https://docs.pytest.org/en/stable/warnings.html
+================= 755 passed, 9 warnings in 130.69s (0:02:10) =================
+exit 0
+DATABASE_URL luego=[]
+```
+
+b) Lint:
+
+```
+PS> & "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/
+All checks passed!
+exit 0
+```
+
+c) Validación de OpenSpec:
+
+```
+PS> cmd /c "openspec validate c-23-fix-api-contenedor --strict"
+Change 'c-23-fix-api-contenedor' is valid
+exit 0
+
+PS> cmd /c "openspec list"
+Changes:
+  c-23-fix-api-contenedor     34/36 tasks   12m ago
+exit 0
+```
+
+Cumple: **755 passed, 0 failed, 0 skipped** (con `-rs` no hubo ninguna línea `SKIPPED`, así que no hay razones que reportar; los tests de integración corrieron contra `turnos_test`), `exit 0`; `ruff` dice `All checks passed!` con `exit 0`; `openspec validate --strict` dice `Change 'c-23-fix-api-contenedor' is valid` y el control positivo `openspec list` muestra el change. No se arregló ningún test ni código.
+
+#### 9.6 — Entorno limpio
+
+```
+PS> docker compose down 2>&1
+ Container turnos-odontologia-api-1 Stopping 
+ Container turnos-odontologia-api-1 Stopped 
+ Container turnos-odontologia-api-1 Removing 
+ Container turnos-odontologia-api-1 Removed 
+ Container turnos-odontologia-postgres-1 Stopping 
+ Container turnos-odontologia-postgres-1 Stopped 
+ Container turnos-odontologia-postgres-1 Removing 
+ Container turnos-odontologia-postgres-1 Removed 
+ Network turnos-odontologia_default Removing 
+ Network turnos-odontologia_default Removed 
+exit 0
+
+PS> docker compose ps
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
+```
+
+Sin filas de servicios (solo el encabezado).
+
+```
+PS> docker volume ls --filter "name=pgdata" --format "{{.Name}}"
+prueba-limpia_pgdata
+turnos-odontologia_pgdata
+
+PS> Remove-Item -Recurse -Force $env:TEMP\venv-verif
+exit 0
+
+PS> Remove-Item -Force $env:TEMP\freeze.txt
+Remove-Item : No se encuentra la ruta de acceso 'C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt' porque no existe.
+   En l�nea: 1 Car�cter: 299
++ Remove-Item -Force $env:TEMP\freeze.txt; Write-Output ("exit " + $LASTEXITCODE)
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\MARIAN...Temp\freeze.txt:String) [Remove-Item], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+exit 0
+
+PS> Write-Output ("venv-verif: " + (Test-Path $env:TEMP\venv-verif))
+venv-verif: False
+
+PS> Write-Output ("freeze.txt: " + (Test-Path "$env:TEMP\freeze.txt"))
+freeze.txt: False
+
+PS> git status --short
+<sin salida>
+```
+
+Cumple: `docker compose ps` sin filas, el volumen `turnos-odontologia_pgdata` sigue existiendo (no se usó `down -v`), `venv-verif` y `freeze.txt` dan `False`. Sobre `freeze.txt`: **no existía** al empezar este turno, así que el `Remove-Item` reportó `ObjectNotFound`; no se trata como error y no se creó ni se tocó ningún otro archivo de `$env:TEMP`. Al momento de correr ese `git status --short` todavía no se habían escrito estas notas, por eso salió limpio; tras agregar la sección 9.5/9.6, `git status --short` muestra únicamente ` M openspec/changes/c-23-fix-api-contenedor/tasks.md`.
