@@ -54,23 +54,23 @@
 
 ## 4. Dependencias: runtime con pin vs. desarrollo
 
-- [ ] 4.1 Medir los pins en un venv nuevo de la versión elegida (Q1) y guardar el `pip freeze` como evidencia. El venv y el freeze van **fuera del repo**, bajo `$env:TEMP`, para no ensuciar el árbol de trabajo.
+- [x] 4.1 Medir los pins en un venv nuevo de la versión elegida (Q1) y guardar el `pip freeze` como evidencia. El venv y el freeze van **fuera del repo**, bajo `$env:TEMP`, para no ensuciar el árbol de trabajo.
   **Cómo se verifica**: `py -3.13 -m venv $env:TEMP\venv-medicion`, `& "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip install --upgrade pip`, `& "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip install fastapi sqlalchemy alembic "psycopg[binary]" uvicorn httpx tzdata pytest ruff`, `& "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip freeze > $env:TEMP\freeze.txt`, `Select-String -Path $env:TEMP\freeze.txt -Pattern '^(fastapi|SQLAlchemy|alembic|psycopg|psycopg-binary|uvicorn|httpx|tzdata|pytest|ruff)=='`.
   **Resultado esperado**: al menos 9 coincidencias con versión exacta (`==`) para fastapi, SQLAlchemy, alembic, psycopg, uvicorn, httpx, tzdata, pytest y ruff. El contenido de `$env:TEMP\freeze.txt` se pega en las notas de apply y el venv se borra al terminar (`Remove-Item -Recurse -Force $env:TEMP\venv-medicion`). Al final de la task, `git status --short` no muestra archivos nuevos fuera de lo esperado.
 
-- [ ] 4.2 Confirmar la clasificación de `httpx` (Q6) y escribir `backend/requirements.txt` solo con runtime y **todos** con `==`: `fastapi`, `sqlalchemy`, `alembic`, `psycopg[binary]`, `uvicorn`, `tzdata`.
+- [x] 4.2 Confirmar la clasificación de `httpx` (Q6) y escribir `backend/requirements.txt` solo con runtime y **todos** con `==`: `fastapi`, `sqlalchemy`, `alembic`, `psycopg[binary]`, `uvicorn`, `tzdata`.
   **Cómo se verifica**: `Get-ChildItem -Recurse backend/app -Include *.py | Select-String -Pattern "httpx" | Measure-Object | Select-Object -ExpandProperty Count` y `(Get-Content backend/requirements.txt | Where-Object { $_ -match '\S' }).Count` y `(Select-String -Path backend/requirements.txt -Pattern '^[^=]+==[0-9]').Count`.
   **Resultado esperado**: el primer comando devuelve `0` (ningún import de `httpx` en `backend/app/`), que es la medición que justifica el default dev de Q6; si devolviera más de `0`, `httpx` va a runtime, se ajusta la spec y se registra la evidencia. Los otros dos números son iguales (6 y 6): cada línea no vacía tiene pin `==`. `Select-String -Path backend/requirements.txt -Pattern '^(pytest|ruff|httpx)'` devuelve 0 coincidencias.
 
-- [ ] 4.3 Crear `backend/requirements-dev.txt` con `-r requirements.txt` primero, y después `pytest==<pin>`, `ruff==<pin>` y `httpx==<pin>` con los valores medidos en 4.1.
+- [x] 4.3 Crear `backend/requirements-dev.txt` con `-r requirements.txt` primero, y después `pytest==<pin>`, `ruff==<pin>` y `httpx==<pin>` con los valores medidos en 4.1.
   **Cómo se verifica**: `Select-String -Path backend/requirements-dev.txt -Pattern '^-r requirements\.txt$'` y `Select-String -Path backend/requirements-dev.txt -Pattern '^(pytest|ruff|httpx)==[0-9]'`.
   **Resultado esperado**: 1 coincidencia para el `-r` en la primera línea y 3 coincidencias (pytest, ruff y httpx) con pin `==` en el segundo comando.
 
-- [ ] 4.4 Probar la instalación limpia de los dos archivos en un venv nuevo **fuera del repo** (`$env:TEMP`). **Este venv no se borra hasta terminar la task 9.5**: es el intérprete 3.13 con el que se corren `pytest` y `ruff` en 7.2 y 9.5. El `.venv` de la raíz (3.14) **no** se usa para verificar.
+- [x] 4.4 Probar la instalación limpia de los dos archivos en un venv nuevo **fuera del repo** (`$env:TEMP`). **Este venv no se borra hasta terminar la task 9.5**: es el intérprete 3.13 con el que se corren `pytest` y `ruff` en 7.2 y 9.5. El `.venv` de la raíz (3.14) **no** se usa para verificar.
   **Cómo se verifica**: `py -3.13 -m venv $env:TEMP\venv-verif`, `& "$env:TEMP\venv-verif\Scripts\python.exe" -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt`, luego `& "$env:TEMP\venv-verif\Scripts\python.exe" -m pytest -rs backend/tests` y `& "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/`.
   **Resultado esperado**: el `pip install` termina sin error de resolución (ningún `No matching distribution found`); `pytest` reporta passed/skipped sin fallos y `ruff` informa `All checks passed!`. Si algún pin no existe para 3.13, se reporta el error real y se ajusta **con evidencia** en las notas de apply (Q2). `git status --short` no muestra archivos nuevos fuera de lo esperado. El borrado del venv queda para la task 9.6.
 
-- [ ] 4.5 Confirmar que la imagen de `api` instala solo runtime.
+- [x] 4.5 Confirmar que la imagen de `api` instala solo runtime.
   **Cómo se verifica**: `docker compose build api`, `docker compose up -d api`, `docker compose exec api python -m pip list | Select-String -Pattern '^(pytest|ruff|httpx)\s'`.
   **Resultado esperado**: 0 coincidencias (ni `pytest`, ni `ruff`, ni `httpx` dentro de la imagen) y `docker compose exec api python -m pip list | Select-String -Pattern '^(fastapi|SQLAlchemy|alembic|uvicorn|tzdata)\s'` muestra 5 coincidencias con versión pinneada.
 
@@ -751,3 +751,493 @@ turnos-odontologia-api   latest    sha256:0d895e7ce227ff3691b5f45406e54cd4ed6ada
 **Coinciden:** la imagen del contenedor es `sha256:0d895e7ce227...` y `turnos-odontologia-api:latest` tiene el mismo digest y el mismo ID `0d895e7ce227` (335MB, creada 34 segundos antes de la consulta). A diferencia del grupo 1, el contenedor ahora sí corre la imagen construida en esta corrida.
 
 `turnos-odontologia-web-1 Exited (0) 10 hours ago` sigue siendo un contenedor preexistente de C-13; no se tocó su servicio.
+
+### Grupo 4 — Dependencias: runtime con pin vs. desarrollo (2026-11-13)
+
+Archivos: `backend/requirements.txt` (reescrito con pins), `backend/requirements-dev.txt` (nuevo) y este `tasks.md`. No se tocaron Dockerfile, compose, README ni `tests.yml`. Los venvs viven fuera del repo, bajo `$env:TEMP`.
+
+Estado antes de empezar el grupo: árbol limpio, HEAD en `b39628b fix(docker): reconstruye la imagen de api con contexto raiz (c-23 grupo 3)`.
+
+```
+PS> git status --short
+<sin salida>
+```
+
+#### 4.1 — Medición de pins en `py -3.13`
+
+```
+PS> Write-Output ("venv-medicion: " + (Test-Path "$env:TEMP\venv-medicion")); Write-Output ("venv-verif: " + (Test-Path "$env:TEMP\venv-verif")); Write-Output ("freeze.txt: " + (Test-Path "$env:TEMP\freeze.txt"))
+venv-medicion: False
+venv-verif: False
+freeze.txt: False
+```
+
+```
+PS> py -3.13 -m venv $env:TEMP\venv-medicion
+Actual environment location may have moved due to redirects, links or junctions.
+  Requested location: "C:\Users\MARIAN~1\AppData\Local\Temp\venv-medicion\Scripts\python.exe"
+  Actual location:    "C:\Users\Mariano_Chirino\AppData\Local\Temp\venv-medicion\Scripts\python.exe"
+EXIT=0
+Python 3.13.7
+```
+
+```
+PS> & "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip install --upgrade pip
+    Uninstalling pip-25.2:
+      Successfully uninstalled pip-25.2
+Successfully installed pip-26.3
+EXIT=0
+```
+
+```
+PS> & "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip install fastapi sqlalchemy alembic "psycopg[binary]" uvicorn httpx tzdata pytest ruff
+...
+Installing collected packages: tzdata, typing-extensions, ruff, pygments, psycopg-binary, pluggy, packaging, MarkupSafe, iniconfig, idna, h11, colorama, click, certifi, annotated-types, annotated-doc, uvicorn, typing-inspection, sqlalchemy, pytest, pydantic-core, psycopg, opentelemetry-api, Mako, httpcore, anyio, starlette, pydantic, httpx, alembic, fastapi
+
+Successfully installed Mako-1.4.3 MarkupSafe-3.0.4 alembic-1.20.1 annotated-doc-0.0.6 annotated-types-0.8.0 anyio-4.16.0 certifi-2026.10.23 click-8.5.1 colorama-0.4.6 fastapi-0.162.5 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.20 iniconfig-2.3.1 opentelemetry-api-1.45.2 packaging-26.3 pluggy-1.7.0 psycopg-3.3.9 psycopg-binary-3.3.9 pydantic-2.14.3 pydantic-core-2.50.4 pygments-2.21.0 pytest-9.2.0 ruff-0.17.5 sqlalchemy-2.1.8 starlette-1.10.0 typing-extensions-4.16.0 typing-inspection-0.4.5 tzdata-2026.6 uvicorn-0.54.0
+EXIT=0
+```
+
+`pip freeze` completo (`$env:TEMP\freeze.txt`, 31 líneas):
+
+```
+PS> & "$env:TEMP\venv-medicion\Scripts\python.exe" -m pip freeze > $env:TEMP\freeze.txt
+EXIT=0
+PS> Get-Content $env:TEMP\freeze.txt
+alembic==1.20.1
+annotated-doc==0.0.6
+annotated-types==0.8.0
+anyio==4.16.0
+certifi==2026.10.23
+click==8.5.1
+colorama==0.4.6
+fastapi==0.162.5
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.20
+iniconfig==2.3.1
+Mako==1.4.3
+MarkupSafe==3.0.4
+opentelemetry-api==1.45.2
+packaging==26.3
+pluggy==1.7.0
+psycopg==3.3.9
+psycopg-binary==3.3.9
+pydantic==2.14.3
+pydantic_core==2.50.4
+Pygments==2.21.0
+pytest==9.2.0
+ruff==0.17.5
+SQLAlchemy==2.1.8
+starlette==1.10.0
+typing-inspection==0.4.5
+typing_extensions==4.16.0
+tzdata==2026.6
+uvicorn==0.54.0
+```
+
+```
+PS> Select-String -Path $env:TEMP\freeze.txt -Pattern '^(fastapi|SQLAlchemy|alembic|psycopg|psycopg-binary|uvicorn|httpx|tzdata|pytest|ruff)=='
+
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:1:alembic==1.20.1
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:8:fastapi==0.162.5
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:11:httpx==0.28.1
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:19:psycopg==3.3.9
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:20:psycopg-binary==3.3.9
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:24:pytest==9.2.0
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:25:ruff==0.17.5
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:26:SQLAlchemy==2.1.8
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:30:tzdata==2026.6
+C:\Users\MARIAN~1\AppData\Local\Temp\freeze.txt:31:uvicorn==0.54.0
+```
+
+**10 coincidencias** (el esperado era "al menos 9"): fastapi, SQLAlchemy, alembic, psycopg, psycopg-binary, uvicorn, httpx, tzdata, pytest y ruff, todas con `==`.
+
+**Cómo se resolvió el nombre `psycopg[binary]`**: `pip freeze` lista dos distribuciones separadas (`psycopg==3.3.9` y `psycopg-binary==3.3.9`) porque `psycopg-binary` es el artefacto que instala el extra. Se verificó en el metadata:
+
+```
+PS> & "$env:TEMP\venv-medicion\Scripts\python.exe" -c "import importlib.metadata as m; d=m.distribution('psycopg'); print('Name:', d.metadata['Name']); print('Version:', d.version); print('Provides-Extra:', d.metadata.get_all('Provides-Extra'))"
+Name: psycopg
+Version: 3.3.9
+Provides-Extra: ['c', 'binary', 'pool', 'test', 'dev', 'docs']
+```
+
+Por eso el pin se escribe como `psycopg[binary]==3.3.9` (extra `binary` declarado por `psycopg`), no como dos líneas sueltas: `psycopg-binary` no se instala solo como dependencia directa.
+
+**Comparación con la referencia de `CHANGES.md`** (se usó siempre el valor medido):
+
+| paquete | referencia en CHANGES.md | medido (`pip freeze`) | pin escrito |
+|---|---|---|---|
+| fastapi | 0.143.0 | 0.162.5 | `fastapi==0.162.5` |
+| sqlalchemy | 2.1.4 | 2.1.8 (`SQLAlchemy==2.1.8`) | `sqlalchemy==2.1.8` |
+| alembic | 1.20.0 | 1.20.1 | `alembic==1.20.1` |
+| psycopg[binary] | 3.3.6 | 3.3.9 (`psycopg` + `psycopg-binary`) | `psycopg[binary]==3.3.9` |
+| uvicorn | 0.54.0 | 0.54.0 | `uvicorn==0.54.0` |
+| tzdata | 2026.5 | 2026.6 | `tzdata==2026.6` |
+| pytest | 9.1.1 | 9.2.0 | `pytest==9.2.0` |
+| ruff | 0.17.0 | 0.17.5 | `ruff==0.17.5` |
+| httpx | 0.28.1 | 0.28.1 | `httpx==0.28.1` |
+
+Coinciden uvicorn y httpx; el resto difiere y se usó el medido. `SQLAlchemy==2.1.8` se escribió como `sqlalchemy==2.1.8` (el nombre de proyecto normaliza mayúsculas; es la misma distribución).
+
+Borrado del venv de medición y comprobación del árbol:
+
+```
+PS> Remove-Item -Recurse -Force $env:TEMP\venv-medicion
+venv-medicion existe luego de borrar: False
+freeze.txt conservado: True
+```
+
+```
+PS> git status --short
+<sin salida>
+```
+
+#### 4.2 — `httpx` (Q6) y `backend/requirements.txt`
+
+```
+PS> Get-ChildItem -Recurse backend/app -Include *.py | Select-String -Pattern "httpx" | Measure-Object | Select-Object -ExpandProperty Count
+0
+```
+
+`0` coincidencias en `backend/app/`: se mantiene el default de Q6 y `httpx` queda en dev.
+
+Contenido escrito (`CRLF`, 6 líneas, sin líneas vacías):
+
+```
+fastapi==0.162.5
+sqlalchemy==2.1.8
+alembic==1.20.1
+psycopg[binary]==3.3.9
+uvicorn==0.54.0
+tzdata==2026.6
+```
+
+```
+PS> (Get-Content backend/requirements.txt | Where-Object { $_ -match '\S' }).Count
+6
+
+PS> (Select-String -Path backend/requirements.txt -Pattern '^[^=]+==[0-9]').Count
+6
+
+PS> Select-String -Path backend/requirements.txt -Pattern '^(pytest|ruff|httpx)' | Measure-Object | Select-Object -ExpandProperty Count
+0
+```
+
+Los tres números coinciden con lo esperado (6 líneas no vacías, 6 con pin `==`, 0 dev en runtime).
+
+#### 4.3 — `backend/requirements-dev.txt`
+
+Contenido (`CRLF`, 4 líneas):
+
+```
+-r requirements.txt
+pytest==9.2.0
+ruff==0.17.5
+httpx==0.28.1
+```
+
+```
+PS> Select-String -Path backend/requirements-dev.txt -Pattern '^-r requirements\.txt$'
+
+backend\requirements-dev.txt:1:-r requirements.txt
+
+PS> Select-String -Path backend/requirements-dev.txt -Pattern '^(pytest|ruff|httpx)==[0-9]'
+backend\requirements-dev.txt:2:pytest==9.2.0
+backend\requirements-dev.txt:3:ruff==0.17.5
+backend\requirements-dev.txt:4:httpx==0.28.1
+
+PS> (Select-String -Path backend/requirements-dev.txt -Pattern '^(pytest|ruff|httpx)==[0-9]').Count
+3
+```
+
+1 coincidencia para el `-r` en la primera línea y 3 pins dev, como pide la task.
+
+#### 4.4 — BLOQUEADA: `pytest -rs backend/tests` reporta 2 fallos
+
+`DATABASE_URL` en el shell de trabajo y qué base se habría usado (no se seteo ni se tocó Postgres):
+
+```
+PS> Write-Output ("[" + $env:DATABASE_URL + "]")
+[]
+
+PS> Test-Path .env
+True
+```
+
+El `.env` de la raíz no se lee automáticamente por `pytest`; `backend/tests/conftest.py` solo mira `os.environ["DATABASE_URL"]`. Sin la variable, las fixtures `integration` se saltean (`pytest.skip`), y dos tests que **no** están marcados `integration` fallan al pedir sesión de DB.
+
+```
+PS> py -3.13 -m venv $env:TEMP\venv-verif
+Actual environment location may have moved due to redirects, links or junctions.
+  Requested location: "C:\Users\MARIAN~1\AppData\Local\Temp\venv-verif\Scripts\python.exe"
+  Actual location:    "C:\Users\Mariano_Chirino\AppData\Local\Temp\venv-verif\Scripts\python.exe"
+EXIT=0
+Python 3.13.7
+```
+
+```
+PS> & "$env:TEMP\venv-verif\Scripts\python.exe" -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+...
+Successfully installed Mako-1.4.3 MarkupSafe-3.0.4 alembic-1.20.1 annotated-doc-0.0.6 annotated-types-0.8.0 anyio-4.16.0 certifi-2026.10.23 click-8.5.1 colorama-0.4.6 fastapi-0.162.5 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.20 iniconfig-2.3.1 opentelemetry-api-1.45.2 packaging-26.3 pluggy-1.7.0 psycopg-3.3.9 psycopg-binary-3.3.9 pydantic-2.14.3 pydantic-core-2.50.4 pygments-2.21.0 pytest-9.2.0 ruff-0.17.5 sqlalchemy-2.1.8 starlette-1.10.0 typing-extensions-4.16.0 typing-inspection-0.4.5 tzdata-2026.6 uvicorn-0.54.0
+EXIT=0
+```
+
+Sin `No matching distribution found`: la resolución de los dos archivos en 3.13 está en verde.
+
+```
+PS> & "$env:TEMP\venv-verif\Scripts\python.exe" -m pytest -rs backend/tests
+...
+SKIPPED [1] backend\tests\test_turnos_api.py:133: Postgres no alcanzable (sin DATABASE_URL o conexion rechazada); se requiere Postgres real.
+...
+SKIPPED [3] backend\tests\test_usuarios_sucursal_api.py:292: Postgres no alcanzable (sin DATABASE_URL o conexion rechazada); se requiere Postgres real.
+=========== 2 failed, 139 passed, 614 skipped, 4 warnings in 4.33s ============
+EXIT=1
+```
+
+(Renglones `SKIPPED` omitidos acá sólo por longitud; salida completa en `$env:TEMP\pytest-full.txt`. Conteos literales: **2 failed, 139 passed, 614 skipped**.)
+
+Los dos fallos:
+
+```
+================================== FAILURES ===================================
+________________________ test_sucursal_no_uuid_da_422 _________________________
+
+    def test_sucursal_no_uuid_da_422() -> None:
+>       r = client.get(
+            "/contexto",
+            headers={"X-Actor-Rol": "admin", "X-Sucursal-Id": "no-es-uuid"},
+        )
+
+backend\tests\test_rbac_contexto.py:88:
+...
+backend\app\rbac\context.py:41: in get_sucursal_session
+    session = get_session()()
+backend\app\db.py:53: in get_session
+    return sessionmaker(bind=get_engine(), expire_on_commit=False)
+backend\app\db.py:43: in get_engine
+    url = _database_url()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _database_url() -> str:
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+>           raise RuntimeError(
+                "DATABASE_URL no esta definida; "
+                "exportarla para conectar a Postgres."
+            )
+E           RuntimeError: DATABASE_URL no esta definida; exportarla para conectar a Postgres.
+
+backend\app\db.py:34: RuntimeError
+____________________ test_sucursal_uuid_inexistente_da_422 ____________________
+
+    def test_sucursal_uuid_inexistente_da_422() -> None:
+>       r = client.get(
+            "/contexto",
+            headers={
+                "X-Actor-Rol": "admin",
+                "X-Sucursal-Id": str(uuid.uuid4()),
+            },
+        )
+
+backend\tests\test_rbac_contexto.py:97:
+...
+E           RuntimeError: DATABASE_URL no esta definida; exportarla para conectar a Postgres.
+
+backend\app\db.py:34: RuntimeError
+============================== warnings summary ===============================
+```
+
+Ambos viven en `backend/tests/test_rbac_contexto.py` (líneas 87 y 96), no llevan el marcador `integration` y por eso no se saltean: piden `get_sucursal_session` → `get_session()` → `_database_url()`.
+
+`ruff` de la misma task (sí cumple su parte):
+
+```
+PS> & "$env:TEMP\venv-verif\Scripts\python.exe" -m ruff check backend/
+All checks passed!
+EXIT=0
+```
+
+```
+PS> git status --short
+ M backend/requirements.txt
+?? backend/requirements-dev.txt
+```
+
+**4.4 quedó bloqueada en la primera corrida**: el resultado esperado decía "pytest reporta passed/skipped sin fallos" y hubo **2 failed**, con `EXIT=1`. El fallo es por `DATABASE_URL` ausente (no por los pins: la instalación resolvió sin errores y `ruff` está en verde). El venv `$env:TEMP\venv-verif` **se conserva** (no se borra hasta la task 9.6).
+
+##### 4.4 (bis) — Corrida con `DATABASE_URL` sobre `turnos_test`
+
+Decisión del usuario: usar la base `turnos_test` (NO `turnos`), ya creada en el Postgres del compose.
+
+Qué permite el conftest (`backend/tests/conftest.py`), tal cual:
+
+```
+41: def _db_permitida(nombre: str) -> bool:
+42:     return nombre == "turnos" or nombre.endswith("_test")
+```
+
+```
+45: def _exigir_db_permitida(url: str | None) -> None:
+46:     """Fail-fast: rehusa DBs fuera de `turnos` / `*_test`.
+47: 
+48:     Solo parsea la URL (nunca conecta ni trunca). Lanza RuntimeError
+49:     con el nombre ofensor y la regla permitida.
+50:     """
+51:     nombre = _nombre_db(url or "")
+52:     if not _db_permitida(nombre):
+53:         raise RuntimeError(
+54:             f"DATABASE_URL apunta a la base '{nombre}': rehusado. "
+55:             "Los tests truncan el catalogo de la base apuntada; "
+56:             "solo se permite 'turnos' o una base terminada en '_test'."
+57:         )
+```
+
+`turnos_test` termina en `_test` → permitida. Qué hacen las fixtures de integración:
+
+```
+ 96: @pytest.fixture(scope="session")
+ 97: def _db_engine(_db_url_or_skip, request):
+ 98:     url = _db_url_or_skip
+ 99:     os.environ["DATABASE_URL"] = url
+100:     ini = os.path.join(str(request.config.rootdir), "backend", "alembic.ini")
+101:     if os.path.exists(ini):
+102:         from alembic import command
+103:         from alembic.config import Config
+104:
+105:         command.upgrade(Config(ini), "head")
+```
+
+```
+126: @pytest.fixture()
+127: def db_session(_db_engine):
+128:     from sqlalchemy.orm import Session
+129:
+130:     try:
+131:         _exigir_db_permitida(_database_url())
+132:     except RuntimeError as exc:
+133:         pytest.fail(str(exc))
+134:     conn = _db_engine.connect()
+135:     txn = conn.begin()
+136:     # Pizarra en blanco por test: los scenarios parten de
+137:     # "catalogo vacio". TRUNCATE es transaccional en Postgres,
+138:     # asi el rollback del teardown restaura lo previo.
+139:     conn.execute(text(f"TRUNCATE {_CATALOGO_TABLES}"))
+140:     session = Session(bind=conn)
+141:     yield session
+142:     try:
+143:         session.close()
+144:     finally:
+145:         if txn.is_active:
+146:             txn.rollback()
+147:         conn.close()
+```
+
+Es decir: aplica migraciones (`alembic upgrade head`), trunca el catálogo dentro de una transacción por test y hace rollback en el teardown. Credenciales del compose verificadas en solo lectura:
+
+```
+PS> docker compose config | Select-String -Pattern 'POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB|5433|published'
+        published: "8000"
+      POSTGRES_DB: turnos
+      POSTGRES_PASSWORD: odontologia
+      POSTGRES_USER: odontologia
+        published: "5433"
+        published: "8080"
+```
+
+Corrida con la variable definida y borrada en la misma consola:
+
+```
+PS> $env:DATABASE_URL = "postgresql+psycopg://odontologia:odontologia@localhost:5433/turnos_test"; Write-Output ("DATABASE_URL=" + $env:DATABASE_URL); & "$env:TEMP\venv-verif\Scripts\python.exe" -m pytest -rs backend/tests
+DATABASE_URL=postgresql+psycopg://odontologia:odontologia@localhost:5433/turnos_test
+EXIT=0
+DATABASE_URL luego del borrado=[]
+=== resumen ===
+================= 755 passed, 9 warnings in 137.88s (0:02:17) =================
+```
+
+**755 passed, 0 failed, 0 skipped**, `EXIT=0`. No se ejecutó nada contra la base `turnos`. Los **2 fallos anteriores eran solo la falta de `DATABASE_URL`**: con la variable apuntando a una base permitida desaparecen, y ningún test quedó skipeado (los `integration` corrieron de verdad). **4.4 se marca `[x]`.**
+
+#### 4.5 — La imagen instala solo runtime
+
+```
+PS> docker compose build api
+#1 [internal] load local bake definitions
+#1 reading from stdin 602B done
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 295B done
+
+#3 [internal] load metadata for docker.io/library/python:3.13-slim
+#3 DONE 1.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+
+#5 [internal] load build context
+#5 transferring context: 8.02kB 0.0s done
+
+#6 [1/5] FROM docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+#7 [2/5] WORKDIR /code
+#7 CACHED
+#8 [3/5] COPY backend/requirements.txt ./backend/requirements.txt
+#8 DONE 0.1s
+#9 [4/5] RUN pip install --no-cache-dir -r backend/requirements.txt
+#9 2.104 Collecting fastapi==0.162.5 (from -r backend/requirements.txt (line 1))
+#9 2.660 Collecting sqlalchemy==2.1.8 (from -r backend/requirements.txt (line 2))
+#9 2.742 Collecting alembic==1.20.1 (from -r backend/requirements.txt (line 3))
+#9 2.804 Collecting psycopg==3.3.9 (from psycopg[binary]==3.3.9->-r backend/requirements.txt (line 4))
+#9 2.881 Collecting uvicorn==0.54.0 (from -r backend/requirements.txt (line 5))
+#9 2.947 Collecting tzdata==2026.6 (from -r backend/requirements.txt (line 6))
+#9 13.60 Successfully installed Mako-1.4.3 MarkupSafe-3.0.4 alembic-1.20.1 annotated-doc-0.0.6 annotated-types-0.8.0 anyio-4.16.0 click-8.5.1 fastapi-0.162.5 h11-0.16.0 idna-3.20 opentelemetry-api-1.45.2 psycopg-3.3.9 psycopg-binary-3.3.9 pydantic-2.14.3 pydantic-core-2.50.4 sqlalchemy-2.1.8 starlette-1.10.0 typing-extensions-4.16.0 typing-inspection-0.4.5 tzdata-2026.6 uvicorn-0.54.0
+#9 DONE 13.9s
+#10 [5/5] COPY backend/ ./backend/
+#10 DONE 0.1s
+#11 naming to docker.io/library/turnos-odontologia-api:latest 0.0s done
+#11 DONE 3.5s
+#12 resolving provenance for metadata file
+#12 DONE 0.0s
+EXIT=0
+```
+
+Línea pedida: `#5 transferring context: 8.02kB 0.0s done`, con `#4 transferring context: 91B` del `.dockerignore`. El contexto es menor que los 735.25kB del grupo 3; no se investigó la causa, pero el build sí usó el `.dockerignore` y el paso `COPY backend/ ./backend/` se ejecutó.
+
+Nota: `docker compose up -d api 2>&1` hizo que PowerShell envolvieran en `NativeCommandError` las líneas de stderr de Docker; el exit real fue `0` y la salida fue esta:
+
+```
+PS> docker compose up -d api 2>&1
+ Container turnos-odontologia-postgres-1 Running 
+ Container turnos-odontologia-api-1 Recreate 
+ Container turnos-odontologia-api-1 Recreated 
+ Container turnos-odontologia-postgres-1 Waiting 
+ Container turnos-odontologia-postgres-1 Healthy 
+ Container turnos-odontologia-api-1 Starting 
+ Container turnos-odontologia-api-1 Started 
+EXIT=0
+
+PS> Start-Sleep -Seconds 8; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-api-1 Up 8 seconds
+turnos-odontologia-postgres-1 Up 11 hours (healthy)
+```
+
+```
+PS> docker compose exec api python -m pip list | Select-String -Pattern '^(pytest|ruff|httpx)\s'
+<sin coincidencias>
+
+PS> (docker compose exec api python -m pip list | Select-String -Pattern '^(pytest|ruff|httpx)\s' | Measure-Object).Count
+0
+
+PS> docker compose exec api python -m pip list | Select-String -Pattern '^(fastapi|SQLAlchemy|alembic|uvicorn|tzdata)\s'
+
+alembic           1.20.1
+fastapi           0.162.5
+SQLAlchemy        2.1.8
+tzdata            2026.6
+uvicorn           0.54.0
+
+PS> (docker compose exec api python -m pip list | Select-String -Pattern '^(fastapi|SQLAlchemy|alembic|uvicorn|tzdata)\s' | Measure-Object).Count
+5
+```
+
+**0 coincidencias** para `pytest`/`ruff`/`httpx` (la imagen no lleva dev) y **5 coincidencias** de runtime con la versión pinneada. **4.5 se marca `[x]`.**
