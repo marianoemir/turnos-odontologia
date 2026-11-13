@@ -63,6 +63,13 @@
 > - **JWT**: el stack impuesto por el profesor (2026-10-07) incluye JWT y el proyecto no lo implementa. La KB lo prevé en `02_descripcion_general.md:10`, `08_arquitectura_propuesta.md:41` y `:53`, `09_decisiones_y_supuestos.md:37` y `10_preguntas_abiertas.md:24` (Q6). C-11 entregó el header `X-Actor-Rol` en su lugar y ningún change cumplió el JWT. Se define un change nuevo (nombre provisorio C-24 `auth-jwt`) con `/opsx:propose`; va antes de C-14. En esta nota no se agrega su sección ni cambia el total de 23 changes: eso se hace cuando el change esté propuesto. La viñeta de la rev. 8 que dice que el cliente HTTP debe enviar `X-Actor-Rol` queda superada por ese change.
 > - **Redis**: el stack lo pide "para lo asincrónico que corresponda" y no hay Redis en `docker-compose.yml`, `requirements` ni código (verificado el 2026-11-10). Es una decisión PENDIENTE (primero se revisa cómo resolvió C-07 los recordatorios); no está resuelta.
 
+> **Nota de rectificación (2026-11-13, rev. 12)** — C-24 `auth-jwt` propuesto, implementado y archivado el 2026-11-13. No se reescribe el texto de scope ni el Estado de ningún change archivado:
+> - **Estado real recalculado**: 24 changes (antes 23), **15 archivados** (C-01 a C-13, C-23 y C-24) y **9 pendientes** (C-14 a C-22). Se actualizan el árbol, la tabla de dependencias del frontend, el camino crítico y el pie.
+> - **C-24 supersede la viñeta de la rev. 8 sobre `X-Actor-Rol`**: la identidad llega solo por `Authorization: Bearer <token>` (JWT HS256, PyJWT 2.10.1, emitido por `POST /login` con rol y sucursal). Los headers `X-Actor-Rol`, `X-Actor-Usuario` y `X-Sucursal-Id` y el default `recepcion` ya no existen. Las rutas públicas de reserva online siguen sin login. Quedan superados el contrato de headers de C-11 y la parte del cliente HTTP de C-13 que los envía; sus textos no se reescriben y el delta se hace en C-14.
+> - **C-14 (pendiente) se actualiza**: depende también de C-24; el selector de rol sin login y el envío de `X-Actor-Rol` se reemplazan por login, sesión con rol y sucursal del token, guard por rol y cliente HTTP con `Authorization: Bearer` (manejo de `401`/`403`). Ver su sección.
+> - **Dependencias de C-24**: C-08, C-10 y C-11, derivadas de las capabilities que modifica (`reserva-online`, `caja-pagos`, `rbac`, `multisucursal`). El proposal archivado no define Dependencias ni Governance; Governance de C-24 se fija en ALTO por la misma razón que C-11 (autenticación y permisos).
+> - **Gates y plan con 3 agentes**: reflejan el plan original y no listan C-24. Ante una diferencia manda el campo "Dependencias" de cada change (rev. 4).
+
 ---
 
 ## Cómo usar este documento
@@ -86,23 +93,25 @@ C-01 foundation-setup [x]
     │   │   └── C-07 recordatorios-confirmacion [x]
     │   │       └── C-08 reserva-online [x] (1)
     │   ├── C-05 agenda-del-dia [x]
-    │   ├── C-23 fix-api-contenedor [ ] (2)
+    │   ├── C-23 fix-api-contenedor [x] (2)
     │   └── C-10 caja-pagos-os-arca [x]
     │       └── C-11 roles-multisucursal-exportacion [x] (3)
+    │           └── C-24 auth-jwt [x] (5)
     ├── C-09 hc-odontograma [x] ---> C-11
     └── C-12 catalogo-recursos-api [x] (4) ---> C-11
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-10).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-13).
 - (1) Rev. 4: C-08 depende también de C-07.
 - (2) Rev. 11: se adelanta y se hace antes de C-14; C-13 ya está archivado, así que ya no hay choque con sus archivos.
 - (3) C-11 depende también de C-09 y, desde la rev. 8, de C-12.
 - (4) Rev. 10: C-12 faltaba en el árbol.
+- (5) Rev. 12: C-24 depende de C-08, C-10 y C-11 (capabilities `reserva-online`, `caja-pagos`, `rbac`, `multisucursal`) y es requisito de C-14 (frontend).
 
 ### Árbol del frontend (agregado 2026-10-28)
 
 > C-13 es la raíz del frontend y depende de C-03 (necesita contratos reales para tipar).
-> C-14 (componentes base + data layer) depende solo de C-13.
+> C-14 (componentes base + data layer + sesión JWT) depende de C-13 y, desde la rev. 12, de C-24.
 > Cada change de pantalla cuelga del endpoint que consume, de C-13 y de C-14.
 
 ```
@@ -123,7 +132,7 @@ C-13 frontend-foundation [x]
 | Change | Dependencias |
 |--------|--------------|
 | C-13 | C-03 |
-| C-14 | C-13 |
+| C-14 | C-13, C-24 |
 | C-15 | C-12, C-13, C-14 |
 | C-16 | C-13, C-14, C-15 |
 | C-17 | C-04, C-05, C-13, C-14 |
@@ -193,7 +202,7 @@ GATE 8: C-11 ✓
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
 Ya archivados del recorte: C-01, C-02, C-03, C-12 y C-13 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-14, C-15, C-16**.
 
-`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22).
+`C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22). Desde la rev. 12 C-14 depende también de C-24 (archivado).
 
 ### Plan óptimo con 3 agentes
 
@@ -284,6 +293,27 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
   - `README.md` §1 Clonar e instalar, §3 Levantar PostgreSQL, §4 Migrar
   - `knowledge-base/08_arquitectura_propuesta.md` §Variables de entorno
   - `.github/workflows/tests.yml`
+
+---
+
+### [C-24] `auth-jwt`
+- **Estado**: `[x]` archivado (2026-11-13)
+- **Scope**: JWT HS256 con PyJWT 2.10.1 para autenticación en el backend. POST /login que emite token con rol y sucursal. Identidad solo por Authorization: Bearer. Eliminados headers X-Actor-Rol, X-Actor-Usuario, X-Sucursal-Id y el default recepcion. Rutas públicas de reserva online sin login. Capabilities con deltas rbac, caja-pagos, multisucursal y reserva-online. Aclaración: login en el frontend y cliente HTTP quedan para C-14 o posterior.
+  - **JWT HS256 con PyJWT 2.10.1**: implementación del token de acceso con firma HS256 usando PyJWT 2.10.1
+  - **POST /login**: endpoint que valida credenciales y emite token JWT con claims de rol y sucursal
+  - **Identidad solo por Authorization: Bearer**: el backend resuelve la identidad exclusivamente del token emitido por `POST /login`; el default `recepcion` dejó de existir
+  - **Headers eliminados**: X-Actor-Rol, X-Actor-Usuario, X-Sucursal-Id y el default recepcion removidos de las rutas de la API
+  - **Rutas públicas de reserva online**: GET /reservar/{profesional}?prestacion=&fecha= y POST /reservar operan sin requerir login previo
+  - **Capabilities con deltas**: rbac, caja-pagos, multisucursal y reserva-online definidas en los specs correspondientes
+  - **Login en el frontend**: la pantalla de login y el cliente HTTP con `Authorization: Bearer` se hacen en C-14 (ver su sección)
+- **Dependencias**: C-08, C-10, C-11 (rev. 12: derivadas de las capabilities modificadas; ver proposal archivado)
+- **Governance**: ALTO (rev. 12: autenticación que modifica cuatro capabilities, igual que C-11; el proposal archivado no define este campo)
+- **Leer antes**:
+  - `knowledge-base/02_descripcion_general.md:10`
+  - `knowledge-base/08_arquitectura_propuesta.md:41` y `:53`
+  - `knowledge-base/09_decisiones_y_supuestos.md:37`
+  - `knowledge-base/10_preguntas_abiertas.md:24` (Q6)
+  - `openspec/specs/auth-jwt/spec.md` (contrato vigente de login y token)
 
 ---
 
@@ -516,13 +546,15 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ### [C-14] `frontend-componentes-base`
 - **Estado**: `[ ]` pendiente
-- **Scope**: Librería de componentes y capa de datos del frontend (consume C-13)
+- **Scope**: Librería de componentes y capa de datos del frontend (consume C-13) e integración con la autenticación JWT de C-24 (rev. 12)
   - Componentes base React, traducidos de `components.html` sin redefinir tokens: `Button` (primario/secundario/destructivo), `TextField` (label, help, error, `aria-invalid`), `Select`, `Card`, `EstadoBadge` (5 estados: pendiente, confirmado, atendido, ausente, cancelado — color + texto + forma del punto), `DataTable` (responsive a filas en grilla ≤46rem, orden y vacío), `Modal` (focus trap, `Escape`, retorno de foco), `Toast` (`role="status"`, auto-descarte pausable), `EmptyState`, `Skeleton`
   - Estado de servidor con TanStack Query: `QueryClient` configurado una vez, claves de query por recurso, invalidación tras mutación
   - Formularios con react-hook-form + zod: schemas espejo de las validaciones del backend (dni, `duracion_min > 0`, `desde < hasta`), mapeo de `422` a campos
-  - **Contexto de rol sin login (supuesto de implementación, no regla de negocio)**: `knowledge-base/03_actores_y_roles.md` define dos roles internos con permisos distintos — Recepción escribe turnos y lee toda la agenda; Odontólogo solo lee su agenda y su horario — y el primer change no tiene login ni rutas públicas. Como la identidad de sesión recién llega con C-11, la UI necesita un rol explícito para no inventar un privilegio implícito y para poder probar ambas perspectivas. Se implementa como selector visible (Recepción | Odontólogo) con aviso de "modo interno/test", persistido en `localStorage`, y guard de ruta que solo oculta/navega según la matriz. **No es un control de seguridad**: la autorización real es del backend; al llegar C-11 el guard pasa a leer la identidad de sesión. La KB no regula este selector, por eso queda como supuesto del change. **Rev. 8**: el rol elegido se envía al backend como `X-Actor-Rol` (C-11; sin el header el backend asume `recepcion`), de modo que el selector ya no es solo visual.
-  - Tests RTL: render y estados de cada componente, `EstadoBadge` con los 5 estados y sus etiquetas, `DataTable` vacía y con skeleton, `Modal` atrapa foco y cierra con `Escape`, `Toast` anunciado como `status`, zod bloquea submit inválido, guard redirige según rol
-- **Dependencias**: C-13
+  - **Autenticación con JWT (rev. 12; reemplaza el selector de rol sin login y el `X-Actor-Rol` de la rev. 8)**: C-24 ya está archivado. `POST /login` emite el token con rol y sucursal y el backend resuelve la identidad solo por `Authorization: Bearer <token>`; los headers `X-Actor-Rol`, `X-Actor-Usuario` y `X-Sucursal-Id` y el default `recepcion` ya no existen. Se implementan: pantalla de login, contexto de sesión que lee rol y sucursal del token y guard de ruta que solo oculta/navega según la matriz de `knowledge-base/03_actores_y_roles.md` (Recepción escribe turnos y lee toda la agenda; Odontólogo solo lee su agenda y su horario). El selector de rol deja de existir. **No es un control de seguridad**: la autorización real es del backend. El contrato exacto (campos de la respuesta de `/login`, claims, errores y elección de sucursal con varias) está en `openspec/specs/auth-jwt/spec.md` y no se asume acá
+  - **Cliente HTTP (delta sobre C-13, archivado; su texto no se reescribe)**: deja de enviar `X-Actor-Rol` y `X-Sucursal-Id` y envía `Authorization: Bearer <token>`; mapea `401` (sin token válido o vencido: volver al login) y `403` (sin permiso) a errores de dominio, además de los `409` y `422` existentes. Las rutas públicas (`/reservar/:profesional`, `/confirmar/:token`, `/cancelar/:token`) no exigen token ni redirigen al login
+  - **Decisiones a registrar en el `proposal.md` (no se resuelven acá)**: dónde se guarda el token (`localStorage` queda expuesto a XSS), qué hace el cliente al vencer el token (60 minutos por defecto, `ACCESS_TOKEN_EXPIRES_MIN`) y si se usa refresh. Entorno: `SECRET_KEY` ficticia de 32 o más caracteres para levantar el backend (también en `docker-compose.yml`); usuario de prueba: el seed ficticio de C-24; CORS con el header `Authorization` desde Vite sin verificar, probarlo temprano
+  - Tests RTL: render y estados de cada componente, `EstadoBadge` con los 5 estados y sus etiquetas, `DataTable` vacía y con skeleton, `Modal` atrapa foco y cierra con `Escape`, `Toast` anunciado como `status`, zod bloquea submit inválido, guard redirige según el rol del token, login correcto y con error, `401` lleva al login, rutas públicas accesibles sin token
+- **Dependencias**: C-13, C-24
 - **Governance**: MEDIO
 - **Leer antes**:
   - `frontend/design-system/components.html` (formularios, card de turno, tabla, modal, toast, vacío, esqueletos)
@@ -692,6 +724,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-13 (rev. 11)**: 23 changes. Archivados (14): C-01 a C-13 y C-23. Pendientes (9): C-14 a C-22. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
-> Ningún otro change de frontend está implementado; C-23 `fix-api-contenedor` está pendiente y no implementado.
-> Habilitado por dependencias: ningún change en curso. **Próximo del recorte: C-14**, precedido por C-23 y el change de JWT (decisión 2026-11-12).
+> **Estado del roadmap al 2026-11-13 (rev. 12)**: 24 changes. Archivados (15): C-01 a C-13, C-23 y C-24. Pendientes (9): C-14 a C-22. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
+> Ningún otro change de frontend está implementado.
+> Habilitado por dependencias: **C-14** (C-13, C-23 y C-24 archivados). Sin otro change en curso. **Próximo del recorte: C-14**.
