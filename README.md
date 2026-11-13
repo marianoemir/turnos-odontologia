@@ -18,7 +18,7 @@ El roadmap completo tiene **23 changes**: implementados y archivados **C-01 a C-
 
 - **C-12 `catalogo-recursos-api`** (backend): expone por API el catálogo que C-02 modeló y sembró —pacientes, profesionales, sillones, prestaciones, horarios y bloqueos—, que hasta ahora solo existía en la base.
 - **C-13 a C-22** (frontend): React + TypeScript + Vite, un change por capability del backend. C-13 `frontend-foundation` (shell, ruteo y contratos) y C-14 `frontend-componentes-base` (componentes y capa de datos) son la base; C-15 a C-22 son las pantallas.
-- **C-23 `fix-api-contenedor`** (corrección): arregla el `Dockerfile` de la API, que hoy no arranca en contenedor (ver la nota del paso 3).
+- **C-23 `fix-api-contenedor`** (corregido): el `Dockerfile` copia `backend/` completo, arranca `uvicorn backend.app.main:app` y las migraciones corren dentro del contenedor (ver el paso 4).
 
 | ID | Nombre | Estado |
 |----|--------|--------|
@@ -40,7 +40,7 @@ El detalle de cada change, sus dependencias, el orden de ejecución y el recorte
 ## Requisitos
 
 - **Git**.
-- **Python 3.12 o superior** (el CI usa 3.12; también probado con 3.13 en Windows).
+- **Python 3.13** (el CI usa 3.13; el `Dockerfile` de `api` usa `python:3.13-slim`).
 - **PostgreSQL 16**: la forma más simple es **Docker Desktop** con el `docker-compose.yml` del repo. Sin base de datos se puede instalar y correr el subconjunto de tests que no la necesita (paso 2).
 - Los comandos están en **PowerShell** (Windows) y en **bash** (Linux/macOS).
 
@@ -53,7 +53,7 @@ git clone https://github.com/marianoemir/turnos-odontologia.git
 cd turnos-odontologia
 py -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install -r backend/requirements.txt
+python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 ```
 
 bash:
@@ -63,7 +63,7 @@ git clone https://github.com/marianoemir/turnos-odontologia.git
 cd turnos-odontologia
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r backend/requirements.txt
+python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 ```
 
 Notas:
@@ -88,7 +88,9 @@ docker compose up -d postgres
 
 Hay que tener **Docker Desktop encendido**. El servicio crea la base `turnos` con usuario `odontologia` y contraseña `odontologia` (valores ficticios del `docker-compose.yml`).
 
-> **El servicio `api` del compose todavía no arranca.** Su `backend/Dockerfile` copia solo `app/` y ejecuta `uvicorn app.main:app`, pero el código importa `from backend.app...`, paquete que la imagen no incluye; tampoco incluye `alembic`, así que las migraciones no se pueden correr adentro. Está registrado como **C-23 `fix-api-contenedor`** (pendiente). Hasta que se corrija, levantá únicamente la base con `docker compose up -d postgres` y corré la API desde la raíz del repo con `uvicorn`, como indican los pasos 4 y 5.
+> **El servicio `api` ya funciona en contenedor.** El `Dockerfile` copia `backend/` completo y arranca `uvicorn backend.app.main:app`; para levantar API + web usá `docker compose up --build`. Las migraciones también pueden correrse adentro del contenedor (paso 4).
+
+Para levantar la API y el frontend junto con la base: `docker compose up --build` (la API queda en `http://127.0.0.1:8000` y el frontend en `http://localhost:8080`).
 
 **Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto. Síntoma típico: `alembic` o el seed fallan con «la autenticación password falló para el usuario odontologia»; en Windows suele ser un servicio de PostgreSQL instalado que ocupa el 5432. Antes de migrar, esperá a que `docker compose ps` muestre el servicio `postgres` como `healthy`.
 
@@ -113,7 +115,8 @@ export DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432
 PowerShell:
 
 ```powershell
-python -m alembic -c backend/alembic.ini upgrade head
+docker compose up --build -d api
+docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
 $env:SEED_FICTICIO="true"; python -m backend.app.seed.catalogo
 python -m pytest -rs backend/tests
 ```
@@ -121,7 +124,8 @@ python -m pytest -rs backend/tests
 bash:
 
 ```bash
-python -m alembic -c backend/alembic.ini upgrade head
+docker compose up --build -d api
+docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
 SEED_FICTICIO=true python -m backend.app.seed.catalogo
 python -m pytest -rs backend/tests
 ```
@@ -135,8 +139,16 @@ Resultado esperado:
 Rollback de la migración, si hace falta:
 
 ```powershell
-python -m alembic -c backend/alembic.ini downgrade -1
+docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1
 ```
+
+Comprobación del estado de la migración:
+
+```powershell
+docker compose exec api python -m alembic -c backend/alembic.ini current
+```
+
+> **Cuidado con el volumen `pgdata`:** si el volumen ya fue inicializado, Postgres conserva las credenciales y la base con las que se creó; cambiar `POSTGRES_USER`, `POSTGRES_PASSWORD` o `POSTGRES_DB` en el entorno **no** tiene efecto y `api` falla la autenticación (o la base pedida no existe). El remedio es `docker compose down -v` y volver a levantar, pero eso **borra los datos** del volumen: solo es aceptable con datos ficticios.
 
 ## 5. Probar la API (`POST /turnos`)
 
@@ -381,7 +393,7 @@ Otros tropiezos frecuentes: `opencode mcp list` con `postgres failed — Connect
 - `backend/app/seed/` — datos ficticios.
 - `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).
-- `docker-compose.yml` — PostgreSQL 16 y un servicio `api` cuyo `Dockerfile` tiene el problema conocido de C-23 (ver la nota del paso 3).
+- `docker-compose.yml` — PostgreSQL 16 y un servicio `api` que ya funciona en contenedor: su `Dockerfile` copia `backend/` completo y arranca `uvicorn backend.app.main:app` (ver la nota del paso 3).
 - `frontend/` — estructura base de React + TypeScript + Vite, todavía sin funcionalidad; su desarrollo está planificado en C-13 a C-22.
 - `frontend/design-system/` — fundación visual aprobada: tokens, marca y referencia de componentes, con `components.html` para verla en el navegador.
 - `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
