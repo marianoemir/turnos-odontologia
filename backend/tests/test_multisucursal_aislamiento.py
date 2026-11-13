@@ -18,16 +18,43 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth.jwt_service import emitir_token
+from backend.app.auth.models import Usuario
+from backend.app.auth.password import hashear_password
 from backend.app.caja.router import get_db as caja_get_db
 from backend.app.main import app
 from backend.app.rbac.context import get_sucursal_session
+from backend.app.rbac.models import Rol
 from backend.app.turnos.router import get_db
 
-ADMIN = {"X-Actor-Rol": "admin"}
+ADMIN = {}
 
 
 @pytest.fixture()
-def client(db_session):
+def admin_headers(db_session):
+    rol = db_session.query(Rol).filter_by(nombre="admin").first()
+    if not rol:
+        rol = Rol(nombre="admin")
+        db_session.add(rol)
+        db_session.flush()
+    u = db_session.query(Usuario).filter_by(dni="99999905").first()
+    if not u:
+        u = Usuario(
+            dni="99999905",
+            password_hash=hashear_password("pwd-admin"),
+            rol_id=rol.id,
+            activo=True,
+        )
+        db_session.add(u)
+        db_session.commit()
+    token = emitir_token(usuario_id=u.id, rol="admin")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def client(db_session, admin_headers):
+    global ADMIN
+    ADMIN = admin_headers
     app.dependency_overrides[get_db] = lambda: db_session
     app.dependency_overrides[get_sucursal_session] = lambda: db_session
     yield TestClient(app, raise_server_exceptions=False)
@@ -132,10 +159,9 @@ def test_filtro_respeta_incluir_inactivos(client, escenario) -> None:
 
 
 def test_header_y_query_juntos_manda_query(client, escenario) -> None:
-    """X-Sucursal-Id: B (header) + ?sucursal_id=A (query) → filtra por A."""
+    """?sucursal_id=A (query) filtra por A independientemente de headers."""
     r = client.get(
         f"/profesionales?sucursal_id={escenario['suc_a']['id']}",
-        headers={"X-Sucursal-Id": escenario["suc_b"]["id"]},
     )
     assert r.status_code == 200, r.text
     assert [x["nombre"] for x in r.json()] == ["Prof A"]
@@ -226,7 +252,7 @@ def test_caja_y_agenda_no_se_particionan(client, db_session, escenario) -> None:
     try:
         r = client.get(
             f"/caja?sucursal_id={escenario['suc_a']['id']}",
-            headers={"X-Sucursal-Id": escenario["suc_a"]["id"]},
+            headers=ADMIN,
         )
     finally:
         app.dependency_overrides.pop(caja_get_db, None)

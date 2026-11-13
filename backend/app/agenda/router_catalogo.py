@@ -45,6 +45,10 @@ from backend.app.agenda.schemas import (
 from backend.app.agenda.service_catalogo import (
     traducir_integridad_catalogo,
 )
+from backend.app.rbac.context import (
+    PermissionContext,
+    get_permission_context_opcional,
+)
 from backend.app.turnos.router import get_db
 
 router = APIRouter(tags=["catalogo"])
@@ -176,15 +180,23 @@ def modificar_paciente(
 @router.get("/profesionales", response_model=list[ProfesionalOut])
 def listar_profesionales(
     session: Annotated[Session, Depends(get_db)],
+    context: Annotated[
+        PermissionContext | None, Depends(get_permission_context_opcional)
+    ] = None,
     incluir_inactivos: bool = False,
     sucursal_id: uuid.UUID | None = None,
 ):
     query = session.query(Profesional)
     if not incluir_inactivos:
         query = query.filter(Profesional.activo.is_(True))
-    if sucursal_id is not None:
-        _exigir_sucursal(session, sucursal_id)
-        query = query.filter(Profesional.sucursal_id == sucursal_id)
+
+    filtro_sucursal = sucursal_id
+    if filtro_sucursal is None and context is not None and context.sucursal_id is not None:
+        filtro_sucursal = context.sucursal_id
+
+    if filtro_sucursal is not None:
+        _exigir_sucursal(session, filtro_sucursal)
+        query = query.filter(Profesional.sucursal_id == filtro_sucursal)
 
     return (
         query.order_by(Profesional.nombre.asc(), Profesional.id.asc()).all()
@@ -245,15 +257,23 @@ def modificar_profesional(
 @router.get("/sillones", response_model=list[SillonOut])
 def listar_sillones(
     session: Annotated[Session, Depends(get_db)],
+    context: Annotated[
+        PermissionContext | None, Depends(get_permission_context_opcional)
+    ] = None,
     incluir_inactivos: bool = False,
     sucursal_id: uuid.UUID | None = None,
 ):
     query = session.query(SillonBox)
     if not incluir_inactivos:
         query = query.filter(SillonBox.activo.is_(True))
-    if sucursal_id is not None:
-        _exigir_sucursal(session, sucursal_id)
-        query = query.filter(SillonBox.sucursal_id == sucursal_id)
+
+    filtro_sucursal = sucursal_id
+    if filtro_sucursal is None and context is not None and context.sucursal_id is not None:
+        filtro_sucursal = context.sucursal_id
+
+    if filtro_sucursal is not None:
+        _exigir_sucursal(session, filtro_sucursal)
+        query = query.filter(SillonBox.sucursal_id == filtro_sucursal)
 
     return query.order_by(SillonBox.nombre.asc(), SillonBox.id.asc()).all()
 
