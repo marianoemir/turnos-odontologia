@@ -127,11 +127,12 @@
 
 ## 6. Integración continua y cierre
 
-- [ ] **6.1 Job `frontend` en `.github/workflows/tests.yml`**
+- [x] **6.1 Job `frontend` en `.github/workflows/tests.yml`**
   - RED: `Select-String -Path .github/workflows/tests.yml -Pattern "frontend:"` no encuentra el job; el archivo solo tiene `tests` y `lint` (líneas 8 y 35). Además, la suite de Vitest existe desde 1.1 pero **ningún** gate automático la ejecuta: un test rojo pasa el CI en verde.
   - GREEN: job `frontend` con `actions/checkout@v4`, `actions/setup-node@v4` (`node-version: "24"`, `cache: npm`, `cache-dependency-path: frontend/package-lock.json`), `working-directory: frontend` y **cinco** pasos en este orden: `npm ci`, `npm run lint`, `npx tsc -b`, `npm run build`, `npm run test:run`, sin `continue-on-error` (design D9; la spec exige los tests en CI).
   - Verify: el YAML parsea (`python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/tests.yml'))"`); el job corre en verde en el PR; romper a propósito cada gate hace fallar el job: un `any` explícito en `src/` (lint), un error de tipos (tsc), un import roto (build) y un `expect` falso en un test (`test:run`).
   - Nota de alcance: el quinto paso **agranda en uno el alcance de C-13 registrado en `CHANGES.md`** (rev. 10 describe cuatro pasos). La decisión es provisoria y requiere confirmación del equipo; no se edita `CHANGES.md` desde este change (design D9).
+  - Nota (2026-11-12): verificada en GitHub Actions. El job `frontend` corrió en verde sobre `dea8260` (cinco pasos: `npm ci`, lint, `tsc -b`, build, `test:run`). Se rompió cada gate en una rama descartable (`probe/c-13-gates`, PR #39 cerrado sin mergear) y el job cayó en su propio paso, con los siguientes saltados: (1) `export const probeAny: any = 1;` → `Run npm run lint` (`Unexpected 'any'`); (2) `const n: number = "texto";` → `Run npx tsc -b` (`TS2322`); (3) import de `./no-existe.svg?url` conectado desde `main.tsx` → `Run npm run build` (`UNRESOLVED_IMPORT`); (4) `expect(1).toBe(2)` → `Run npm run test:run` (`expected 1 to be 2`, 86 passed + 1 failed). La rotura (3) necesitó un import alcanzable desde `index.html` y que `tsc` no rechace: un archivo sin importar no entra al grafo de Vite, y un import de módulo inexistente lo frena `tsc` antes que `build`. Queda pendiente la confirmación del quinto paso por el equipo (ver nota de alcance).
 
 - [x] **6.2 Verificación final del change**
   - Verify: desde `frontend/`: `npm ci`, `npm run lint`, `npx tsc -b`, `npm run build`, `npm run test:run` — los cinco en verde. Desde la raíz: `git status --short` sin `__any_probe__`, `__implicit_any_probe__` ni `dist/`; `git diff --stat` sin archivos de `backend/` ni `CHANGES.md`; `cmd /c "openspec validate c-13-frontend-foundation --strict"` → válido.
