@@ -8,23 +8,23 @@
 
 ## 1. Baseline y medición del estado actual
 
-- [ ] 1.1 Registrar el baseline de servicios y del repo antes de tocar nada.
+- [x] 1.1 Registrar el baseline de servicios y del repo antes de tocar nada.
   **Cómo se verifica**: `docker compose config --services` y `git status --short` y `git branch --show-current` y `Select-String -Path docker-compose.yml -Pattern '8000'`.
-  **Resultado esperado**: `config --services` lista exactamente `postgres`, `api` y `web` (tres líneas); la rama es `feature/c-23-fix-api-contenedor`; `git status --short` solo muestra `openspec/changes/c-23-fix-api-contenedor/` como cambio nuevo; `Select-String` sobre `docker-compose.yml` encuentra el mapeo que publica `8000` del servicio `api`, del que depende la task 9.2.
+  **Resultado esperado**: `config --services` lista exactamente `postgres`, `api` y `web` (tres líneas); la rama es `feature/c-23-fix-api-contenedor`; `git status --short` sale vacío (la propuesta ya está commiteada en 8d85955); `Select-String` sobre `docker-compose.yml` encuentra el mapeo que publica `8000` del servicio `api`, del que depende la task 9.2.
 
-- [ ] 1.2 Registrar que hoy **no** existe `.dockerignore` en la raíz y que el único es el del frontend.
+- [x] 1.2 Registrar que hoy **no** existe `.dockerignore` en la raíz y que el único es el del frontend.
   **Cómo se verifica**: `Test-Path .dockerignore` y `Test-Path frontend/.dockerignore`.
   **Resultado esperado**: la primera salida es `False`; la segunda es `True`. Se anota en las notas de apply como hecho medido (es el estado que C-23 corrige).
 
-- [ ] 1.3 **Diagnóstico (puede fallar por diseño)**: probar el defecto real del contenedor y guardar la evidencia.
+- [x] 1.3 **Diagnóstico (puede fallar por diseño)**: probar el defecto real del contenedor y guardar la evidencia.
   **Cómo se verifica**: `docker compose build api`, luego `docker compose up -d api`, esperar 20 segundos y `docker compose ps --format "{{.Name}} {{.Status}}"`.
   **Resultado esperado**: el servicio `api` aparece como `restarting` o `exited` (no `running`), y `docker compose logs --tail 20 api` muestra `ModuleNotFoundError: No module named 'backend'` o `No module named 'app'`. **Este fallo es la evidencia del defecto, no un bloqueo**: se copia la salida literal en las notas de apply y se continúa. Al terminar, `docker compose stop api` para no dejar el contenedor en loop.
 
-- [ ] 1.4 Verificar el valor real de `script_location` para no cambiarlo sin motivo.
+- [x] 1.4 Verificar el valor real de `script_location` para no cambiarlo sin motivo.
   **Cómo se verifica**: `Select-String -Path backend/alembic.ini -Pattern '^script_location'`.
   **Resultado esperado**: una única coincidencia con `script_location = %(here)s/alembic`. Como `%(here)s` se resuelve contra el directorio del ini, `alembic.ini` **no se modifica** en este change (ver `design.md` D3).
 
-- [ ] 1.5 Verificar los intérpretes disponibles y la versión del `.venv` existente antes de elegir la versión de Python.
+- [x] 1.5 Verificar los intérpretes disponibles y la versión del `.venv` existente antes de elegir la versión de Python.
   **Cómo se verifica**: `py --list` y `Select-String -Path .venv\pyvenv.cfg -Pattern 'version'`.
   **Resultado esperado**: `py --list` incluye **3.13** (además de 3.12 y 3.14): sin 3.13 no se pueden crear los venv de medición de las tasks 4.1 y 4.4, así que si falta se frena y se reporta; `pyvenv.cfg` informa `version = 3.14.4`. Se anota que el `.venv` de la raíz es de 3.14 y **no se usa para verificar**: la medición de pins y la suite se corren en el venv 3.13 de `$env:TEMP` (Q1, default `3.13`).
 
@@ -174,3 +174,230 @@
 - Verificar si `AGENTS.md` / `CLAUDE.md` necesitan reflejar el arranque por compose (hoy describen `uvicorn` desde el host) y, si se editan, dejarlos idénticos y comprobarlo con `(Get-FileHash AGENTS.md).Hash -eq (Get-FileHash CLAUDE.md).Hash`.
 - Archivar el change cuando la revisión esté satisfecha: `openspec archive c-23-fix-api-contenedor`, y confirmar que `api-contenedor` aparece en `openspec/specs/`.
 - No editar `openspec/changes/archive/2026-11-12-c-13-frontend-foundation/tasks.md`: la evidencia del cierre de su task 5.2 vive en el punto 9.3 de este archivo.
+
+---
+
+## Notas de apply
+
+### Grupo 1 — Baseline y medición del estado actual (2026-11-13)
+
+Rama `feature/c-23-fix-api-contenedor`, PowerShell 5.1, raíz del repo. Este grupo no modificó ningún archivo del repo salvo este `tasks.md`; no hubo commit ni push.
+
+#### 1.1 — Baseline de servicios y repo
+
+```
+PS> docker compose config --services
+postgres
+api
+web
+```
+
+```
+PS> git status --short
+<sin salida>
+```
+
+```
+PS> git branch --show-current
+feature/c-23-fix-api-contenedor
+```
+
+```
+PS> Select-String -Path docker-compose.yml -Pattern '8000'
+
+docker-compose.yml:21:      - "8000:8000"
+
+```
+
+`git status --short` salió vacío porque la propuesta ya está commiteada en `8d85955`. Verificado con `git ls-files openspec/changes/c-23-fix-api-contenedor` (5 archivos versionados: `.openspec.yaml`, `design.md`, `proposal.md`, `specs/api-contenedor/spec.md`, `tasks.md`), `git check-ignore -v openspec/changes/c-23-fix-api-contenedor` (sin salida: no está ignorada) y `Test-Path openspec/changes/c-23-fix-api-contenedor` (`True`).
+
+#### 1.2 — `.dockerignore` en la raíz
+
+```
+PS> Test-Path .dockerignore
+False
+```
+
+```
+PS> Test-Path frontend/.dockerignore
+True
+```
+
+#### 1.4 — `script_location` real
+
+```
+PS> Select-String -Path backend/alembic.ini -Pattern '^script_location'
+
+backend\alembic.ini:2:script_location = %(here)s/alembic
+
+```
+
+#### 1.5 — Intérpretes disponibles y versión del `.venv`
+
+```
+PS> py --list
+ -V:3.14 *        Python 3.14.4
+ -V:3.13          Python 3.13 (64-bit)
+ -V:3.12          Python 3.12 (64-bit)
+```
+
+```
+PS> Select-String -Path .venv\pyvenv.cfg -Pattern 'version'
+
+.venv\pyvenv.cfg:3:version = 3.14.4
+
+```
+
+#### 1.3 — Diagnóstico del contenedor (evidencia del defecto)
+
+**Sobre si hubo build en esta corrida:** sí, `docker compose build api` se ejecutó dos veces en esta sesión (la primera con `2>&1`, que PowerShell reportó como `Exited with code 1` por el manejo de stderr; la segunda para capturar el exit code real). El exit code real fue `0`, pero **todas las capas salieron `CACHED` y no se construyó una imagen nueva**: el tag `turnos-odontologia-api:latest` quedó apuntando a una imagen que ya existía. Salida de la segunda corrida:
+
+```
+PS> docker compose build api
+#1 [internal] load local bake definitions
+#1 reading from stdin 611B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 244B 0.0s done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 0.3s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 11.30kB 0.0s done
+#5 DONE 0.0s
+
+#6 [1/5] FROM docker.io/library/python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+#6 resolve docker.io/library/python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b 0.0s done
+#6 DONE 0.0s
+
+#7 [3/5] COPY requirements.txt .
+#7 CACHED
+
+#8 [2/5] WORKDIR /code
+#8 CACHED
+
+#9 [4/5] RUN pip install --no-cache-dir -r requirements.txt
+#9 CACHED
+
+#10 [5/5] COPY app ./app
+#10 CACHED
+
+#11 exporting to image
+#11 exporting layers done
+#11 exporting manifest sha256:549b77b0133d6ef49d2ee2cd8fd10a904e6b8c5ae3e7da8cfc8f52f68277e15f done
+#11 exporting config sha256:cfc7a2d1645be0805284c23ee616f4a12535574063e9ce2fddbc28c425f8a4e8 done
+#11 exporting attestation manifest sha256:7252529fdff657358c6b9a538724de954a30ee7a4baebe135b3162575160a08c 0.0s done
+#11 exporting manifest list sha256:c94ddf08414699760f7c0f83b177dc253af04817554869e2ea7d51d68d542c9c
+#11 exporting manifest list sha256:c94ddf08414699760f7c0f83b177dc253af04817554869e2ea7d51d68d542c9c 0.0s done
+#11 naming to docker.io/library/turnos-odontologia-api:latest done
+#11 unpacking to docker.io/library/turnos-odontologia-api:latest 0.0s done
+#11 DONE 0.1s
+
+#12 resolving provenance for metadata file
+#12 DONE 0.0s
+EXIT=0
+```
+
+```
+PS> docker image ls turnos-odontologia-api
+IMAGE                           ID             DISK USAGE   CONTENT SIZE   EXTRA
+turnos-odontologia-api:latest   03c19150dc97        337MB         81.7MB   U
+```
+
+**El contenedor `api-1` no se recreó y corre otra imagen.** `docker compose up -d api` informó `Starting`/`Started` (sin `Recreated`), así que reutilizó el contenedor preexistente, creado el `2026-11-13T01:33:43.84933504Z`. Los IDs no coinciden:
+
+```
+PS> docker inspect turnos-odontologia-api-1 --format "{{.Image}}"
+sha256:019291acba42d19fdcec73d574bf8924bf7be8367103e7c64666defa81f4011d
+```
+
+```
+PS> docker image inspect turnos-odontologia-api:latest --format "{{.Id}}"
+sha256:c94ddf08414699760f7c0f83b177dc253af04817554869e2ea7d51d68d542c9c
+```
+
+```
+PS> docker image ls --digests turnos-odontologia-api
+REPOSITORY               TAG       DIGEST                                                                    IMAGE ID       CREATED        SIZE
+turnos-odontologia-api   latest    sha256:c94ddf08414699760f7c0f83b177dc253af04817554869e2ea7d51d68d542c9c   c94ddf08       10 hours ago   337MB
+```
+
+```
+PS> docker image inspect sha256:019291acba42d19fdcec73d574bf8924bf7be8367103e7c64666defa81f4011d --format "Id={{.Id}}"
+Error response from daemon: No such image: sha256:019291acba42d19fdcec73d574bf8924bf7be8367103e7c64666defa81f4011d
+```
+
+```
+PS> docker ps -a --filter "name=turnos-odontologia-api-1" --format "{{.Names}} {{.Image}} {{.Status}}"
+turnos-odontologia-api-1 019291acba42 Exited (1) 7 minutes ago
+```
+
+Consecuencia: **el log de abajo es del contenedor preexistente (`Exited (1)`), no de un contenedor creado a partir de la imagen de esta corrida**. Documenta el defecto en ese contenedor; no prueba el comportamiento de la imagen `c94ddf08`, que recién se va a ejercitar con el build y la recreación del grupo 3.
+
+```
+PS> docker compose up -d api
+ Container turnos-odontologia-postgres-1 Running 
+ Container turnos-odontologia-postgres-1 Waiting 
+ Container turnos-odontologia-postgres-1 Healthy 
+ Container turnos-odontologia-api-1 Starting 
+ Container turnos-odontologia-api-1 Started 
+EXIT=0
+```
+
+```
+PS> Start-Sleep -Seconds 20; docker compose ps --format "{{.Name}} {{.Status}}"
+turnos-odontologia-postgres-1 Up 10 hours (healthy)
+```
+
+Comando extra (no está en la task; se agregó para ver el estado del contenedor detenido, que `docker compose ps` sin `-a` no lista):
+
+```
+PS> docker compose ps -a --format "{{.Name}} {{.Status}}"
+turnos-odontologia-api-1 Exited (1) 30 seconds ago
+turnos-odontologia-postgres-1 Up 10 hours (healthy)
+turnos-odontologia-web-1 Exited (0) 10 hours ago
+```
+
+`turnos-odontologia-web-1 Exited (0) 10 hours ago` es un contenedor preexistente de C-13, ajeno a esta task.
+
+```
+PS> docker compose logs --tail 20 api
+api-1  |   File "/usr/local/lib/python3.12/site-packages/uvicorn/config.py", line 434, in load_app
+api-1  |     return import_from_string(self.app)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.12/site-packages/uvicorn/importer.py", line 22, in import_from_string
+api-1  |     raise exc from None
+api-1  |   File "/usr/local/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+api-1  |     module = importlib.import_module(module_str)
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.12/importlib/__init__.py", line 90, in import_module
+api-1  |     return _bootstrap._gcd_import(name[level:], package, level)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+api-1  |   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+api-1  |   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+api-1  |   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+api-1  |   File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+api-1  |   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+api-1  |   File "/code/app/main.py", line 5, in <module>
+api-1  |     from backend.app.agenda.router import router as agenda_router
+api-1  | ModuleNotFoundError: No module named 'backend'
+```
+
+```
+PS> docker compose stop api
+ Container turnos-odontologia-api-1 Stopping 
+ Container turnos-odontologia-api-1 Stopped 
+EXIT=0
+```
+
+**Estado visto para `api`: `Exited (1)`** (sin política de reinicio no queda en `restarting`). El comando de la task (`docker compose ps --format ...`) no lista el contenedor detenido; su estado se ve con `docker compose ps -a`. La desviación queda registrada en estas notas y, por decisión del usuario, **la task se marca `[x]`**.
+
+Observación de BuildKit: el paso `#4 [internal] load .dockerignore / transferring context: 2B` aparece aunque `Test-Path backend/.dockerignore` devuelve `False`; no hay ningún `.dockerignore` en `backend/` ni en la raíz, y el contexto de build sigue siendo `backend/` (11.30kB).
