@@ -122,23 +122,23 @@
 
 ## 8. README y CI
 
-- [ ] 8.1 En `.github/workflows/tests.yml`, instalar `backend/requirements.txt` **y** `backend/requirements-dev.txt` solo en los jobs `tests` y `lint`; no tocar el job `frontend`.
+- [x] 8.1 En `.github/workflows/tests.yml`, instalar `backend/requirements.txt` **y** `backend/requirements-dev.txt` solo en los jobs `tests` y `lint`; no tocar el job `frontend`.
   **Cómo se verifica**: `Select-String -Path .github/workflows/tests.yml -Pattern 'requirements-dev\.txt'` y `Select-String -Path .github/workflows/tests.yml -Pattern '^  (tests|lint|frontend):$'` y `Select-String -Path .github/workflows/tests.yml -Pattern 'npm ci'`.
   **Resultado esperado**: 2 coincidencias de `requirements-dev.txt` (una por job Python), 3 coincidencias de nombres de job (`tests`, `lint`, `frontend`) y 1 coincidencia de `npm ci` (el job `frontend` sigue igual, sin pasos de Python ni de requirements).
 
-- [ ] 8.2 Actualizar el README §1 para instalar los dos archivos (`python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt`), en PowerShell y en bash.
+- [x] 8.2 Actualizar el README §1 para instalar los dos archivos (`python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt`), en PowerShell y en bash.
   **Cómo se verifica**: `Select-String -Path README.md -Pattern 'requirements-dev\.txt'`.
   **Resultado esperado**: al menos 2 coincidencias (bloque PowerShell y bloque bash), y ninguna sección queda instalando solo `requirements.txt` para desarrollo.
 
-- [ ] 8.3 Documentar las migraciones dentro del contenedor, reemplazar el camino viejo en §3 y §4 y documentar el volumen `pgdata`.
+- [x] 8.3 Documentar las migraciones dentro del contenedor, reemplazar el camino viejo en §3 y §4 y documentar el volumen `pgdata`.
   **Cómo se verifica**: `Select-String -Path README.md -Pattern 'docker compose exec api python -m alembic'` y `Select-String -Path README.md -Pattern 'docker compose up --build'` y `Select-String -Path README.md -Pattern 'down -v'`.
   **Resultado esperado**: al menos 1 coincidencia por patrón: el README muestra `docker compose exec api python -m alembic -c backend/alembic.ini upgrade head` (y `current` / `downgrade -1`) dentro del contenedor, `docker compose up --build` como forma de levantar API + web, y **una nota que explica que cambiar `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` con un volumen `pgdata` ya inicializado no tiene efecto y hace fallar la autenticación de `api`, con `docker compose down -v` como remedio, aclarando que eso borra los datos y solo es aceptable con datos ficticios**.
 
-- [ ] 8.4 Borrar la advertencia que dice que el servicio `api` no arranca.
+- [x] 8.4 Borrar la advertencia que dice que el servicio `api` no arranca.
   **Cómo se verifica**: `Select-String -Path README.md -Pattern "todavía no arranca"` y `Select-String -Path README.md -Pattern "no arranca"`.
   **Resultado esperado**: 0 coincidencias en ambos comandos. Si quedara alguna nota sobre C-23, debe describir el estado corregido, no el defecto.
 
-- [ ] 8.5 Verificar la coherencia de la versión de Python elegida en README, Dockerfile y CI.
+- [x] 8.5 Verificar la coherencia de la versión de Python elegida en README, Dockerfile y CI.
   **Cómo se verifica**: `Select-String -Path backend/Dockerfile -Pattern '^FROM python:'` y `Select-String -Path .github/workflows/tests.yml -Pattern 'python-version'` y `Select-String -Path README.md -Pattern 'Python 3\.'`.
   **Resultado esperado**: el `FROM` del Dockerfile y los dos `python-version` del CI declaran la **misma** versión (default propuesto `3.13`), y el README §Requisitos nombra esa versión como la soportada.
 
@@ -1653,3 +1653,302 @@ exit 0
 ```
 
 Cumple: el filtro del diff no muestra cambios en `@app` ni en `include_router` (el control positivo confirma que el archivo sí está modificado: 7 inserciones y 1 borrado, todas del docstring) y `ruff` termina con `exit 0` y `All checks passed!`.
+
+### Grupo 8 — README y CI (2026-11-13)
+
+Estado previo verificado: HEAD `e90aefe docs(c-23): docstring real de main.py (grupo 7)`, árbol limpio. Archivos tocados: `.github/workflows/tests.yml`, `README.md` y este `tasks.md`. No se tocaron `backend/Dockerfile`, `docker-compose.yml`, `.env.example`, `requirements` ni código de la app. Finales de línea conservados (CRLF en ambos, `CR=LF`, sin BOM: `README.md` primeros bytes `35,32,116`; `tests.yml` `110,97,109`).
+
+#### Estado previo de lo tocado (solo lectura)
+
+```
+PS> Get-Content .github\workflows\tests.yml -Encoding UTF8
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odontologia
+          POSTGRES_PASSWORD: odontologia
+          POSTGRES_DB: turnos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odontologia -d turnos"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      TZ: America/Argentina/Buenos_Aires
+      DATABASE_URL: postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - run: pytest -rs backend/tests
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - run: ruff check backend/
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -b
+      - run: npm run build
+      - run: npm run test:run
+```
+
+```
+PS> Select-String -Path README.md -Pattern '^#{1,3} ' -Encoding UTF8
+1: # turnos-odontologia
+15: ## Roadmap
+40: ## Requisitos
+47: ## 1. Clonar e instalar
+75: ## 2. Probar sin base de datos
+83: ## 3. Levantar PostgreSQL
+111: ## 4. Migrar, cargar datos ficticios y correr todos los tests
+141: ## 5. Probar la API (`POST /turnos`)
+209: ## Variables de entorno
+215: ## Recordatorios 48h/24h (job por cron)
+234: ## Reserva online (C-08)
+260: ## Integración MCP: Postgres MCP Pro
+264: ### Para qué sirve y límites
+271: ### Requisitos
+277: ### Rol de solo lectura (`mcp_readonly`)
+293: ### Variable de entorno
+312: ### Configuración (sin secretos)
+330: ### Pasos
+348: ### Comprobación
+362: ### Problema de instalación resuelto: puerto 5432 ocupado
+370: ### Seguridad
+376: ## Estructura del repositorio
+399: ## Datos
+403: ## Uso de inteligencia artificial
+```
+
+```
+PS> Select-String -Path README.md -Pattern 'requirements|uvicorn|alembic|no arranca|arranca|Python 3\.|pgdata|down -v' -Encoding UTF8
+21: - **C-23 `fix-api-contenedor`** (corrección): arregla el `Dockerfile` de la API, que hoy no arranca en contenedor (ver la nota del paso 3).
+43: - **Python 3.12 o superior** (el CI usa 3.12; también probado con 3.13 en Windows).
+56: python -m pip install -r backend/requirements.txt
+66: python -m pip install -r backend/requirements.txt
+73: - Si usás una versión de Python muy nueva y `pip install` falla al instalar alguna dependencia, creá el entorno con Python 3.12 o 3.13, por ejemplo `py -3.13 -m venv .venv`.
+91: > **El servicio `api` del compose todavía no arranca.** Su `backend/Dockerfile` copia solo `app/` y ejecuta `uvicorn app.main:app`, pero el ...
+93: **Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"543 ...
+116: python -m alembic -c backend/alembic.ini upgrade head
+124: python -m alembic -c backend/alembic.ini upgrade head
+138: python -m alembic -c backend/alembic.ini downgrade -1
+148: python -m uvicorn backend.app.main:app --port 8000
+382: - `backend/alembic/` - migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
+```
+
+Con eso decidí: 8.2 en la sección **1. Clonar e instalar**; 8.3 en la **3. Levantar PostgreSQL** (nota de `docker compose up --build`) y en la **4. Migrar…** (migraciones adentro del contenedor + nota del volumen `pgdata`); 8.4 en la nota de la **3**, en la línea del roadmap y en **Estructura del repositorio**; 8.5 en **Requisitos** y en los dos jobs de CI. No se crearon secciones nuevas.
+
+#### 8.1 — CI instala los dos archivos (jobs `tests` y `lint`)
+
+```
+PS> (Select-String -Path .github/workflows/tests.yml -Pattern 'requirements-dev\.txt').Count
+2
+
+PS> Select-String -Path .github/workflows/tests.yml -Pattern 'requirements-dev\.txt'
+.github/workflows/tests.yml:33:      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+.github/workflows/tests.yml:43:      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+PS> Select-String -Path .github/workflows/tests.yml -Pattern '^  (tests|lint|frontend):$'
+  tests:
+  lint:
+  frontend:
+
+PS> (Select-String -Path .github/workflows/tests.yml -Pattern '^  (tests|lint|frontend):$').Count
+3
+
+PS> Select-String -Path .github/workflows/tests.yml -Pattern 'npm ci'
+      - run: npm ci
+
+PS> (Select-String -Path .github/workflows/tests.yml -Pattern 'npm ci').Count
+1
+```
+
+```
+PS> git --no-pager diff -U1 .github/workflows/tests.yml
+diff --git a/.github/workflows/tests.yml b/.github/workflows/tests.yml
+index f23b04c..ccd7271 100644
+--- a/.github/workflows/tests.yml
++++ b/.github/workflows/tests.yml
+@@ -30,5 +30,5 @@ jobs:
+         with:
+-          python-version: "3.12"
++          python-version: "3.13"
+           cache: pip
+-      - run: pip install -r backend/requirements.txt
++      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+       - run: pytest -rs backend/tests
+@@ -40,5 +40,5 @@ jobs:
+         with:
+-          python-version: "3.12"
++          python-version: "3.13"
+           cache: pip
+-      - run: pip install -r backend/requirements.txt
++      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+       - run: ruff check backend/
+```
+
+Este es el diff **literal al cierre del grupo** (incluye también los `python-version` de 8.5, aplicados después). En el momento de 8.1 el diff `-U1` mostraba el mismo cambio de las dos líneas `pip install -r backend/requirements.txt -r backend/requirements-dev.txt` en los jobs `tests` y `lint`, con `python-version: "3.12"` sin tocar.
+
+Cumple: 2 coincidencias de `requirements-dev.txt` (jobs `tests` y `lint`), 3 jobs intactos, 1 `npm ci` y la indentación YAML sin cambios (solo se alargó el `- run:` en las dos líneas). El job `frontend` no se tocó.
+
+#### 8.2 — Instalación en §1 con los dos archivos
+
+```
+PS> Select-String -Path README.md -Pattern 'requirements-dev\.txt' -Encoding UTF8
+56: python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+66: python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+PS> (Select-String -Path README.md -Pattern 'requirements-dev\.txt' -Encoding UTF8).Count
+2
+
+PS> Select-String -Path README.md -Pattern 'pip install -r backend/requirements\.txt$' -Encoding UTF8
+<sin coincidencias>
+
+PS> (Select-String -Path README.md -Pattern 'pip install -r backend/requirements\.txt$' -Encoding UTF8).Count
+0
+```
+
+Cumple: 2 coincidencias (bloques PowerShell y bash de la sección 1) y ninguna sección vuelve a instalar solo `requirements.txt` para desarrollo.
+
+#### 8.3 — Migraciones dentro del contenedor, `up --build` y volumen `pgdata`
+
+```
+PS> Select-String -Path README.md -Pattern 'docker compose exec api python -m alembic' -Encoding UTF8
+119: docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
+128: docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
+142: docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1
+148: docker compose exec api python -m alembic -c backend/alembic.ini current
+
+PS> (Select-String -Path README.md -Pattern 'docker compose exec api python -m alembic' -Encoding UTF8).Count
+4
+
+PS> Select-String -Path README.md -Pattern 'docker compose up --build' -Encoding UTF8
+91: > **El servicio `api` ya funciona en contenedor.** ... para levantar API + web usá `docker compose up --build`. ...
+93: Para levantar la API y el frontend junto con la base: `docker compose up --build` (la API queda en `http://127.0.0.1:8000` y el frontend en `http://localhost:8080`).
+118: docker compose up --build -d api
+127: docker compose up --build -d api
+
+PS> (Select-String -Path README.md -Pattern 'docker compose up --build' -Encoding UTF8).Count
+4
+
+PS> Select-String -Path README.md -Pattern 'down -v' -Encoding UTF8
+151: > **Cuidado con el volumen `pgdata`:** ... El remedio es `docker compose down -v` y volver a levantar, ...
+
+PS> (Select-String -Path README.md -Pattern 'down -v' -Encoding UTF8).Count
+1
+```
+
+Comando extra (no está en la task; confirma que no queda `alembic` del host como comando suelto):
+
+```
+PS> Select-String -Path README.md -Pattern 'python -m alembic' -Encoding UTF8
+119: docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
+128: docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
+142: docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1
+148: docker compose exec api python -m alembic -c backend/alembic.ini current
+```
+
+Las 4 apariciones son del contenedor (`docker compose exec api ...`), no del host. Cumple: al menos 1 coincidencia por patrón, y el camino viejo (alembic desde el host) quedó reemplazado en la sección 4. La nota del volumen está dentro de la sección de migraciones (4), como pedía la regla.
+
+#### 8.4 — Fuera la advertencia de que `api` no arranca
+
+```
+PS> Select-String -Path README.md -Pattern "todavía no arranca" -Encoding UTF8
+<sin coincidencias>
+
+PS> (Select-String -Path README.md -Pattern "todavía no arranca" -Encoding UTF8).Count
+0
+
+PS> Select-String -Path README.md -Pattern "no arranca" -Encoding UTF8
+<sin coincidencias>
+
+PS> (Select-String -Path README.md -Pattern "no arranca" -Encoding UTF8).Count
+0
+```
+
+Control positivo:
+
+```
+PS> (Select-String -Path README.md -Pattern "api" -Encoding UTF8 | Measure-Object).Count
+18
+```
+
+Cumple: 0 en ambos patrones y el control positivo devuelve 18 líneas (el comando sin salida no estaba mal escrito). Además se actualizaron las otras dos notas sobre C-23 para que describan el estado corregido: la del roadmap (línea 21) y la de **Estructura del repositorio** (línea 384).
+
+#### 8.5 — Versión de Python alineada a 3.13
+
+Estado antes:
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern '^FROM python:'
+FROM python:3.13-slim
+
+PS> Select-String -Path .github/workflows/tests.yml -Pattern 'python-version'
+          python-version: "3.12"
+          python-version: "3.12"
+
+PS> Select-String -Path README.md -Pattern 'Python 3\.' -Encoding UTF8
+43: - **Python 3.12 o superior** (el CI usa 3.12; también probado con 3.13 en Windows).
+73: - Si usás una versión de Python muy nueva y `pip install` falla al instalar alguna dependencia, creá el entorno con Python 3.12 o 3.13, por ejemplo `py -3.13 -m venv .venv`.
+```
+
+No coincidían (Dockerfile 3.13 vs CI y README 3.12), así que se alineó el CI y el README a la versión del `Dockerfile`. Líneas cambiadas:
+
+- `.github/workflows/tests.yml`: `python-version: "3.12"` → `python-version: "3.13"` (2 ocurrencias, jobs `tests` y `lint`; la razón es que el contenedor de `api` ya se construye con `python:3.13-slim` y los pins se midieron en 3.13).
+- `README.md:43`: `- **Python 3.12 o superior** (el CI usa 3.12; también probado con 3.13 en Windows).` → `- **Python 3.13** (el CI usa 3.13; el `Dockerfile` de `api` usa `python:3.13-slim`).`
+
+Estado después:
+
+```
+PS> Select-String -Path backend/Dockerfile -Pattern '^FROM python:'
+FROM python:3.13-slim
+
+PS> Select-String -Path .github/workflows/tests.yml -Pattern 'python-version'
+          python-version: "3.13"
+          python-version: "3.13"
+
+PS> Select-String -Path README.md -Pattern 'Python 3\.' -Encoding UTF8
+43: - **Python 3.13** (el CI usa 3.13; el `Dockerfile` de `api` usa `python:3.13-slim`).
+73: - Si usás una versión de Python muy nueva y `pip install` falla al instalar alguna dependencia, creá el entorno con Python 3.12 o 3.13, por ejemplo `py -3.13 -m venv .venv`.
+```
+
+Cumple: `FROM` y los dos `python-version` declaran 3.13 y el README lo nombra como soportada. La línea 73 **no** se cambió (menciona 3.12/3.13 solo para crear el `.venv` local): quedó como observación.
+
+#### Observaciones fuera de alcance (no se tocaron)
+
+1. **`README.md:93` contradice `POSTGRES_PORT` y no se reescribió** (la regla de 8.3 lo pedía así). Texto literal: `**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en docker-compose.yml el mapeo "5432:5432" por "5433:5432" y usá el puerto 5433 en la DATABASE_URL. ...`. Hoy el mapeo ya es `${POSTGRES_PORT:-5432}` y la forma correcta es definir `POSTGRES_PORT` (como dice la nota de "Problema de instalación resuelto: puerto 5432 ocupado", línea 366).
+2. **`README.md:36`** — la tabla del roadmap sigue con `| C-23 | fix-api-contenedor | pendiente |`. Los estados de los changes los lleva `CHANGES.md`; no se tocó el README.
+3. **Contadores de tests del README desactualizados** — línea 81 dice `24 passed, 131 skipped` sin PostgreSQL y línea 133 dice `155 passed, 0 skipped`. La corrida real del grupo 4 sobre esta rama dio `139 passed, 614 skipped` sin `DATABASE_URL` y `755 passed` con `turnos_test`. Fuera del alcance de 8.1–8.5; no se tocaron.
