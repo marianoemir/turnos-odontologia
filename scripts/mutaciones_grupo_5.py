@@ -14,8 +14,8 @@ MUTACION_5_6_REPL = 'if not usuario_db:'
 MUTACION_5_7_ORIG = 'if not asoc:'
 MUTACION_5_7_REPL = 'if False and not asoc:'
 
-MUTACION_5_8_ORIG = 'algorithms=[settings.algorithm],'
-MUTACION_5_8_REPL = 'algorithms=[settings.algorithm, "none"], options={"verify_signature": False},'
+MUTACION_5_8_ORIG = 'if unverified_headers.get("alg") == "none":'
+MUTACION_5_8_REPL = 'if False and unverified_headers.get("alg") == "none":'
 
 
 def aplicar(nombre: str) -> None:

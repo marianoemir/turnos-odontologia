@@ -68,10 +68,10 @@ Convenciones: cada grupo sigue RED (los tests nuevos fallan por la razón correc
   Verificación: tras cada archivo, `pytest backend/tests/<archivo> -p no:randomly -q --tb=short` en verde; al final `Select-String` del patrón de 0.4 sobre `backend\tests` solo devuelve los tests que prueban que el header ya no funciona. Además, el JSON exportado de `GET /export` no contiene claves de usuarios ni campos con hash.
 - [x] 5.4 Suite completa y lint.
   Verificación: `pytest backend/tests -p no:randomly -q --tb=short` con la cantidad de tests pasados mayor o igual a la línea base de 0.4, y `ruff check backend scripts` sin errores.
-- [ ] 5.5 Mutación: quitar el chequeo de `exp` en la validación del token. Verificación: el escenario "Token expirado responde 401" debe fallar con la mutación aplicada; revertir con `git restore`.
-- [ ] 5.6 Mutación: quitar el chequeo de usuario activo en la validación del token. Verificación: el escenario del usuario desactivado (token válido de un usuario que ya no es válido) debe fallar con la mutación aplicada; revertir con `git restore`.
-- [ ] 5.7 Mutación: quitar la validación de sucursal del token contra la base. Verificación: el escenario de sucursal desasociada (token válido de un usuario que ya no es válido) debe fallar con la mutación aplicada; revertir con `git restore`.
-- [ ] 5.8 Mutación: aceptar el algoritmo none en la validación del token. Verificación: el escenario 'Token con algoritmo none responde 401' debe fallar con la mutación aplicada; revertir con git restore.
+- [x] 5.5 Mutación: quitar el chequeo de `exp` en la validación del token. Verificación: el escenario "Token expirado responde 401" debe fallar con la mutación aplicada; revertir con `git restore`.
+- [x] 5.6 Mutación: quitar el chequeo de usuario activo en la validación del token. Verificación: el escenario del usuario desactivado (token válido de un usuario que ya no es válido) debe fallar con la mutación aplicada; revertir con `git restore`.
+- [x] 5.7 Mutación: quitar la validación de sucursal del token contra la base. Verificación: el escenario de sucursal desasociada (token válido de un usuario que ya no es válido) debe fallar con la mutación aplicada; revertir con `git restore`.
+- [x] 5.8 Mutación: aceptar el algoritmo none en la validación del token. Verificación: el escenario 'Token con algoritmo none responde 401' debe fallar con la mutación aplicada; revertir con git restore.
 
 ## 6. Seed de usuario ficticio
 

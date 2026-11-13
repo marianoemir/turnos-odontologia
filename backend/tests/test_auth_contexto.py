@@ -159,6 +159,22 @@ def test_token_usuario_desactivado_o_modificado_responde_401(client, db_session)
     assert res.status_code == 401
     assert res.json()["detail"]["causa"] == "sesion_invalida"
 
+    # Caso sucursal desasociada
+    u_suc = Usuario(
+        dni="21212121",
+        password_hash=hashear_password("pwd"),
+        rol_id=rol.id,
+        activo=True,
+    )
+    db_session.add(u_suc)
+    db_session.commit()
+    token_desasociada = emitir_token(
+        usuario_id=u_suc.id, rol="recepcion", sucursal_id=uuid.uuid4()
+    )
+    res_suc = client.get("/roles", headers={"Authorization": f"Bearer {token_desasociada}"})
+    assert res_suc.status_code == 401
+    assert res_suc.json()["detail"]["causa"] == "sesion_invalida"
+
 
 @pytest.mark.integration
 def test_token_valido_con_rol_sin_permiso_responde_403(client, db_session):
