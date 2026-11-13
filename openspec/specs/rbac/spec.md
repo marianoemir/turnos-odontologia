@@ -8,37 +8,37 @@ Define el modelo de roles internos, el contexto de permiso que resuelve el rol a
 
 ### Requirement: Resolución del contexto de permiso desde el rol actuante
 
-El sistema SHALL resolver un `PermissionContext` por request a partir del header `X-Actor-Rol` (`admin`, `recepcion`, `odontologo`, `paciente`). Si el header falta, SHALL asumir `recepcion` con `origen = "default_compatibilidad"`. Un rol no reconocido SHALL responder HTTP 422, y un `X-Sucursal-Id` que no sea un UUID válido existente en `sucursales` SHALL responder HTTP 422.
+El sistema SHALL resolver un `PermissionContext` por request a partir del header `Authorization: Bearer <token>`, verificando la validez del JWT, su firma con HS256 y la existencia y vigencia del usuario en la base de datos. Sin token válido, el sistema SHALL responder HTTP 401 con `detail.causa` y `detail.detalle` y header `WWW-Authenticate: Bearer`. Los headers `X-Actor-Rol`, `X-Actor-Usuario` y `X-Sucursal-Id` dejan de otorgar identidad y dejan de ser leídos. El contexto SHALL exponer `origen = "jwt"` y sucursal resuelta del token o None si no aplica.
 
 #### Scenario: Header válido produce el contexto del rol indicado
 
-- **GIVEN** un request con header `X-Actor-Rol: odontologo`
+- **GIVEN** un request con token válido con rol odontólogo
 - **WHEN** el endpoint resuelve el contexto de permiso
-- **THEN** el contexto expone `rol = "odontologo"` y `origen = "header"`
+- **THEN** el contexto expone `rol = "odontologo"` y `origen = "jwt"`
 
 #### Scenario: Ausencia de header asume recepción por compatibilidad
 
-- **GIVEN** un request sin header `X-Actor-Rol`
+- **GIVEN** un request sin token en una ruta protegida
 - **WHEN** el endpoint resuelve el contexto de permiso
-- **THEN** el contexto expone `rol = "recepcion"` y `origen = "default_compatibilidad"`
+- **THEN** el sistema responde HTTP 401 con `detail.causa = "token_ausente"` y no asume recepción
 
 #### Scenario: Rol desconocido responde 422
 
-- **GIVEN** un request con header `X-Actor-Rol: superusuario`
+- **GIVEN** un token con un rol que no existe en el sistema
 - **WHEN** el endpoint resuelve el contexto de permiso
-- **THEN** el sistema responde HTTP 422 con una causa de rol desconocido y no ejecuta la operación
+- **THEN** el sistema responde HTTP 401 con `detail.causa = "sesion_invalida"`
 
 #### Scenario: Capitalización distinta en el rol responde 422
 
-- **GIVEN** un request con header `X-Actor-Rol: ADMIN`
+- **GIVEN** un token con rol en mayúsculas no canónico
 - **WHEN** el endpoint resuelve el contexto de permiso
-- **THEN** el sistema responde HTTP 422 con causa de rol desconocido, porque la comparación es exacta y case-sensitive
+- **THEN** el sistema responde HTTP 401 con `detail.causa = "sesion_invalida"`
 
 #### Scenario: Sucursal de header inválida responde 422
 
-- **GIVEN** un request con `X-Sucursal-Id` que no es un UUID o que no existe en `sucursales`
-- **WHEN** el endpoint resuelve el contexto de permiso
-- **THEN** el sistema responde HTTP 422 con causa de sucursal inválida y no ejecuta la operación
+- **GIVEN** un request a una ruta protegida
+- **WHEN** se envía `X-Sucursal-Id` en los headers
+- **THEN** el header se ignora y la identidad se resuelve exclusivamente desde el token
 
 ### Requirement: Autorización por rol con respuesta 403 uniforme
 
@@ -149,16 +149,16 @@ El sistema SHALL exponer `GET /usuarios-sucursal`, `POST /usuarios-sucursal` y `
 
 ### Requirement: Compatibilidad con clientes sin identidad
 
-Mientras no exista login real, la ausencia de header `X-Actor-Rol` SHALL resolverse como rol `recepcion`, de modo que los clientes y tests existentes conserven exactamente su comportamiento previo en los endpoints que recepción tiene permitidos. Este default SHALL tratarse como supuesto de implementación y no como regla de negocio ni como control de seguridad.
+Se elimina el default `recepcion`. El sistema SHALL requerir autenticación JWT en todas las rutas protegidas. Sin token válido, el sistema SHALL responder HTTP 401.
 
 #### Scenario: Cliente existente sin header conserva el comportamiento
 
-- **GIVEN** un request a `POST /caja/abrir` sin header de identidad, con un payload válido
-- **WHEN** el endpoint resuelve el contexto por defecto `recepcion`
-- **THEN** la respuesta es la misma que antes de C-11 (HTTP 201 con la caja abierta)
+- **GIVEN** un request a `POST /caja/abrir` sin header de autenticación
+- **WHEN** el endpoint resuelve el contexto de permiso
+- **THEN** la respuesta es HTTP 401 con `detail.causa = "token_ausente"`
 
 #### Scenario: El default no otorga permisos de administración
 
 - **GIVEN** un request sin header de identidad a `GET /roles` y a `GET /export`
-- **WHEN** el contexto se resuelve por defecto como `recepcion` con `origen = "default_compatibilidad"`
-- **THEN** ambas respuestas son HTTP 403 con `detail.causa = "permiso_denegado"` y no se ejecuta la operación
+- **WHEN** el endpoint resuelve el contexto
+- **THEN** ambas respuestas son HTTP 401 con `detail.causa = "token_ausente"`

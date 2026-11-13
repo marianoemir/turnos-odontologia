@@ -97,8 +97,8 @@ Convenciones: cada grupo sigue RED (los tests nuevos fallan por la razón correc
 
 ## 8. Cierre
 
-- [ ] 8.1 Suite completa, lint y validación.
+- [x] 8.1 Suite completa, lint y validación.
   Verificación: `pytest backend/tests -p no:randomly -q --tb=short`, `ruff check backend scripts` y `cmd /c "openspec validate c-24-auth-jwt --strict"` en verde.
-- [ ] 8.2 Al archivar: actualizar la fila Auth de `AGENTS.md` y `CLAUDE.md` (idénticos) para reflejar el login con JWT, anotar el change de frontend pendiente sin inventar su número y marcar C-24 en `CHANGES.md`.
+- [x] 8.2 Al archivar: actualizar la fila Auth de `AGENTS.md` y `CLAUDE.md` (idénticos) para reflejar el login con JWT, anotar el change de frontend pendiente sin inventar su número y marcar C-24 en `CHANGES.md`.
   - Antes de marcar C-24 en `CHANGES.md`, verificar que exista su entrada (creada en la rama `docs/rev-11`); si no existe, anotar como bloqueo y no inventar el texto.
   Verificación: hash de `AGENTS.md` igual al de `CLAUDE.md` (`Get-FileHash`), y `Select-String -Path AGENTS.md -Pattern 'X-Actor-Rol' -Encoding UTF8` sin la descripción vieja de la fila Auth.
