@@ -30,11 +30,11 @@
 
 ## 2. `.dockerignore` en la raíz
 
-- [ ] 2.1 Crear `.dockerignore` en la raíz del repo con exactamente seis líneas: `frontend/`, `.venv`, `**/__pycache__`, `**/*.pyc`, `.git`, `docs/`.
+- [x] 2.1 Crear `.dockerignore` en la raíz del repo con exactamente seis líneas: `frontend/`, `.venv`, `**/__pycache__`, `**/*.pyc`, `.git`, `docs/`.
   **Cómo se verifica**: `Select-String -Path .dockerignore -Pattern '^(frontend/|\.venv|\*\*/__pycache__|\*\*/\*\.pyc|\.git|docs/)$' | Measure-Object | Select-Object -ExpandProperty Count`.
   **Resultado esperado**: `6`. Además `(Get-Content .dockerignore).Count` devuelve `6` (sin líneas extra, para que la verificación por regex sea exacta). Los dos patrones con `**/` son obligatorios: `__pycache__/*` y `*.pyc` sin prefijo solo matchean en la raíz del contexto y no cubren `backend/app/**` (ver `design.md` D4).
 
-- [ ] 2.2 Confirmar que `frontend/.dockerignore` de C-13 queda intacto y en su lugar.
+- [x] 2.2 Confirmar que `frontend/.dockerignore` de C-13 queda intacto y en su lugar.
   **Cómo se verifica**: `Test-Path frontend/.dockerignore` y `git status --short frontend/.dockerignore`.
   **Resultado esperado**: `True` y salida vacía en `git status` (el archivo existe y no fue modificado, movido ni reemplazado por el nuevo de la raíz).
 
@@ -400,4 +400,56 @@ EXIT=0
 
 **Estado visto para `api`: `Exited (1)`** (sin política de reinicio no queda en `restarting`). El comando de la task (`docker compose ps --format ...`) no lista el contenedor detenido; su estado se ve con `docker compose ps -a`. La desviación queda registrada en estas notas y, por decisión del usuario, **la task se marca `[x]`**.
 
-Observación de BuildKit: el paso `#4 [internal] load .dockerignore / transferring context: 2B` aparece aunque `Test-Path backend/.dockerignore` devuelve `False`; no hay ningún `.dockerignore` en `backend/` ni en la raíz, y el contexto de build sigue siendo `backend/` (11.30kB).
+Observación de BuildKit: el paso `#4 [internal] load .dockerignore / transferring context: 2B` aparece aunque `Test-Path backend/.dockerignore` devuelve `False`; no hay ningún `.dockerignore` en `backend/` ni en la raíz, y el contexto de build sigue siendo `backend/` (11.30kB). (Estado al momento del grupo 1; a partir de la task 2.1 sí existe el `.dockerignore` de la raíz.)
+
+### Grupo 2 — `.dockerignore` en la raíz (2026-11-13)
+
+Archivo creado: sólo `.dockerignore` en la raíz. `frontend/.dockerignore`, Dockerfile, compose, requirements, README y `tests.yml` no se tocaron.
+
+#### 2.1 — Creación y conteo de patrones
+
+```
+PS> Get-Content .dockerignore -Encoding UTF8
+frontend/
+.venv
+**/__pycache__
+**/*.pyc
+.git
+docs/
+```
+
+```
+PS> Select-String -Path .dockerignore -Pattern '^(frontend/|\.venv|\*\*/__pycache__|\*\*/\*\.pyc|\.git|docs/)$' | Measure-Object | Select-Object -ExpandProperty Count
+6
+```
+
+```
+PS> (Get-Content .dockerignore).Count
+6
+```
+
+Comando extra (no está en la task; confirma que no hay líneas vacías ni comentarios y que los saltos son LF puros):
+
+```
+PS> $raw = [IO.File]::ReadAllText((Resolve-Path .dockerignore)); Write-Output ("CR=" + ([regex]::Matches($raw, "`r").Count)); Write-Output ("LF=" + ([regex]::Matches($raw, "`n").Count)); Write-Output ("BYTES=" + (Get-Item .dockerignore).Length)
+CR=0
+LF=6
+BYTES=51
+```
+
+#### 2.2 — `frontend/.dockerignore` intacto
+
+```
+PS> Test-Path frontend/.dockerignore
+True
+```
+
+```
+PS> git status --short frontend/.dockerignore
+<sin salida>
+```
+
+```
+PS> git status --short
+?? .dockerignore
+```
