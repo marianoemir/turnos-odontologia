@@ -8,10 +8,10 @@
  * (no hay status cuando no hubo respuesta).
  */
 import { ApiError } from "../types/errors";
+import { getSession } from "../auth/session";
+import { notifyForbidden, notifyUnauthorized } from "../auth/auth-events";
 import { errorDeCuerpoIlegible, normalizeApiError } from "./api-error";
 import { API_BASE_URL } from "./config";
-import { getActiveRole } from "./role";
-import { getActiveSucursalId } from "./sucursal";
 
 /** Plazo por defecto de una request, en milisegundos. */
 export const TIMEOUT_MS = 15_000;
@@ -30,6 +30,13 @@ export interface OpcionesRequest {
   /** Ruta pública del paciente: sin cabeceras de identidad (design D4). */
   publica?: boolean;
 }
+
+const CABECERAS_DE_IDENTIDAD_RETIRADAS = [
+  "Authorization",
+  "X-Actor-Rol",
+  "X-Actor-Usuario",
+  "X-Sucursal-Id",
+] as const;
 
 type ResultadoParseo =
   | { ok: true; valor: unknown }
@@ -101,17 +108,15 @@ export async function apiRequest<T>(
   opciones: OpcionesRequest = {},
 ): Promise<T> {
   const headers = new Headers(opciones.headers);
+  for (const nombre of CABECERAS_DE_IDENTIDAD_RETIRADAS) {
+    headers.delete(nombre);
+  }
   headers.set("Accept", "application/json");
 
   if (opciones.publica !== true) {
-    // Rol y sucursal se leen en cada request (no se capturan al construir el
-    // cliente): cuando C-14 conecte los selectores, todas las requests cambian
-    // sin tocar este archivo (design D4).
-    headers.set("X-Actor-Rol", getActiveRole());
-
-    const sucursalId = getActiveSucursalId();
-    if (sucursalId !== null) {
-      headers.set("X-Sucursal-Id", sucursalId);
+    const session = getSession();
+    if (session !== null) {
+      headers.set("Authorization", `Bearer ${session.token}`);
     }
   }
 
@@ -150,7 +155,14 @@ export async function apiRequest<T>(
     if (!parseado.ok) {
       throw errorDeCuerpoIlegible(response.status, texto);
     }
-    throw normalizeApiError(response.status, parseado.valor);
+    const error = normalizeApiError(response.status, parseado.valor);
+    if (opciones.publica !== true && response.status === 401) {
+      notifyUnauthorized();
+    }
+    if (opciones.publica !== true && response.status === 403) {
+      notifyForbidden();
+    }
+    throw error;
   }
 
   if (texto.trim().length === 0) {

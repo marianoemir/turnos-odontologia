@@ -8,11 +8,14 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { routes } from "./router";
+import { SessionProvider } from "../auth/session-context";
+import { clearSession, setSession } from "../auth/session";
 
-afterEach(cleanup);
+beforeEach(() => setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null }));
+afterEach(() => { cleanup(); clearSession(); });
 
 const ENLACES_DEL_NAV: { nombre: string; destino: string }[] = [
   { nombre: "Agenda", destino: "/agenda" },
@@ -26,7 +29,7 @@ const PATHS_SIN_MATCH = ["/ruta-inexistente", "/hc/"];
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(<SessionProvider><RouterProvider router={router} /></SessionProvider>);
 }
 
 describe("ruta no declarada o parámetro ausente", () => {

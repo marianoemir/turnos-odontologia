@@ -11,6 +11,8 @@
 import type { RouteObject } from "react-router-dom";
 
 import AdminPage from "../pages/admin";
+import { SessionExpiry } from "../auth/session-expiry";
+import { ProtectedRoute } from "../auth/protected-route";
 import AgendaPage from "../pages/agenda";
 import CajaPage from "../pages/caja";
 import CancelarPage from "../pages/cancelar";
@@ -19,6 +21,7 @@ import ConfirmarPage from "../pages/confirmar";
 import HistoriaClinicaPage from "../pages/historia-clinica";
 import InicioPage from "../pages/inicio";
 import ListaEsperaPage from "../pages/lista-espera";
+import LoginPage from "../pages/login";
 import ReservarPage from "../pages/reservar";
 import TurnoNuevoPage from "../pages/turno-nuevo";
 import NotFound from "./not-found";
@@ -27,26 +30,37 @@ import Shell from "./shell";
 
 export const routes: RouteObject[] = [
   {
-    path: "/",
-    element: <Shell />,
+    element: <SessionExpiry />,
     children: [
-      { index: true, element: <InicioPage /> },
-      { path: "turnos/nuevo", element: <TurnoNuevoPage /> },
-      { path: "agenda", element: <AgendaPage /> },
-      { path: "catalogo/*", element: <CatalogoPage /> },
-      { path: "lista-espera", element: <ListaEsperaPage /> },
-      { path: "hc/:pacienteId", element: <HistoriaClinicaPage /> },
-      { path: "caja", element: <CajaPage /> },
-      { path: "admin", element: <AdminPage /> },
-      { path: "*", element: <NotFound /> },
-    ],
-  },
-  {
-    element: <PublicLayout />,
-    children: [
-      { path: "/reservar/:profesional", element: <ReservarPage /> },
-      { path: "/confirmar/:token", element: <ConfirmarPage /> },
-      { path: "/cancelar/:token", element: <CancelarPage /> },
+      { path: "/login", element: <LoginPage /> },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/",
+            element: <Shell />,
+            children: [
+              { index: true, element: <InicioPage /> },
+              { path: "turnos/nuevo", element: <TurnoNuevoPage /> },
+              { path: "agenda", element: <AgendaPage /> },
+              { path: "catalogo/*", element: <CatalogoPage /> },
+              { path: "lista-espera", element: <ListaEsperaPage /> },
+              { path: "hc/:pacienteId", element: <HistoriaClinicaPage /> },
+              { path: "caja", element: <CajaPage /> },
+              { path: "admin", element: <AdminPage /> },
+              { path: "*", element: <NotFound /> },
+            ],
+          },
+        ],
+      },
+      {
+        element: <PublicLayout />,
+        children: [
+          { path: "/reservar/:profesional", element: <ReservarPage /> },
+          { path: "/confirmar/:token", element: <ConfirmarPage /> },
+          { path: "/cancelar/:token", element: <CancelarPage /> },
+        ],
+      },
     ],
   },
 ];
