@@ -59,6 +59,15 @@ describe("tabla de rutas", () => {
   it.each(RUTAS_DECLARADAS)(
     "$path resuelve a la pantalla «$heading»",
     async ({ path, heading }) => {
+      // C-22: `/admin` sólo la navega `admin`; el resto se prueba con `recepcion`.
+      if (path === "/admin") {
+        setSession({
+          token: "jwt-de-prueba",
+          rol: "admin",
+          usuario: "usuario-ficticio",
+          sucursalId: null,
+        });
+      }
       renderEn(path);
 
       expect(

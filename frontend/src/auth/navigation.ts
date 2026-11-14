@@ -17,8 +17,18 @@ export function isInternalPath(pathname: string): boolean {
   );
 }
 
+function esRutaDeAdministracion(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
 export function canNavigate(rol: Rol, pathname: string): boolean {
-  return rol === "recepcion" || pathname === "/agenda";
+  if (pathname === "/agenda") {
+    return true;
+  }
+  if (rol === "admin") {
+    return esRutaDeAdministracion(pathname);
+  }
+  return rol === "recepcion" && !esRutaDeAdministracion(pathname);
 }
 
 export function safeReturnTo(value: string | null, rol: Rol): string {

@@ -4,12 +4,16 @@
  * fija el design D12. Los estilos viven en `shell.css` (mismas clases y
  * valores que la referencia, sin definir tokens).
  *
- * `/turnos/nuevo`, `/lista-espera` y `/admin` no tienen entrada en la
- * navegación aprobada (Q4): se declaran en la tabla de rutas, no acá.
+ * `/turnos/nuevo` y `/lista-espera` no tienen entrada en la navegación
+ * aprobada (Q4): se declaran en la tabla de rutas, no acá. `/admin` se enlaza
+ * en un grupo «Administración» aparte, fuera de «Operación» y solo para el rol
+ * `admin` (C-22, opción (c) de C-13). Que el enlace no se muestre a otros
+ * roles es comodidad de la interfaz: la autorización real es del backend.
  */
 import type { ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { useSession } from "../auth/use-session";
 import ErrorBoundary from "./error-boundary";
 import "./shell.css";
 
@@ -60,8 +64,42 @@ const ENLACES: Enlace[] = [
   },
 ];
 
+/** Enlace del grupo «Administración» (solo `admin`). */
+const ENLACE_ADMINISTRACION: Enlace = {
+  nombre: "Panel de administración",
+  destino: "/admin",
+  icono: (
+    <>
+      <path d="M12 3.5 5 6.5v5c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9v-5z" />
+      <path d="m9.5 12 1.8 1.8 3.2-3.6" />
+    </>
+  ),
+};
+
+function EnlaceDelNav({ nombre, destino, icono }: Enlace) {
+  return (
+    <NavLink className="side__link" to={destino}>
+      <svg
+        className="ico"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {icono}
+      </svg>
+      {nombre}
+    </NavLink>
+  );
+}
+
 export default function Shell() {
   const { pathname } = useLocation();
+  const { session } = useSession();
+  const esAdmin = session?.rol === "admin";
 
   return (
     <div className="app-shell">
@@ -72,25 +110,19 @@ export default function Shell() {
         <div>
           <p className="side__label">Operación</p>
           <div className="side__group">
-            {ENLACES.map(({ nombre, destino, icono }) => (
-              <NavLink key={destino} className="side__link" to={destino}>
-                <svg
-                  className="ico"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  {icono}
-                </svg>
-                {nombre}
-              </NavLink>
+            {ENLACES.map((enlace) => (
+              <EnlaceDelNav key={enlace.destino} {...enlace} />
             ))}
           </div>
         </div>
+        {esAdmin && (
+          <div>
+            <p className="side__label">Administración</p>
+            <div className="side__group">
+              <EnlaceDelNav {...ENLACE_ADMINISTRACION} />
+            </div>
+          </div>
+        )}
       </nav>
 
       <main className="app-main">
