@@ -30,7 +30,7 @@
 
 ## 6. Verificación integrada
 
-- [ ] 6.1 Ejecutar y corregir `npm run lint`, `tsc -b`, `npm run build` y `npm run test:run`; verificar que no hay envío de `X-Sucursal-Id`, `X-Actor-Rol` ni `X-Actor-Usuario` y que las pantallas de administración no aparecen para `recepcion`.
+- [x] 6.1 Ejecutar y corregir `npm run lint`, `tsc -b`, `npm run build` y `npm run test:run`; verificar que no hay envío de `X-Sucursal-Id`, `X-Actor-Rol` ni `X-Actor-Usuario` y que las pantallas de administración no aparecen para `recepcion`.
 - [ ] 6.2 Con backend local, `SECRET_KEY` ficticia de 32 o más caracteres y `DATABASE_URL` terminada en `turnos_test`, verificar antes qué rol tiene el usuario del seed de C-24 y, con un `admin` ficticio, recorrer roles, sucursales, asignaciones y descarga; comprobar que `recepcion` no entra a `/admin` y que una llamada directa a un endpoint administrativo responde 403, y resolver la pregunta abierta de si `admin` puede leer `/agenda`. Documentar el resultado sin registrar credenciales.
 
 ## Workflow follow-up
