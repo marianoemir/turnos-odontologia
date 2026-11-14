@@ -21,7 +21,7 @@
 
 - [x] 4.1 Construir `/admin/sucursales` con listado (inactivas incluidas), alta, edición y baja lógica con confirmación; verificar con RTL el alta, el 409 `duplicate_nombre_sucursal` en el campo `nombre` y que desactivar pide confirmación y no borra. Decisiones: formulario con react-hook-form y zod (`nombre` obligatorio, `direccion` opcional); el 409 `duplicate_nombre_sucursal` se asocia al campo `nombre` con `setError`, porque `applyApiFieldErrors` solo cubre el 422; el `PATCH` envía únicamente los campos que cambiaron y `""` para vaciar la dirección, porque el backend rechaza `null`; la baja lógica pide confirmación y no ofrece reactivar (la spec no lo pide). La pantalla se armó en secciones para sumar la 4.2 y la 4.3 sin reescribir esta.
 - [x] 4.2 Agregar las asignaciones usuario–sucursal con `usuario` como texto libre, rol y sucursal elegidos de listas, alta y edición; verificar con RTL el alta, el 409 `duplicate_usuario_sucursal` en el campo `usuario` y el 404 informado sin reintento.
-- [ ] 4.3 Mostrar la sucursal activa de solo lectura en `/admin` y en `/admin/sucursales`, con «Sin sucursal asociada» cuando `sucursalId` es nulo y la acción «Cambiar de sucursal» que cierra la sesión y navega a `/login`; verificar con RTL los tres casos y que ninguna request lleva `X-Sucursal-Id`.
+- [x] 4.3 Mostrar la sucursal activa de solo lectura en `/admin` y en `/admin/sucursales`, con «Sin sucursal asociada» cuando `sucursalId` es nulo y la acción «Cambiar de sucursal» que cierra la sesión y navega a `/login`; verificar con RTL los tres casos y que ninguna request lleva `X-Sucursal-Id`.
 
 ## 5. Exportación e importación
 

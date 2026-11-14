@@ -15,6 +15,8 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MemoryRouter } from "react-router-dom";
+import { SessionProvider } from "../auth/session-context";
 import { apiRequest } from "../services/http";
 import type { Sucursal, SucursalCreate, SucursalPatch } from "../types/api-admin";
 import { ApiError } from "../types/errors";
@@ -96,7 +98,7 @@ function renderPage(): void {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <AdminSucursalesPage />
+      <SessionProvider><MemoryRouter><AdminSucursalesPage /></MemoryRouter></SessionProvider>
     </QueryClientProvider>,
   );
 }

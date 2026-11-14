@@ -30,6 +30,7 @@ import {
 import type { Sucursal, SucursalPatch } from "../types/api-admin";
 import { ApiError } from "../types/errors";
 import { SeccionAsignaciones } from "./admin-asignaciones";
+import { SucursalActiva } from "./admin-sucursal-activa";
 
 const sucursalFormSchema = z.object({
   nombre: z
@@ -311,6 +312,7 @@ export default function AdminSucursalesPage() {
   return (
     <section>
       <h1 className="app-title">Sucursales</h1>
+      <SucursalActiva />
       <SeccionSucursales />
       <SeccionAsignaciones />
     </section>

@@ -9,13 +9,20 @@
  * Cada ruta debe resolver a una pantalla registrada y las rutas con parámetro
  * deben exponer el valor del segmento (`pacienteId`, `profesional`, `token`).
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { routes } from "./router";
 import { SessionProvider } from "../auth/session-context";
 import { clearSession, setSession } from "../auth/session";
+
+// `/admin` muestra la sucursal activa y consulta la API: se simula `apiRequest`
+// (esta prueba solo verifica qué pantalla resuelve cada ruta).
+vi.mock("../services/http", () => ({
+  apiRequest: vi.fn(() => Promise.resolve([])),
+}));
 
 beforeEach(() => {
   setSession({
@@ -48,9 +55,12 @@ const RUTAS_DECLARADAS: { path: string; heading: string }[] = [
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <SessionProvider>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </SessionProvider>,
   );
 }
