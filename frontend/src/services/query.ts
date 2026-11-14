@@ -14,6 +14,9 @@ export const resourceKeys = {
   prestaciones: { all: ["prestaciones"] as const },
   sillones: { all: ["sillones"] as const },
   turnos: { all: ["turnos"] as const },
+  roles: { all: ["roles"] as const },
+  sucursales: { all: ["sucursales"] as const },
+  usuariosSucursal: { all: ["usuarios-sucursal"] as const },
 } as const;
 
 type Resource = keyof typeof resourceKeys;
