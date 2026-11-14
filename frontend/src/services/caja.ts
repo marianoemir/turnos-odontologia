@@ -34,12 +34,10 @@ function compararCentavosConMax(textoEntero: string, decimales: string): boolean
   return valor > maxStr;
 }
 
-/**
- * Parser puro de monto en pesos (string) a centavos enteros.
- * Acepta coma o punto como separador decimal, sin usar float/Number/parseFloat.
- * Rechaza vacío, cero, más de 2 decimales y valores > MONTO_MAX_CENTAVOS.
- */
-export function parsePesosACentavos(entrada: string): number {
+function parseMontoPesosComun(
+  entrada: string,
+  opciones: { permitirCero: boolean },
+): number {
   const crudo = entrada.trim();
   if (crudo.length === 0) {
     throw new Error("Monto inválido");
@@ -79,7 +77,7 @@ export function parsePesosACentavos(entrada: string): number {
   }
 
   const enteroNormalizado = parteEntera.replace(/^0+(?=\d)/, "") || "0";
-  if (enteroNormalizado === "0" && parteDecimal === "00") {
+  if (!opciones.permitirCero && enteroNormalizado === "0" && parteDecimal === "00") {
     throw new Error("Monto inválido");
   }
 
@@ -90,6 +88,24 @@ export function parsePesosACentavos(entrada: string): number {
   const totalStr = `${enteroNormalizado}${parteDecimal}`.replace(/^0+(?=\d)/, "") || "0";
   return Number.parseInt(totalStr, 10);
 }
+
+/**
+ * Parser puro de monto en pesos (string) a centavos enteros.
+ * Acepta coma o punto como separador decimal, sin usar float/Number/parseFloat.
+ * Rechaza vacío, cero, más de 2 decimales y valores > MONTO_MAX_CENTAVOS.
+ */
+export function parsePesosACentavos(entrada: string): number {
+  return parseMontoPesosComun(entrada, { permitirCero: false });
+}
+
+/**
+ * Parser para montos de apertura y cierre de caja: permite cero, rechaza vacío,
+ * más de 2 decimales y valores > MONTO_MAX_CENTAVOS. Sin float.
+ */
+export function parseMontoCajaACentavos(entrada: string): number {
+  return parseMontoPesosComun(entrada, { permitirCero: true });
+}
+
 
 export function obtenerCajaPorFecha(fecha: string): Promise<CajaOut> {
   return apiRequest<CajaOut>(`/caja?fecha=${encodeURIComponent(fecha)}`);

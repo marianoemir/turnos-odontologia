@@ -16,6 +16,7 @@ import {
   obtenerCajaPorFecha,
   obtenerCajaPorId,
   obtenerCobro,
+  parseMontoCajaACentavos,
   parsePesosACentavos,
   registrarCobro,
 } from "./caja";
@@ -140,6 +141,18 @@ describe("parsePesosACentavos (puro, sin float)", () => {
     expect(parsePesosACentavos("1250.5")).toBe(125050);
     expect(parsePesosACentavos("1250,50")).toBe(125050);
     expect(parsePesosACentavos("1250.50")).toBe(125050);
+  });
+});
+
+describe("parseMontoCajaACentavos (apertura/cierre, permite cero)", () => {
+  it("acepta cero y montos válidos, y rechaza inválidos", () => {
+    expect(parseMontoCajaACentavos("0")).toBe(0);
+    expect(parseMontoCajaACentavos("0,00")).toBe(0);
+    expect(parseMontoCajaACentavos("0.00")).toBe(0);
+    expect(parseMontoCajaACentavos("100,00")).toBe(10000);
+    expect(() => parseMontoCajaACentavos("")).toThrow();
+    expect(() => parseMontoCajaACentavos("1,234")).toThrow();
+    expect(() => parseMontoCajaACentavos("10000000000,01")).toThrow();
   });
 });
 
