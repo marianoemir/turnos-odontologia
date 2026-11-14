@@ -26,7 +26,7 @@
 ## 5. Exportación e importación
 
 - [x] 5.1 Construir en `/admin/datos` la exportación: contrato de salida visible, campos `desde` y `hasta` opcionales validados (desde menor o igual a hasta, máximo 30 días inclusive), `GET /export` con `timeoutMs` de 60 s, descarga con el nombre `export-turnos-YYYYMMDD-HHMMSS.json` y revocación de la URL del `Blob`; verificar con RTL y `URL.createObjectURL` simulado la descarga por defecto, el bloqueo de un período inválido sin request, el 422 del servidor y que el contenido no queda en la caché de consultas.
-- [ ] 5.2 Agregar la sección de importación documentada sin controles de subida; verificar antes con `Get-ChildItem` que existen `scripts/import_planilla` y `docs/migracion/README.md`, y probar con RTL que la sección nombra ambos y que no hay campo de carga de archivos.
+- [x] 5.2 Agregar la sección de importación documentada sin controles de subida; verificar antes con `Get-ChildItem` que existen `scripts/import_planilla` y `docs/migracion/README.md`, y probar con RTL que la sección nombra ambos y que no hay campo de carga de archivos.
 
 ## 6. Verificación integrada
 

@@ -16,6 +16,7 @@ import { TextField } from "../components/text-field";
 import { Toast } from "../components/toast";
 import { apiRequest } from "../services/http";
 import { ApiError } from "../types/errors";
+import { SeccionImportacion } from "./admin-datos-importacion";
 
 const TIMEOUT_EXPORTACION_MS = 60_000;
 const MAXIMO_DIAS = 30;
@@ -161,6 +162,7 @@ export default function AdminDatosPage() {
         </div>
       </section>
 
+      <SeccionImportacion />
       {aviso !== null ? <Toast onDismiss={cerrarAviso}>{aviso}</Toast> : null}
     </section>
   );
