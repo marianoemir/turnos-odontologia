@@ -11,11 +11,25 @@
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { routes } from "./router";
+import { SessionProvider } from "../auth/session-context";
+import { clearSession, setSession } from "../auth/session";
 
-afterEach(cleanup);
+beforeEach(() => {
+  setSession({
+    token: "jwt-de-prueba",
+    rol: "recepcion",
+    usuario: "usuario-ficticio",
+    sucursalId: null,
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  clearSession();
+});
 
 /** Las 11 rutas declaradas, con el encabezado de la pantalla que las resuelve. */
 const RUTAS_DECLARADAS: { path: string; heading: string }[] = [
@@ -34,7 +48,11 @@ const RUTAS_DECLARADAS: { path: string; heading: string }[] = [
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <SessionProvider>
+      <RouterProvider router={router} />
+    </SessionProvider>,
+  );
 }
 
 describe("tabla de rutas", () => {

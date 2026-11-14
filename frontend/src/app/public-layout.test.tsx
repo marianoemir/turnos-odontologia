@@ -12,11 +12,14 @@
  */
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { routes } from "./router";
+import { SessionProvider } from "../auth/session-context";
+import { clearSession, setSession } from "../auth/session";
 
-afterEach(cleanup);
+beforeEach(() => setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null }));
+afterEach(() => { cleanup(); clearSession(); });
 
 const RUTAS_PUBLICAS: { path: string; heading: string }[] = [
   { path: "/reservar/abc", heading: "Reservar turno" },
@@ -26,7 +29,7 @@ const RUTAS_PUBLICAS: { path: string; heading: string }[] = [
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(<SessionProvider><RouterProvider router={router} /></SessionProvider>);
 }
 
 describe("layout público", () => {
