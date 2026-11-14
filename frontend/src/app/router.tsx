@@ -7,10 +7,16 @@
  *
  * Las rutas con parámetro exponen el segmento por `useParams()` en la pantalla
  * correspondiente.
+ *
+ * C-22: `/admin` tiene subrutas (`roles`, `sucursales` y `datos`); `/admin`
+ * sigue resolviendo a su pantalla índice.
  */
 import type { RouteObject } from "react-router-dom";
 
 import AdminPage from "../pages/admin";
+import AdminDatosPage from "../pages/admin-datos";
+import AdminRolesPage from "../pages/admin-roles";
+import AdminSucursalesPage from "../pages/admin-sucursales";
 import { SessionExpiry } from "../auth/session-expiry";
 import { ProtectedRoute } from "../auth/protected-route";
 import AgendaPage from "../pages/agenda";
@@ -47,7 +53,15 @@ export const routes: RouteObject[] = [
               { path: "lista-espera", element: <ListaEsperaPage /> },
               { path: "hc/:pacienteId", element: <HistoriaClinicaPage /> },
               { path: "caja", element: <CajaPage /> },
-              { path: "admin", element: <AdminPage /> },
+              {
+                path: "admin",
+                children: [
+                  { index: true, element: <AdminPage /> },
+                  { path: "roles", element: <AdminRolesPage /> },
+                  { path: "sucursales", element: <AdminSucursalesPage /> },
+                  { path: "datos", element: <AdminDatosPage /> },
+                ],
+              },
               { path: "*", element: <NotFound /> },
             ],
           },

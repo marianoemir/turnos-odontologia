@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { EmptyState } from "./empty-state";
 import { Skeleton } from "./skeleton";
 import "./ui.css";
@@ -13,6 +14,7 @@ type DataTableProps<T extends object> = {
   columns: readonly Column<T>[];
   getRowId: (row: T) => string;
   loading?: boolean;
+  renderActions?: (row: T) => ReactNode;
   rows: readonly T[];
 };
 
@@ -23,6 +25,7 @@ export function DataTable<T extends object>({
   columns,
   getRowId,
   loading = false,
+  renderActions,
   rows,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState<T>>();
@@ -80,6 +83,7 @@ export function DataTable<T extends object>({
               </th>
             );
           })}
+          {renderActions ? <th scope="col">Acciones</th> : null}
         </tr>
       </thead>
       <tbody>
@@ -88,6 +92,7 @@ export function DataTable<T extends object>({
             {columns.map((column) => (
               <td data-label={column.header} key={column.key}>{String(row[column.key])}</td>
             ))}
+            {renderActions ? <td data-label="Acciones">{renderActions(row)}</td> : null}
           </tr>
         ))}
       </tbody>

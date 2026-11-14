@@ -27,7 +27,7 @@ El frontend SHALL ofrecer `/login` como ruta SPA pública y permitir que una per
 - **THEN** el frontend conserva la sesión anónima, comunica que la sucursal no está autorizada y permite corregir el identificador sin revelar asociaciones
 
 ### Requirement: Navegación interna se adapta al rol de la sesión
-El frontend SHALL redirigir una visita anónima a una ruta interna a `/login`. `recepcion` SHALL poder navegar toda ruta interna y `odontologo` SHALL poder navegar sólo `/agenda`. Una navegación autenticada incompatible SHALL redirigirse a `/agenda` con un aviso de permiso insuficiente, sin sustituir la autorización del backend.
+El frontend SHALL redirigir una visita anónima a una ruta interna a `/login`. `recepcion` SHALL poder navegar toda ruta interna excepto `/admin` y sus subrutas; `admin` SHALL poder navegar `/admin`, sus subrutas y `/agenda`; `odontologo` y cualquier otro rol sin acceso definido SHALL poder navegar sólo `/agenda`. Una navegación autenticada incompatible SHALL redirigirse a `/agenda` con un aviso de permiso insuficiente, sin sustituir la autorización del backend.
 
 #### Scenario: Ruta interna sin sesión
 - **WHEN** una persona sin sesión abre una ruta interna
@@ -40,6 +40,18 @@ El frontend SHALL redirigir una visita anónima a una ruta interna a `/login`. `
 #### Scenario: Retorno externo o público no se acepta tras login
 - **WHEN** el login recibe un destino de retorno externo o una de las rutas públicas
 - **THEN** el frontend lo descarta y navega a `/agenda` tras autenticar
+
+#### Scenario: Administrador navega administración y agenda
+- **WHEN** una sesión de `admin` abre `/admin`, una subruta de `/admin` o `/agenda`
+- **THEN** el frontend muestra la pantalla solicitada y, tras un login con retorno a una ruta de administración, lo retoma
+
+#### Scenario: Administrador ante una ruta interna operativa
+- **WHEN** una sesión de `admin` abre una ruta interna distinta de `/agenda`, de `/admin` y de las subrutas de `/admin`
+- **THEN** el frontend redirige a `/agenda` y comunica el aviso de permiso insuficiente
+
+#### Scenario: Recepción ante administración
+- **WHEN** una sesión de `recepcion` abre `/admin` o cualquier subruta de `/admin`
+- **THEN** el frontend redirige a `/agenda`, comunica el aviso de permiso insuficiente y no realiza ninguna request administrativa
 
 ### Requirement: Errores de autenticación y autorización tienen respuestas cliente distintas
 El frontend SHALL finalizar la sesión y redirigir al login ante un 401 de una request protegida, y SHALL conservar la sesión y comunicar falta de permiso ante un 403.

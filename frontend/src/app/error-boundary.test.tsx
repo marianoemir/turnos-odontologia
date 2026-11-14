@@ -7,15 +7,27 @@
  *
  * El `console.error` esperado (React + `componentDidCatch`) se silencia en el
  * test: lo que se afirma es el comportamiento, no el log.
+ *
+ * C-22: el shell lee la sesión para decidir si muestra el grupo
+ * «Administración», así que se monta bajo `SessionProvider` con un rol que no
+ * es `admin` (el nav conserva sus cuatro enlaces).
  */
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearSession, setSession } from "../auth/session";
+import { SessionProvider } from "../auth/session-context";
 import Shell from "./shell";
 
-afterEach(cleanup);
+beforeEach(() =>
+  setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null }),
+);
+afterEach(() => {
+  cleanup();
+  clearSession();
+});
 
 function Explota(): never {
   throw new Error("fallo de render esperado");
@@ -37,7 +49,11 @@ function renderConHijoQueExplota(): void {
     { initialEntries: ["/boom"] },
   );
 
-  render(<RouterProvider router={router} />);
+  render(
+    <SessionProvider>
+      <RouterProvider router={router} />
+    </SessionProvider>,
+  );
 }
 
 describe("límite de error del shell", () => {
@@ -128,7 +144,11 @@ describe("límite de error del shell — recuperación al navegar", () => {
         { initialEntries: ["/boom"] },
       );
 
-      render(<RouterProvider router={router} />);
+      render(
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>,
+      );
 
       await screen.findByRole("alert");
 
