@@ -29,6 +29,7 @@ import {
 } from "../services/admin";
 import type { Sucursal, SucursalPatch } from "../types/api-admin";
 import { ApiError } from "../types/errors";
+import { SeccionAsignaciones } from "./admin-asignaciones";
 
 const sucursalFormSchema = z.object({
   nombre: z
@@ -311,6 +312,7 @@ export default function AdminSucursalesPage() {
     <section>
       <h1 className="app-title">Sucursales</h1>
       <SeccionSucursales />
+      <SeccionAsignaciones />
     </section>
   );
 }

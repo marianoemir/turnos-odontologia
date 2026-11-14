@@ -70,6 +70,9 @@ function instalarBackend(rechazar?: (metodo: string) => Error | undefined): void
       sucursales = sucursales.map((s) => (s.id === id ? { ...s, ...parche } : s));
       return Promise.resolve(sucursales.find((s) => s.id === id));
     }
+    if (!ruta.startsWith("/sucursales")) {
+      return Promise.resolve([]);
+    }
     return Promise.resolve(sucursales.map((s) => ({ ...s })));
   }) as never);
 }
@@ -138,7 +141,7 @@ describe("/admin/sucursales — sucursales", () => {
     expect(screen.getByRole("cell", { name: "Sin dirección" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "Activa" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "Inactiva" })).toBeInTheDocument();
-    expect(apiRequestMock.mock.calls[0][0]).toBe("/sucursales?incluir_inactivos=true");
+    expect(apiRequestMock.mock.calls.map(([ruta]) => ruta)).toContain("/sucursales?incluir_inactivos=true");
     expect(screen.getByRole("button", { name: "Desactivar Sede Centro" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desactivar Sede Norte" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Editar Sede Norte" })).toBeInTheDocument();
@@ -157,7 +160,7 @@ describe("/admin/sucursales — sucursales", () => {
       ["/sucursales", { method: "POST", body: { nombre: "Sede Sur", direccion: "Ruta 40" } }],
     ]);
     expect(await screen.findByRole("cell", { name: "Sede Sur" })).toBeInTheDocument();
-    expect(await screen.findByRole("status")).toHaveTextContent("Sucursal creada.");
+    expect(await screen.findByText("Sucursal creada.")).toHaveAttribute("role", "status");
   });
 
   it("el alta sin dirección envía solo el nombre", async () => {
@@ -201,7 +204,7 @@ describe("/admin/sucursales — sucursales", () => {
     expect(campo).toHaveValue("Sede Centro");
     expect(within(dialogo).getByRole("textbox", { name: "Dirección" })).toHaveValue("Otra calle 9");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Sucursal (creada|actualizada|desactivada)\.$/)).not.toBeInTheDocument();
   });
 
   it("ante cualquier otro error muestra un aviso genérico y deja reintentar", async () => {
@@ -216,7 +219,7 @@ describe("/admin/sucursales — sucursales", () => {
       "No se pudo guardar la sucursal.",
     );
     expect(within(dialogo).getByRole("button", { name: "Guardar" })).toBeEnabled();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Sucursal (creada|actualizada|desactivada)\.$/)).not.toBeInTheDocument();
   });
 
   it("edita una sucursal enviando solo los campos que cambiaron", async () => {
@@ -238,7 +241,7 @@ describe("/admin/sucursales — sucursales", () => {
       [`/sucursales/${CENTRO.id}`, { method: "PATCH", body: { nombre: "Sede Central" } }],
     ]);
     expect(await screen.findByRole("cell", { name: "Sede Central" })).toBeInTheDocument();
-    expect(await screen.findByRole("status")).toHaveTextContent("Sucursal actualizada.");
+    expect(await screen.findByText("Sucursal actualizada.")).toHaveAttribute("role", "status");
   });
 
   it("vaciar la dirección envía cadena vacía y nunca null", async () => {
@@ -277,7 +280,7 @@ describe("/admin/sucursales — sucursales", () => {
     );
     expect(screen.getByRole("cell", { name: "Sede Centro" })).toBeInTheDocument();
     expect(screen.queryAllByRole("cell", { name: "Activa" })).toHaveLength(0);
-    expect(await screen.findByRole("status")).toHaveTextContent("Sucursal desactivada.");
+    expect(await screen.findByText("Sucursal desactivada.")).toHaveAttribute("role", "status");
   });
 
   it("cancelar la confirmación no envía nada y deja la sucursal activa", async () => {
