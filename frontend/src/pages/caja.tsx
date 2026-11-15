@@ -223,6 +223,9 @@ export default function CajaPage() {
       setCobroCobertura("0");
       setCobrosCreados((prev) => [creado, ...prev]);
       void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
+      if (creado.medio === "obra_social") {
+        void queryClient.invalidateQueries({ queryKey: resourceKeys.liquidaciones.all });
+      }
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.status === 409 && error.causa === "caja_no_abierta") {
@@ -344,6 +347,7 @@ export default function CajaPage() {
       setMotivoAnulacion("");
       setMotivoError(null);
       void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
+      void queryClient.invalidateQueries({ queryKey: resourceKeys.liquidaciones.all });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // caja_cerrada, cobro_facturado, cobro_ya_anulado: conflicto sin reintento, no marcar anulado
@@ -531,8 +535,8 @@ export default function CajaPage() {
     liquidacionesContenido = (
       <ul>
         {(liquidacionesQuery.data ?? []).map((liq) => {
-          const referencia = liq.pdf_referencia ?? "";
-          const esSimulada = referencia.startsWith("SIM-");
+          const referencia = liq.pdf_referencia ?? "sin referencia";
+          const esSimulada = (liq.pdf_referencia ?? "").startsWith("SIM-");
           return (
             <li key={liq.id} data-testid="liquidacion-item">
               <p>

@@ -1622,17 +1622,25 @@ describe("5.1 Listado de liquidaciones", () => {
       pdf_referencia: "REF-ANULADA-1",
       creado_en: "2026-11-14T17:00:00Z",
     });
-    listarLiquidacionesMock.mockResolvedValue([primera, anulada]);
+    listarLiquidacionesMock.mockResolvedValue([anulada, primera]);
 
     renderPage();
 
     expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
     const items = await screen.findAllByTestId("liquidacion-item");
     expect(items).toHaveLength(2);
-    expect(within(items[0]).getByText(/10\.01/)).toBeInTheDocument();
-    expect(within(items[0]).getByText(/Estado:\s*pagada/i)).toBeInTheDocument();
-    expect(within(items[1]).getByText(/20\.02/)).toBeInTheDocument();
-    expect(within(items[1]).getByText(/Estado:\s*anulada/i)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/20\.02/)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Estado:\s*anulada/i)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Total:\s*\$ 100,00/)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Cobertura:\s*\$ 80,00/)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Copago:\s*\$ 20,00/)).toBeInTheDocument();
+    expect(within(items[0]).getByText("REF-ANULADA-1")).toBeInTheDocument();
+    expect(within(items[1]).getByText(/10\.01/)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Estado:\s*pagada/i)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Total:\s*\$ 100,00/)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Cobertura:\s*\$ 80,00/)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Copago:\s*\$ 20,00/)).toBeInTheDocument();
+    expect(within(items[1]).getByText("REF-REAL-1")).toBeInTheDocument();
     expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("link", { name: /descargar|pdf/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /descargar|pdf/i })).not.toBeInTheDocument();
@@ -1661,6 +1669,30 @@ describe("5.1 Listado de liquidaciones", () => {
       expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
     });
     expect(screen.getByText(/abierta/i)).toBeInTheDocument();
+  });
+
+  it("403 liquidaciones sin retry: con QueryClient sin defaultOptions no reintenta", async () => {
+    vi.useRealTimers();
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    listarLiquidacionesMock.mockRejectedValue(
+      new ApiError({
+        kind: "permiso",
+        status: 403,
+        causa: "permiso_denegado",
+        mensaje: "permiso denegado",
+        detalle: "permiso denegado",
+      }),
+    );
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <CajaPage />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
   });
 
   it('Empty liquidations list shows empty state (edge-case)', async () => {
@@ -1710,6 +1742,100 @@ describe("5.1 Listado de liquidaciones", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /descargar|pdf/i })).not.toBeInTheDocument();
 
+  });
+
+  it("invalida liquidaciones tras registrar con éxito un cobro de medio obra_social", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(
+      cobroOut({
+        id: "55555555-5555-4555-8555-555555555555",
+        medio: "obra_social",
+        concepto: "total",
+        monto_centavos: 10000,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await waitFor(() => {
+      expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.selectOptions(screen.getByLabelText(/medio/i), "obra_social");
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "100,00");
+    await user.type(screen.getByLabelText(/nomenclador/i), "42.01.01");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+
+    await waitFor(() => {
+      expect(registrarCobroMock).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(listarLiquidacionesMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("invalida liquidaciones tras anular con éxito cualquier cobro", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    const creado = cobroOut({ id: COBRO_ID_VALIDO, estado: "registrado" });
+    registrarCobroMock.mockResolvedValue(creado);
+    anularCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "anulado",
+        motivo_anulacion: "Error de carga",
+        anulado_en: "2026-11-14T15:00:00Z",
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await waitFor(() => {
+      expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
+    });
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: "Anular" }));
+    const dialog = await screen.findByRole("dialog", { name: /anular cobro/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error de carga");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    await waitFor(() => {
+      expect(anularCobroMock).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(listarLiquidacionesMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("pdf_referencia null muestra 'sin referencia' en vez de etiqueta vacía", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    listarLiquidacionesMock.mockResolvedValue([
+      liquidacionOut({
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        nomenclador_codigo: "50.05",
+        pdf_referencia: null,
+        descripcion: "Sin referencia PDF",
+      }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    const item = await screen.findByTestId("liquidacion-item");
+    expect(within(item).getByText("sin referencia")).toBeInTheDocument();
+    expect(within(item).queryByText(/\(simulada\)/i)).not.toBeInTheDocument();
   });
 });
 
