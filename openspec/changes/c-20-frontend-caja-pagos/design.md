@@ -74,6 +74,10 @@ Current UI state: `frontend/src/pages/caja.tsx` is a placeholder ("Pantalla pend
 - **Rationale:** Traceable to `POST /cobros` contract (`turno_id` optional UUID, `caja_id` optional) without inventing selection UIs not yet available.
 - **Alternatives considered:** (a) Provide a turno selector — deferred/reviewable when C-15 exists. (b) Expose `caja_id` input — rejected (unnecessary; backend resolves open caja by day).
 
+### D12 - Obra social nomenclador_codigo: client-side block, backend 422 as fallback
+- **Decision:** For medio = obra_social, the UI trims nomenclador_codigo and blocks submission with a clear notice when it is empty or whitespace-only (no backend call). The trimmed value is sent when present. The backend Pydantic 422 validation for a missing/invalid nomenclador_codigo remains as a fallback only; its request/response shape in this change is **derived and not measured** against the backend.
+- **Rationale:** Prevents avoidable invalid requests and aligns UI feedback with the required field, while keeping the backend contract as the source of truth for validation.
+
 ## Risks / Trade-offs
 
 - **[404-by-date as normal state] →** UI must distinguish "no caja for date" from other 404s/errors using endpoint context and `ApiError` normalization; tests should cover empty-day UX.

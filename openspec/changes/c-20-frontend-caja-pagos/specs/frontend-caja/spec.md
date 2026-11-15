@@ -66,9 +66,9 @@ The UI SHALL register payments via `POST /cobros` using integer `monto_centavos`
 - **THEN** the UI shows a business error explaining that a cash register must be opened, without automatic retry, and does not present a created payment
 
 #### Scenario: Obra social payment omits nomenclador_codigo (business-error)
-- **GIVEN** the user selects `medio = "obra_social"` and omits `nomenclador_codigo`
-- **WHEN** the user submits the payment
-- **THEN** backend responds HTTP 422 with a Pydantic validation `detail` list containing `nomenclador_codigo es obligatorio para obra_social`, the UI shows the validation feedback from `ApiError` without automatic retry, and does not present a created payment
+- **GIVEN** the user selects `medio = "obra_social"` and enters `nomenclador_codigo` as empty or whitespace-only
+- **WHEN** the user tries to submit the payment
+- **THEN** the UI blocks submission, shows a clear notice, and does not call the backend (the Pydantic 422 validation response remains a backend fallback; its request/response shape is derived and not measured against the backend)
 
 #### Scenario: Invalid turno_id format is blocked before request (edge-case)
 - **GIVEN** the user enters a `turno_id` value that is not a valid UUID
