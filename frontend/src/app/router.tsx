@@ -12,6 +12,7 @@
  * sigue resolviendo a su pantalla índice.
  */
 import type { RouteObject } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 import AdminPage from "../pages/admin";
 import AdminDatosPage from "../pages/admin-datos";
@@ -23,6 +24,12 @@ import AgendaPage from "../pages/agenda";
 import CajaPage from "../pages/caja";
 import CancelarPage from "../pages/cancelar";
 import CatalogoPage from "../pages/catalogo";
+import BloqueosPage from "../pages/catalogo-bloqueos";
+import PacientesPage from "../pages/catalogo-pacientes";
+import HorariosPage from "../pages/catalogo-horarios";
+import PrestacionesPage from "../pages/catalogo-prestaciones";
+import ProfesionalesPage from "../pages/catalogo-profesionales";
+import SillonesPage from "../pages/catalogo-sillones";
 import ConfirmarPage from "../pages/confirmar";
 import HistoriaClinicaPage from "../pages/historia-clinica";
 import InicioPage from "../pages/inicio";
@@ -49,7 +56,38 @@ export const routes: RouteObject[] = [
               { index: true, element: <InicioPage /> },
               { path: "turnos/nuevo", element: <TurnoNuevoPage /> },
               { path: "agenda", element: <AgendaPage /> },
-              { path: "catalogo/*", element: <CatalogoPage /> },
+              {
+                path: "catalogo/*",
+                element: <CatalogoPage />,
+                children: [
+                  { index: true, element: <Navigate replace to="pacientes" /> },
+                  {
+                    path: "pacientes",
+                    element: <PacientesPage />,
+                  },
+                  {
+                    path: "profesionales",
+                    element: <ProfesionalesPage />,
+                  },
+                  {
+                    path: "sillones",
+                    element: <SillonesPage />,
+                  },
+                  {
+                    path: "prestaciones",
+                    element: <PrestacionesPage />,
+                  },
+                  {
+                    path: "horarios",
+                    element: <HorariosPage />,
+                  },
+                  {
+                    path: "bloqueos",
+                    element: <BloqueosPage />,
+                  },
+                  { path: "*", element: <NotFound /> },
+                ],
+              },
               { path: "lista-espera", element: <ListaEsperaPage /> },
               { path: "hc/:pacienteId", element: <HistoriaClinicaPage /> },
               { path: "caja", element: <CajaPage /> },
