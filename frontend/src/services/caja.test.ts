@@ -218,7 +218,7 @@ describe("triangulación contratos (1.3)", () => {
     expect(dominio422.status).toBe(422);
   });
 
-  it("ApiError normaliza detail objeto {causa,detalle} y lista Pydantic 422 con campos", () => {
+  it("ApiError normaliza detail objeto {causa,detalle} y lista Pydantic 422 de obra social (nomenclador válido enviado, 422 forma derivada no medida) con campos", () => {
     const conflicto = normalizeApiError(409, {
       detail: { causa: "caja_ya_abierta", detalle: "ya existe caja abierta" },
     });

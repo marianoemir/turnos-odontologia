@@ -84,10 +84,11 @@ function CobroItem({
     c.simulado === true &&
     typeof c.referencia_externa === "string" &&
     c.referencia_externa.startsWith("SIM-MP-");
-  const facturaSimulada =
-    c.factura_cae != null &&
-    c.factura_cae.startsWith("SIM-") &&
-    c.factura_qr != null;
+  const tieneFactura = c.factura_cae != null;
+  const marcaFacturaSimulada =
+    tieneFactura &&
+    (c.simulado === true ||
+      (typeof c.factura_cae === "string" && c.factura_cae.startsWith("SIM-")));
   const inFlightAnular = anulando && accionCobro?.id === c.id && accionCobro.accion === "anular";
   const inFlightFacturar = facturando && accionCobro?.id === c.id && accionCobro.accion === "facturar";
   const busy = inFlightAnular || inFlightFacturar;
@@ -99,14 +100,14 @@ function CobroItem({
       </p>
       {c.motivo_anulacion ? <p>Motivo anulación: {c.motivo_anulacion}</p> : null}
       {c.anulado_en ? <p>Anulado en: {c.anulado_en}</p> : null}
-      {facturaSimulada ? (
+      {tieneFactura ? (
         <div>
           <p>
-            <strong>Factura simulada (ARCA)</strong> — Tipo: <span>{c.factura_tipo ?? ""}</span> — modo:
-            simulado (simulado=true)
+            {marcaFacturaSimulada ? <strong>Factura simulada (ARCA)</strong> : <strong>Factura (ARCA)</strong>}
+            {" — "}Tipo: <span>{c.factura_tipo ?? ""}</span>
           </p>
           <p>CAE: {c.factura_cae}</p>
-          <p>QR: {c.factura_qr}</p>
+          {c.factura_qr != null ? <p>QR: {c.factura_qr}</p> : null}
         </div>
       ) : null}
       {simMp ? (
@@ -182,6 +183,7 @@ export default function CajaPage() {
       if (error instanceof ApiError && error.status === 409) {
         setAbrirError(error.message || error.detalle || "Conflicto al abrir caja");
         void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
+
         return;
       }
       setAbrirError(error instanceof ApiError ? error.message : "No se pudo abrir la caja");

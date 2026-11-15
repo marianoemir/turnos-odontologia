@@ -1082,6 +1082,28 @@ describe("4.1 Anulación y factura ARCA", () => {
     expect(anularCobroMock).not.toHaveBeenCalled();
   });
 
+  it("anulacion con motivo solo espacios se bloquea antes de enviar (trim)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "   ");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    expect(anularCobroMock).not.toHaveBeenCalled();
+  });
+
   it("cobro pegado inexistente (404 string) se muestra sin romper (edge-case)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
@@ -1285,6 +1307,133 @@ describe("4.1 Anulación y factura ARCA", () => {
     expect(screen.getByText(/\bB\b/)).toBeInTheDocument();
   });
 
+  it("factura real (CAE sin prefijo SIM-, simulado=false) muestra CAE y QR sin marca simulada", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "B",
+      cae: "12345678901234",
+      qr: "QR-REAL-1",
+      simulado: false,
+      modo: "real",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "B",
+        factura_cae: "12345678901234",
+        factura_qr: "QR-REAL-1",
+        simulado: false,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByText(/12345678901234/)).toBeInTheDocument();
+    expect(screen.getByText(/QR-REAL-1/)).toBeInTheDocument();
+    expect(screen.queryByText(/Factura simulada/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/simulado=true/i)).not.toBeInTheDocument();
+  });
+
+  it("factura simulada muestra la marca sin texto fijo simulado=true", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "B",
+      cae: "SIM-CAE-MARK",
+      qr: "SIM-QR-MARK",
+      simulado: true,
+      modo: "simulado",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "B",
+        factura_cae: "SIM-CAE-MARK",
+        factura_qr: "SIM-QR-MARK",
+        simulado: true,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByText(/SIM-CAE-MARK/)).toBeInTheDocument();
+    expect(screen.getByText(/SIM-QR-MARK/)).toBeInTheDocument();
+    expect(screen.getAllByText(/simulad/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/simulado=true/i)).not.toBeInTheDocument();
+  });
+  it("factura con CAE SIM- y simulado=false muestra marca simulada (triangulacion)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "C",
+      cae: "SIM-CAE-TRI",
+      qr: "SIM-QR-TRI",
+      simulado: false,
+      modo: "simulado",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "C",
+        factura_cae: "SIM-CAE-TRI",
+        factura_qr: "SIM-QR-TRI",
+        simulado: false,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*C|C/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByText(/SIM-CAE-TRI/)).toBeInTheDocument();
+    expect(screen.getByText(/SIM-QR-TRI/)).toBeInTheDocument();
+    expect(screen.getAllByText(/simulad/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/simulado=true/i)).not.toBeInTheDocument();
+  });
   it("guarda: botones anular/facturar deshabilitados mientras la acción está en vuelo", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
