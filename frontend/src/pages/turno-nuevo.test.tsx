@@ -177,6 +177,9 @@ beforeEach(() => {
     if (url.startsWith("/bloqueos")) {
       return Promise.resolve(BLOQUEOS);
     }
+    if (url.startsWith("/agenda")) {
+      return Promise.resolve([]);
+    }
     if (url === "/turnos" && opciones?.method === "POST") {
       return Promise.resolve(TURNO_CREADO);
     }
@@ -250,7 +253,14 @@ describe("wizard /turnos/nuevo (2.1)", () => {
 
       expect(await screen.findByRole("heading", { name: "Agenda" })).toBeInTheDocument();
       expect(await screen.findByRole("alert")).toHaveTextContent("Permiso insuficiente.");
-      expect(apiRequestMock).not.toHaveBeenCalled();
+      // El wizard no pide nada; solo la pantalla de destino (`/agenda`, C-17)
+      // carga sus profesionales y su día.
+      const rutas = apiRequestMock.mock.calls.map(([ruta]) => String(ruta));
+      expect(
+        rutas.filter(
+          (ruta) => !ruta.startsWith("/profesionales") && !ruta.startsWith("/agenda"),
+        ),
+      ).toEqual([]);
     },
   );
 });
@@ -529,6 +539,9 @@ function simularFalloEnCrearTurno(error: ApiErrorDePrueba): void {
     }
     if (url.startsWith("/bloqueos")) {
       return Promise.resolve(BLOQUEOS);
+    }
+    if (url.startsWith("/agenda")) {
+      return Promise.resolve([]);
     }
     return Promise.reject(new Error(`ruta no simulada: ${url}`));
   });

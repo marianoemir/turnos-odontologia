@@ -5,6 +5,7 @@
  * del `<Outlet/>` del shell: la navegación sigue visible y operable y la
  * consola no registra errores no capturados.
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -13,8 +14,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { routes } from "./router";
 import { SessionProvider } from "../auth/session-context";
 import { clearSession, setSession } from "../auth/session";
+import { apiRequest } from "../services/http";
 
-beforeEach(() => setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null }));
+// `/agenda` es una pantalla real (C-17): pide profesionales + agenda vía
+// `apiRequest`; se simula con listas vacías (esta prueba solo verifica el
+// shell y la navegación, no el contenido de la pantalla).
+vi.mock("../services/http", () => ({ apiRequest: vi.fn() }));
+
+const apiRequestMock = vi.mocked(apiRequest);
+
+beforeEach(() => {
+  setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null });
+  apiRequestMock.mockResolvedValue([]);
+});
 afterEach(() => { cleanup(); clearSession(); });
 
 const ENLACES_DEL_NAV: { nombre: string; destino: string }[] = [
@@ -29,7 +41,14 @@ const PATHS_SIN_MATCH = ["/ruta-inexistente", "/hc/"];
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<SessionProvider><RouterProvider router={router} /></SessionProvider>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <SessionProvider>
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </SessionProvider>,
+  );
 }
 
 describe("ruta no declarada o parámetro ausente", () => {

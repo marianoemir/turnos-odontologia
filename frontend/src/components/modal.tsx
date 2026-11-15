@@ -32,17 +32,27 @@ export function Modal({ children, onClose, open, title }: ModalProps) {
     triggerRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function cerrarConEscape(evento: globalThis.KeyboardEvent): void {
+      if (evento.key === "Escape") {
+        evento.preventDefault();
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", cerrarConEscape, true);
+    return () => {
+      document.removeEventListener("keydown", cerrarConEscape, true);
+    };
+  }, [open, onClose]);
+
   if (!open) {
     return null;
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-
     if (event.key !== "Tab") {
       return;
     }
