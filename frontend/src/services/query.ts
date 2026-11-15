@@ -19,6 +19,7 @@ export const resourceKeys = {
   usuariosSucursal: { all: ["usuarios-sucursal"] as const },
   caja: { all: ["caja"] as const },
   liquidaciones: { all: ["liquidaciones"] as const },
+  listaEspera: { all: ["lista-espera"] as const },
 } as const;
 
 /** Clave de consulta de caja por fecha, anidada bajo la raíz del recurso. */
