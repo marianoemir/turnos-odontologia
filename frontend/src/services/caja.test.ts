@@ -226,20 +226,31 @@ describe("triangulación contratos (1.3)", () => {
     expect(conflicto.causa).toBe("caja_ya_abierta");
     expect(conflicto.detalle).toContain("ya existe caja abierta");
 
+    // Forma DERIVADA (NO medida en sonda; esperada en FastAPI + Pydantic v2 para un
+    // model_validator sobre un body). <<SALIDA DE LA SONDA>> sin salida en esta corrección.
     const pydantic = normalizeApiError(422, {
       detail: [
         {
-          loc: ["body", "nomenclador_codigo"],
-          msg: "nomenclador_codigo es obligatorio para obra_social",
           type: "value_error",
+          loc: ["body"],
+          msg: "Value error, nomenclador_codigo es obligatorio para obra_social",
+          input: { medio: "obra_social", monto_centavos: 5000 },
+          ctx: { error: {} },
         },
       ],
     });
     expect(pydantic.kind).toBe("validacion");
     expect(pydantic.campos).toHaveLength(1);
-    expect(pydantic.campos[0]?.ubicacion).toBe("body.nomenclador_codigo");
-    expect(pydantic.campos[0]?.mensaje).toContain(
-      "nomenclador_codigo es obligatorio para obra_social",
+    expect(pydantic.campos[0]?.ubicacion).toBe("body");
+    expect(pydantic.campos[0]?.mensaje).toBe(
+      "Value error, nomenclador_codigo es obligatorio para obra_social",
+    );
+    // Texto exacto renderizado (normalizeApiError.message / ApiError.message):
+    expect(pydantic.message).toBe(
+      "La request tiene campos inválidos: body: Value error, nomenclador_codigo es obligatorio para obra_social",
+    );
+    expect(pydantic.detalle).toBe(
+      "body: Value error, nomenclador_codigo es obligatorio para obra_social",
     );
   });
 });

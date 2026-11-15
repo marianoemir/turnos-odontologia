@@ -5,11 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CajaOut, CobroOut } from "../types/api-caja";
 import { ApiError } from "../types/errors";
+import { normalizeApiError } from "../services/api-error";
 import CajaPage from "./caja";
 import {
   abrirCaja,
+  anularCobro,
   cerrarCaja,
+  facturarArca,
   obtenerCajaPorFecha,
+  obtenerCobro,
   registrarCobro,
 } from "../services/caja";
 
@@ -50,6 +54,9 @@ const obtenerCajaPorFechaMock = vi.mocked(obtenerCajaPorFecha);
 const abrirCajaMock = vi.mocked(abrirCaja);
 const cerrarCajaMock = vi.mocked(cerrarCaja);
 const registrarCobroMock = vi.mocked(registrarCobro);
+const anularCobroMock = vi.mocked(anularCobro);
+const facturarArcaMock = vi.mocked(facturarArca);
+const obtenerCobroMock = vi.mocked(obtenerCobro);
 
 const ID_CAJA = "11111111-1111-4111-8111-111111111111";
 
@@ -90,6 +97,9 @@ beforeEach(() => {
   abrirCajaMock.mockReset();
   cerrarCajaMock.mockReset();
   registrarCobroMock.mockReset();
+  anularCobroMock.mockReset();
+  facturarArcaMock.mockReset();
+  obtenerCobroMock.mockReset();
   vi.useRealTimers();
 });
 
@@ -572,18 +582,17 @@ describe("3.1 Registro de cobros", () => {
     vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    // Forma DERIVADA (NO medida en sonda; esperada en FastAPI + Pydantic v2 para un
+    // model_validator sobre un body): <<SALIDA DE LA SONDA>> sin salida en esta corrección.
     registrarCobroMock.mockRejectedValue(
-      new ApiError({
-        kind: "validacion",
-        status: 422,
-        mensaje:
-          "La request tiene campos inv�lidos: body.nomenclador_codigo: nomenclador_codigo es obligatorio para obra_social",
-        detalle:
-          "body.nomenclador_codigo: nomenclador_codigo es obligatorio para obra_social",
-        campos: [
+      normalizeApiError(422, {
+        detail: [
           {
-            ubicacion: "body.nomenclador_codigo",
-            mensaje: "nomenclador_codigo es obligatorio para obra_social",
+            type: "value_error",
+            loc: ["body"],
+            msg: "Value error, nomenclador_codigo es obligatorio para obra_social",
+            input: { medio: "obra_social", monto_centavos: 5000 },
+            ctx: { error: {} },
           },
         ],
       }),
@@ -595,16 +604,17 @@ describe("3.1 Registro de cobros", () => {
     await user.selectOptions(screen.getByLabelText(/medio/i), "obra_social");
     await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
     await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "100,00");
-    // nomenclador vac�o: UI env�a igual
+    // nomenclador vacío: UI envía igual
     await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
 
     await waitFor(() => {
       expect(registrarCobroMock).toHaveBeenCalledTimes(1);
     });
     const alerta = await screen.findByRole("alert");
-    // mensaje real normalizado desde ApiError (lista Pydantic, kind validacion, campos)
-    expect(alerta).toHaveTextContent(/nomenclador_codigo es obligatorio para obra_social/i);
-    expect(alerta).toHaveTextContent(/campos inv�lidos|validaci/i);
+    // Texto exacto renderizado por normalizeApiError con loc ["body"] (derivado, no medido):
+    expect(alerta).toHaveTextContent(
+      "La request tiene campos inválidos: body: Value error, nomenclador_codigo es obligatorio para obra_social",
+    );
     expect(screen.queryByText(/registrado/i)).not.toBeInTheDocument();
   });
 
@@ -851,6 +861,34 @@ describe("3.3 Triangulaci�n cobros", () => {
     });
   });
 
+  it("después de un cobro exitoso invalida caja y vuelve a consultar GET /caja (PASO 0b)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(
+      cobroOut({ concepto: "total", medio: "efectivo", monto_centavos: 1000 }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await waitFor(() => {
+      expect(obtenerCajaPorFechaMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+
+    await waitFor(() => {
+      expect(registrarCobroMock).toHaveBeenCalledTimes(1);
+    });
+    // Invalidación de resourceKeys.caja.all dispara una nueva consulta por fecha.
+    await waitFor(() => {
+      expect(obtenerCajaPorFechaMock.mock.calls.length).toBeGreaterThan(1);
+    });
+  });
+
   it("bloquea monto de cobro en cero (usa parser de cobro que no permite 0)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
@@ -864,6 +902,453 @@ describe("3.3 Triangulaci�n cobros", () => {
     await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "0");
     await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
 
+    // monto 0 no bloqueado: se llama al servicio (falla por aserción si el parser/guard permite 0)
     expect(registrarCobroMock).not.toHaveBeenCalled();
     expect(await screen.findByRole("alert")).toHaveTextContent(/monto.*inv/i);
   });
+
+const COBRO_ID_VALIDO = "22222222-2222-4222-8222-222222222222";
+const COBRO_ID_OTRO = "33333333-3333-4333-8333-333333333333";
+
+describe("4.1 Anulación y factura ARCA", () => {
+  it("anulación exitosa con traza visible (happy-path) POST /cobros/{id}/anular", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    const creado = cobroOut({ id: COBRO_ID_VALIDO, estado: "registrado" });
+    registrarCobroMock.mockResolvedValue(creado);
+    const anulado = cobroOut({
+      id: COBRO_ID_VALIDO,
+      estado: "anulado",
+      motivo_anulacion: "Error de carga",
+      anulado_en: "2026-11-14T15:00:00Z",
+    });
+    anularCobroMock.mockResolvedValue(anulado);
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error de carga");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    await waitFor(() => {
+      expect(anularCobroMock).toHaveBeenCalledWith(COBRO_ID_VALIDO, { motivo: "Error de carga" });
+    });
+    expect((await screen.findAllByText(/anulado/i)).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Error de carga/)).toBeInTheDocument();
+    expect(screen.getByText(/2026-11-14T15:00:00Z/)).toBeInTheDocument();
+  });
+
+  it("factura rechazada por cobro ya facturado (409 cobro_ya_facturado)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockRejectedValue(
+      new ApiError({
+        kind: "conflicto",
+        status: 409,
+        causa: "cobro_ya_facturado",
+        mensaje: "el cobro ya tiene factura emitida",
+        detalle: "el cobro ya tiene factura emitida",
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/ya tiene factura|facturad/i);
+    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+  });
+
+  it("anulación conflictúa con caja cerrada (409 caja_cerrada)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO, estado: "registrado" }));
+    anularCobroMock.mockRejectedValue(
+      new ApiError({ kind: "conflicto", status: 409, causa: "caja_cerrada", mensaje: "caja cerrada", detalle: "caja cerrada" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/caja cerrada/i);
+    expect(anularCobroMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/anulado_en|2026-11-14T15/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/registrado/i).length).toBeGreaterThan(0);
+  });
+
+  it("anulación conflictúa con cobro facturado (409 cobro_facturado)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO, estado: "registrado" }));
+    anularCobroMock.mockRejectedValue(
+      new ApiError({ kind: "conflicto", status: 409, causa: "cobro_facturado", mensaje: "cobro facturado", detalle: "cobro facturado" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/facturad/i);
+    expect(anularCobroMock).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(/registrado/i).length).toBeGreaterThan(0);
+  });
+
+  it("anulación con motivo vacío se bloquea antes de enviar", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.clear(within(dialog).getByLabelText(/motivo/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    expect(anularCobroMock).not.toHaveBeenCalled();
+  });
+
+  it("cobro pegado inexistente (404 string) se muestra sin romper (edge-case)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    obtenerCobroMock.mockRejectedValue(
+      new ApiError({ kind: "no_encontrado", status: 404, mensaje: "cobro no existe: 33333333-3333-4333-8333-333333333333", detalle: "cobro no existe: 33333333-3333-4333-8333-333333333333" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.type(screen.getByLabelText(/id de cobro/i), COBRO_ID_OTRO);
+    await user.click(screen.getByRole("button", { name: /cargar cobro/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/cobro no existe/i);
+    expect(screen.getByText(/abierta/i)).toBeInTheDocument();
+  });
+
+  it("texto de cobro no UUID no llama al backend (edge-case)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.type(screen.getByLabelText(/id de cobro/i), "no-es-uuid");
+    await user.click(screen.getByRole("button", { name: /cargar cobro/i }));
+
+    expect(obtenerCobroMock).not.toHaveBeenCalled();
+    expect(anularCobroMock).not.toHaveBeenCalled();
+    expect(facturarArcaMock).not.toHaveBeenCalled();
+  });
+
+  it("triangulación: anulación 409 cobro_ya_anulado muestra conflicto sin reintento y sin marcar anulado", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO, estado: "registrado" }));
+    anularCobroMock.mockRejectedValue(
+      new ApiError({ kind: "conflicto", status: 409, causa: "cobro_ya_anulado", mensaje: "cobro ya anulado", detalle: "cobro ya anulado" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/ya anulado/i);
+    expect(anularCobroMock).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(/registrado/i).length).toBeGreaterThan(0);
+  });
+
+  it("triangulación: factura 409 cobro_anulado muestra conflicto sin reintento ni factura", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockRejectedValue(
+      new ApiError({ kind: "conflicto", status: 409, causa: "cobro_anulado", mensaje: "cobro anulado", detalle: "cobro anulado" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/anulad/i);
+    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+  });
+
+  it("triangulación: factura 409 medio_no_facturable muestra conflicto sin reintento ni factura", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockRejectedValue(
+      new ApiError({ kind: "conflicto", status: 409, causa: "medio_no_facturable", mensaje: "medio no facturable", detalle: "medio no facturable" }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no facturable/i);
+    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+  });
+
+  it("triangulación: factura tipo C envía tipo C elegido por usuario", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "C",
+      cae: "SIM-CAE-C-1",
+      qr: "SIM-QR-C-1",
+      simulado: true,
+      modo: "simulado",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "C",
+        factura_cae: "SIM-CAE-C-1",
+        factura_qr: "SIM-QR-C-1",
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*C|C/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    await waitFor(() => {
+      expect(facturarArcaMock).toHaveBeenCalledWith(COBRO_ID_VALIDO, { tipo: "C" });
+    });
+    expect(await screen.findByText(/SIM-CAE-C-1/)).toBeInTheDocument();
+  });
+
+  it("factura ARCA simulada tipo B se marca explícitamente (edge-case)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "B",
+      cae: "SIM-CAE-123",
+      qr: "SIM-QR-123",
+      simulado: true,
+      modo: "simulado",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "B",
+        factura_cae: "SIM-CAE-123",
+        factura_qr: "SIM-QR-123",
+        facturado_en: "2026-11-14T16:00:00Z",
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    await waitFor(() => {
+      expect(facturarArcaMock).toHaveBeenCalledWith(COBRO_ID_VALIDO, { tipo: "B" });
+    });
+    expect(await screen.findByText(/SIM-CAE-123/)).toBeInTheDocument();
+    expect(screen.getByText(/SIM-QR-123/)).toBeInTheDocument();
+    expect(screen.getAllByText(/simulad/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/\bB\b/)).toBeInTheDocument();
+  });
+
+  it("guarda: botones anular/facturar deshabilitados mientras la acción está en vuelo", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    let resolveAnular!: (v: CobroOut) => void;
+    anularCobroMock.mockImplementation(
+      () => new Promise<CobroOut>((resolve) => { resolveAnular = resolve; }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    const dialog = await screen.findByRole("dialog", { name: /anular/i });
+    await user.type(within(dialog).getByLabelText(/motivo/i), "Error");
+    await user.click(within(dialog).getByRole("button", { name: /confirmar anulaci/i }));
+
+    await waitFor(() => expect(anularCobroMock).toHaveBeenCalledTimes(1));
+    // mientras la request está en vuelo, botones de acción del cobro deshabilitados
+    expect(screen.getByRole("button", { name: /^Anular$/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Facturar ARCA/ })).toBeDisabled();
+    resolveAnular(cobroOut({ id: COBRO_ID_VALIDO, estado: "anulado", motivo_anulacion: "Error", anulado_en: "2026-11-14T15:00:00Z" }));
+  });
+
+  it("guarda: anulación requiere segundo paso (no envía en primer clic)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /anular/i }));
+    // primer clic abre modal/paso 1, sin confirmar no debe enviar
+    expect(anularCobroMock).not.toHaveBeenCalled();
+  });
+
+  it("guarda: factura requiere segundo paso (no envía en primer clic)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    expect(facturarArcaMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Correccion foco CobroItem (grupo 4)", () => {
+  it("al cerrar el modal de anulacion el foco vuelve al mismo boton Anular", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    const anularBtn = screen.getByRole("button", { name: "Anular" });
+    await user.click(anularBtn);
+
+    const dialog = await screen.findByRole("dialog", { name: /anular cobro/i });
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(anularBtn).toBe(document.activeElement);
+    expect(anularBtn.isConnected).toBe(true);
+  });
+});
