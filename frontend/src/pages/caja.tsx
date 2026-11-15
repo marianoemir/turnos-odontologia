@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../components/button";
@@ -14,6 +14,7 @@ import type {
   CobroCreate,
   CobroOut,
   ConceptoCobro,
+  LiquidacionOSOut,
   MedioCobro,
   TipoFacturaArca,
 } from "../types/api-caja";
@@ -22,6 +23,7 @@ import {
   anularCobro,
   cerrarCaja,
   facturarArca,
+  listarLiquidaciones,
   obtenerCajaPorFecha,
   obtenerCobro,
   parseMontoCajaACentavos,
@@ -166,6 +168,12 @@ export default function CajaPage() {
   const cajaQuery = useQuery<CajaOut, unknown>({
     queryKey,
     queryFn: () => obtenerCajaPorFecha(fecha),
+    retry: false,
+  });
+
+  const liquidacionesQuery = useQuery<LiquidacionOSOut[], unknown>({
+    queryKey: resourceKeys.liquidaciones.all,
+    queryFn: listarLiquidaciones,
     retry: false,
   });
 
@@ -495,6 +503,58 @@ export default function CajaPage() {
     accionError &&
     (cobrosCreados.length === 0 || accionCobro !== null || cobroPegado !== null);
 
+  const liqPermiso =
+    liquidacionesQuery.error instanceof ApiError &&
+    liquidacionesQuery.error.status === 403;
+
+  let liquidacionesContenido: ReactNode;
+  if (liquidacionesQuery.isPending) {
+    liquidacionesContenido = <Skeleton style={{ width: "100%", height: 64 }} />;
+  } else if (liqPermiso) {
+    liquidacionesContenido = (
+      <p role="alert">Permiso insuficiente para ver las liquidaciones.</p>
+    );
+  } else if (liquidacionesQuery.isError) {
+    liquidacionesContenido = (
+      <p role="alert">
+        {mensajeError(liquidacionesQuery.error, "No se pudieron cargar las liquidaciones.")}
+      </p>
+    );
+  } else if ((liquidacionesQuery.data?.length ?? 0) === 0) {
+    liquidacionesContenido = (
+      <EmptyState
+        title="Sin liquidaciones"
+        description="No hay liquidaciones para mostrar."
+      />
+    );
+  } else {
+    liquidacionesContenido = (
+      <ul>
+        {(liquidacionesQuery.data ?? []).map((liq) => {
+          const referencia = liq.pdf_referencia ?? "";
+          const esSimulada = referencia.startsWith("SIM-");
+          return (
+            <li key={liq.id} data-testid="liquidacion-item">
+              <p>
+                Nomenclador: {liq.nomenclador_codigo} — Estado: {liq.estado}
+              </p>
+              <p>
+                Total: {formatCentavos(liq.monto_total_centavos)} — Cobertura:{" "}
+                {formatCentavos(liq.cobertura_centavos)} — Copago:{" "}
+                {formatCentavos(liq.copago_centavos)}
+              </p>
+              {liq.descripcion ? <p>Descripción: {liq.descripcion}</p> : null}
+              <p>
+                Referencia PDF: <span>{referencia}</span>
+                {esSimulada ? <strong> (simulada)</strong> : null}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
     <section>
       <h1 className="app-title">Caja</h1>
@@ -622,6 +682,11 @@ export default function CajaPage() {
       ) : accionErrorVisible ? (
         <p role="alert">{accionError}</p>
       ) : null}
+
+      <Card style={{ marginTop: 16 }}>
+        <h2>Liquidaciones</h2>
+        {liquidacionesContenido}
+      </Card>
 
       <Modal
         open={cerrarPaso2}

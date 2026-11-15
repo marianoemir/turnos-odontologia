@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CajaOut, CobroOut } from "../types/api-caja";
+import type { CajaOut, CobroOut, LiquidacionOSOut } from "../types/api-caja";
 import { ApiError } from "../types/errors";
 import { normalizeApiError } from "../services/api-error";
 import CajaPage from "./caja";
@@ -12,6 +12,7 @@ import {
   anularCobro,
   cerrarCaja,
   facturarArca,
+  listarLiquidaciones,
   obtenerCajaPorFecha,
   obtenerCobro,
   registrarCobro,
@@ -57,6 +58,7 @@ const registrarCobroMock = vi.mocked(registrarCobro);
 const anularCobroMock = vi.mocked(anularCobro);
 const facturarArcaMock = vi.mocked(facturarArca);
 const obtenerCobroMock = vi.mocked(obtenerCobro);
+const listarLiquidacionesMock = vi.mocked(listarLiquidaciones);
 
 const ID_CAJA = "11111111-1111-4111-8111-111111111111";
 
@@ -100,6 +102,8 @@ beforeEach(() => {
   anularCobroMock.mockReset();
   facturarArcaMock.mockReset();
   obtenerCobroMock.mockReset();
+  listarLiquidacionesMock.mockReset();
+  listarLiquidacionesMock.mockResolvedValue([]);
   vi.useRealTimers();
 });
 
@@ -1580,3 +1584,132 @@ describe("Correccion foco CobroItem (grupo 4)", () => {
     expect(anularBtn.isConnected).toBe(true);
   });
 });
+
+function liquidacionOut(overrides: Partial<LiquidacionOSOut> = {}): LiquidacionOSOut {
+  return {
+    id: "44444444-4444-4444-8444-444444444444",
+    cobro_id: "22222222-2222-4222-8222-222222222222",
+    nomenclador_codigo: "42.01.01",
+    descripcion: "Consulta",
+    monto_total_centavos: 10000,
+    cobertura_centavos: 8000,
+    copago_centavos: 2000,
+    estado: "pendiente",
+    pdf_referencia: "LIQ-2026-001",
+    creado_en: "2026-11-14T12:00:00Z",
+    ...overrides,
+  };
+}
+
+describe("5.1 Listado de liquidaciones", () => {
+  it('Liquidations list is displayed (happy-path): muestra filas incluida anulada en el orden recibido', async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    const primera = liquidacionOut({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      nomenclador_codigo: "10.01",
+      estado: "pagada",
+      descripcion: "Primera recibida",
+      pdf_referencia: "REF-REAL-1",
+      creado_en: "2026-11-14T18:00:00Z",
+    });
+    const anulada = liquidacionOut({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      nomenclador_codigo: "20.02",
+      estado: "anulada",
+      descripcion: "Anulada recibida",
+      pdf_referencia: "REF-ANULADA-1",
+      creado_en: "2026-11-14T17:00:00Z",
+    });
+    listarLiquidacionesMock.mockResolvedValue([primera, anulada]);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    const items = await screen.findAllByTestId("liquidacion-item");
+    expect(items).toHaveLength(2);
+    expect(within(items[0]).getByText(/10\.01/)).toBeInTheDocument();
+    expect(within(items[0]).getByText(/Estado:\s*pagada/i)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/20\.02/)).toBeInTheDocument();
+    expect(within(items[1]).getByText(/Estado:\s*anulada/i)).toBeInTheDocument();
+    expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("link", { name: /descargar|pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /descargar|pdf/i })).not.toBeInTheDocument();
+  });
+
+  it('Liquidations endpoint denies access as enforcement backstop (business-error): 403 muestra aviso de permiso sin romper ni reintentar', async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    listarLiquidacionesMock.mockRejectedValue(
+      new ApiError({
+        kind: "permiso",
+        status: 403,
+        causa: "permiso_denegado",
+        mensaje: "permiso denegado",
+        detalle: "permiso denegado",
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    const alertas = await screen.findAllByRole("alert");
+    expect(alertas.some((a) => /permiso|denegad/i.test(a.textContent ?? ""))).toBe(true);
+    await waitFor(() => {
+      expect(listarLiquidacionesMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByText(/abierta/i)).toBeInTheDocument();
+  });
+
+  it('Empty liquidations list shows empty state (edge-case)', async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    listarLiquidacionesMock.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    expect(
+      await screen.findByText("No hay liquidaciones para mostrar."),
+    ).toBeInTheDocument();
+  });
+
+  it('Simulated liquidation reference is marked as text without download (edge-case)', async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    listarLiquidacionesMock.mockResolvedValue([
+      liquidacionOut({
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        nomenclador_codigo: "30.03",
+        pdf_referencia: "SIM-OS-2026-001",
+        descripcion: "Con ref simulada",
+      }),
+      liquidacionOut({
+        id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        nomenclador_codigo: "40.04",
+        pdf_referencia: "REF-REAL-9",
+        descripcion: "Con ref real",
+      }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /liquidaciones/i })).toBeInTheDocument();
+    const simItem = (await screen.findByText(/SIM-OS-2026-001/)).closest('[data-testid="liquidacion-item"]');
+    expect(simItem).not.toBeNull();
+    expect(within(simItem as HTMLElement).getByText(/\(simulada\)/i)).toBeInTheDocument();
+
+    const realItem = (await screen.findByText(/REF-REAL-9/)).closest('[data-testid="liquidacion-item"]');
+    expect(realItem).not.toBeNull();
+    expect(within(realItem as HTMLElement).queryByText(/\(simulada\)/i)).not.toBeInTheDocument();
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /descargar|pdf/i })).not.toBeInTheDocument();
+
+  });
+});
+

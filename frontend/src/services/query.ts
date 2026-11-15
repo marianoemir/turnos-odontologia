@@ -18,6 +18,7 @@ export const resourceKeys = {
   sucursales: { all: ["sucursales"] as const },
   usuariosSucursal: { all: ["usuarios-sucursal"] as const },
   caja: { all: ["caja"] as const },
+  liquidaciones: { all: ["liquidaciones"] as const },
 } as const;
 
 /** Clave de consulta de caja por fecha, anidada bajo la raíz del recurso. */

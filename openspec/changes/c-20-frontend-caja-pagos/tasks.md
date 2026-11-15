@@ -28,9 +28,9 @@
 
 ## 5. Listado de liquidaciones
 
-- [ ] 5.1 (RED) Add failing tests for liquidation scenarios: "Liquidations list is displayed (happy-path)", "Liquidations endpoint denies access as enforcement backstop (business-error)" (403), "Empty liquidations list shows empty state (edge-case)", and "Simulated liquidation reference is marked as text without download (edge-case)" and verify tests fail.
-- [ ] 5.2 (GREEN) Implement `GET /liquidaciones-os` section rendering list data and `pdf_referencia` as text with simulated marker for `SIM-` prefix and no download action; handle empty and permission states (backend respaldo); verify 5.1 tests pass.
-- [ ] 5.3 (REFACTOR) Align liquidation presentation with caja/pagos UI patterns and verify group 5 tests remain green.
+- [x] 5.1 (RED) Add failing tests for liquidation scenarios: "Liquidations list is displayed (happy-path)", "Liquidations endpoint denies access as enforcement backstop (business-error)" (403), "Empty liquidations list shows empty state (edge-case)", and "Simulated liquidation reference is marked as text without download (edge-case)" and verify tests fail.
+- [x] 5.2 (GREEN) Implement `GET /liquidaciones-os` section rendering list data and `pdf_referencia` as text with simulated marker for `SIM-` prefix and no download action; handle empty and permission states (backend respaldo); verify 5.1 tests pass.
+- [x] 5.3 (REFACTOR) Align liquidation presentation with caja/pagos UI patterns and verify group 5 tests remain green.
 
 ## 6. Verificación final
 
