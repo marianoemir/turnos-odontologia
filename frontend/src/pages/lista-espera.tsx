@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../components/button";
 import { EmptyState } from "../components/empty-state";
+import { Modal } from "../components/modal";
 import { Select } from "../components/select";
 import { Skeleton } from "../components/skeleton";
 import { TextField } from "../components/text-field";
 import { normalizeApiError } from "../services/api-error";
 import { ApiError } from "../types/errors";
-import type { Paciente, Prestacion, Profesional } from "../types/api";
-import type { ListaEsperaCreate, ListaEsperaOut } from "../types/api-lista-espera";
+import type { Paciente, Prestacion, Profesional, Sillon } from "../types/api";
+import type {
+  ListaEsperaCreate,
+  ListaEsperaOut,
+  OfrecerHueco,
+  OfrecerHuecoResponse,
+} from "../types/api-lista-espera";
 import {
   crearEntradaListaEspera,
   listarEntradasListaEspera,
@@ -17,6 +23,7 @@ import {
   listarPrestacionesCatalogo,
   listarProfesionalesCatalogo,
   listarSillonesCatalogo,
+  ofrecerHuecoListaEspera,
 } from "../services/lista-espera";
 import { resourceKeys } from "../services/query";
 
@@ -49,7 +56,12 @@ function nombreDeCatalogo(
   return mapa.get(id) ?? NO_DISPONIBLE;
 }
 
+function tieneOffsetZonaHoraria(valor: string): boolean {
+  return /(?:Z|[+-]\d{2}:\d{2})$/.test(valor.trim());
+}
+
 export default function ListaEsperaPage() {
+  const queryClient = useQueryClient();
   const [busquedaPaciente, setBusquedaPaciente] = useState("");
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
   const [profesionalId, setProfesionalId] = useState("");
@@ -57,6 +69,15 @@ export default function ListaEsperaPage() {
   const [ultimaEntrada, setUltimaEntrada] = useState<ListaEsperaOut | null>(null);
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [filtroProfesional, setFiltroProfesional] = useState("");
+
+  const [entradaOferta, setEntradaOferta] = useState<ListaEsperaOut | null>(null);
+  const [pasoOferta, setPasoOferta] = useState<"form" | "confirm">("form");
+  const [inicioOferta, setInicioOferta] = useState("");
+  const [profesionalOfertaId, setProfesionalOfertaId] = useState("");
+  const [sillonOfertaId, setSillonOfertaId] = useState("");
+  const [errorInicioOferta, setErrorInicioOferta] = useState<string | null>(null);
+  const [errorOferta, setErrorOferta] = useState<string | null>(null);
+  const [ofertasPorEntrada, setOfertasPorEntrada] = useState<Record<string, OfrecerHuecoResponse>>({});
 
   const pacientesQuery = useQuery({
     queryKey: ["lista-espera", "alta", "pacientes", busquedaPaciente],
@@ -76,6 +97,11 @@ export default function ListaEsperaPage() {
   const prestacionesQuery = useQuery({
     queryKey: [...resourceKeys.prestaciones.all, "lista-espera-select"],
     queryFn: () => listarPrestacionesCatalogo(),
+  });
+
+  const sillonesQuery = useQuery({
+    queryKey: [...resourceKeys.sillones.all, "lista-espera-select"],
+    queryFn: () => listarSillonesCatalogo(),
   });
 
   const pacientesTablaQuery = useQuery({
@@ -115,8 +141,31 @@ export default function ListaEsperaPage() {
     },
   });
 
+  const ofertaMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: OfrecerHueco }) =>
+      ofrecerHuecoListaEspera(id, body),
+    onSuccess: (data, variables) => {
+      setOfertasPorEntrada((prev) => ({
+        ...prev,
+        [variables.id]: data,
+      }));
+      setErrorOferta(null);
+      setErrorInicioOferta(null);
+      setPasoOferta("form");
+      setEntradaOferta(null);
+      setInicioOferta("");
+      setProfesionalOfertaId("");
+      setSillonOfertaId("");
+      void queryClient.invalidateQueries({ queryKey: resourceKeys.listaEspera.all });
+    },
+    onError: (error) => {
+      setErrorOferta(mensajeDeError(error));
+    },
+  });
+
   const profesionales = profesionalesQuery.data ?? [];
   const prestaciones = prestacionesQuery.data ?? [];
+  const sillones = sillonesQuery.data ?? [];
   const pacientes = pacientesQuery.data?.items ?? [];
   const entradas = listaEsperaQuery.data ?? [];
 
@@ -154,6 +203,16 @@ export default function ListaEsperaPage() {
     ...profesionales.map((p: Profesional) => ({ value: p.id, label: p.nombre })),
   ];
 
+  const opcionesProfesionalOferta = [
+    { value: "", label: "Seleccionar profesional" },
+    ...profesionales.map((p: Profesional) => ({ value: p.id, label: p.nombre })),
+  ];
+
+  const opcionesSillonOferta = [
+    { value: "", label: "Seleccionar sillón" },
+    ...sillones.map((s: Sillon) => ({ value: s.id, label: s.nombre })),
+  ];
+
   const puedeEnviar =
     pacienteSeleccionado !== null &&
     prestacionId.length > 0 &&
@@ -174,6 +233,58 @@ export default function ListaEsperaPage() {
     }
     altaMutation.mutate(body);
   }
+
+  function abrirOferta(entrada: ListaEsperaOut) {
+    setEntradaOferta(entrada);
+    setPasoOferta("form");
+    setInicioOferta("");
+    setProfesionalOfertaId(entrada.profesional_id ?? "");
+    setSillonOfertaId("");
+    setErrorInicioOferta(null);
+    setErrorOferta(null);
+  }
+
+  function cerrarOferta() {
+    if (ofertaMutation.isPending) {
+      return;
+    }
+    setEntradaOferta(null);
+    setPasoOferta("form");
+    setErrorInicioOferta(null);
+    setErrorOferta(null);
+  }
+
+  function continuarOferta() {
+    setErrorInicioOferta(null);
+    setErrorOferta(null);
+    if (!tieneOffsetZonaHoraria(inicioOferta)) {
+      setErrorInicioOferta("El inicio debe incluir offset de zona horaria.");
+      return;
+    }
+    setPasoOferta("confirm");
+  }
+
+  function confirmarOferta() {
+    if (!entradaOferta || ofertaMutation.isPending) {
+      return;
+    }
+    if (!tieneOffsetZonaHoraria(inicioOferta)) {
+      setErrorInicioOferta("El inicio debe incluir offset de zona horaria.");
+      setPasoOferta("form");
+      return;
+    }
+    setErrorOferta(null);
+    ofertaMutation.mutate({
+      id: entradaOferta.id,
+      body: {
+        inicio: inicioOferta.trim(),
+        profesional_id: profesionalOfertaId,
+        sillon_id: sillonOfertaId,
+      },
+    });
+  }
+
+  const ofertas = Object.entries(ofertasPorEntrada);
 
   let contenidoLista: React.ReactNode;
   if (listaEsperaQuery.isPending) {
@@ -197,6 +308,7 @@ export default function ListaEsperaPage() {
             <th scope="col">Profesional</th>
             <th scope="col">Prestación</th>
             <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -206,6 +318,16 @@ export default function ListaEsperaPage() {
               <td>{nombreDeCatalogo(entrada.profesional_id, mapaProfesionalesTabla)}</td>
               <td>{nombreDeCatalogo(entrada.prestacion_id, mapaPrestacionesTabla)}</td>
               <td>{entrada.estado}</td>
+              <td>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => abrirOferta(entrada)}
+                  disabled={ofertaMutation.isPending}
+                >
+                  Ofrecer hueco
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -288,6 +410,77 @@ export default function ListaEsperaPage() {
       ) : null}
 
       {contenidoLista}
+
+      {ofertas.length > 0 ? (
+        <section aria-label="Ofertas realizadas">
+          <h2>Ofertas realizadas</h2>
+          <ul>
+            {ofertas.map(([id, oferta]) => (
+              <li key={id}>
+                <p>Entrada: {id}</p>
+                <p>Estado de lista: {oferta.lista.estado}</p>
+                <p>Estado de turno: {oferta.turno.estado}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <Modal
+        open={entradaOferta !== null}
+        onClose={cerrarOferta}
+        title="Ofrecer hueco"
+      >
+        {pasoOferta === "form" ? (
+          <>
+            <TextField
+              label="Inicio"
+              value={inicioOferta}
+              onChange={(e) => setInicioOferta(e.target.value)}
+              error={errorInicioOferta ?? undefined}
+            />
+            <Select
+              label="Profesional"
+              value={profesionalOfertaId}
+              onChange={(e) => setProfesionalOfertaId(e.target.value)}
+              options={opcionesProfesionalOferta}
+            />
+            <Select
+              label="Sillón"
+              value={sillonOfertaId}
+              onChange={(e) => setSillonOfertaId(e.target.value)}
+              options={opcionesSillonOferta}
+            />
+            {errorOferta ? <p role="alert">{errorOferta}</p> : null}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <Button variant="secondary" onClick={cerrarOferta} disabled={ofertaMutation.isPending}>
+                Cancelar
+              </Button>
+              <Button onClick={continuarOferta} disabled={ofertaMutation.isPending}>
+                Continuar
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>Confirmá la oferta del hueco para la entrada seleccionada.</p>
+            <p>Inicio: {inicioOferta}</p>
+            {errorOferta ? <p role="alert">{errorOferta}</p> : null}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setPasoOferta("form")}
+                disabled={ofertaMutation.isPending}
+              >
+                Volver
+              </Button>
+              <Button onClick={confirmarOferta} disabled={ofertaMutation.isPending}>
+                Confirmar oferta
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
     </section>
   );
-}
+}
