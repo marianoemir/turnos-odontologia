@@ -1001,8 +1001,11 @@ describe("4.1 Anulación y factura ARCA", () => {
     await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/ya tiene factura|facturad/i);
-    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText(/\bCAE:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Factura \(ARCA\)|Factura simulada \(ARCA\)/i)).not.toBeInTheDocument();
   });
 
   it("anulación conflictúa con caja cerrada (409 caja_cerrada)", async () => {
@@ -1188,8 +1191,11 @@ describe("4.1 Anulación y factura ARCA", () => {
     await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/anulad/i);
-    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText(/\bCAE:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Factura \(ARCA\)|Factura simulada \(ARCA\)/i)).not.toBeInTheDocument();
   });
 
   it("triangulación: factura 409 medio_no_facturable muestra conflicto sin reintento ni factura", async () => {
@@ -1215,8 +1221,11 @@ describe("4.1 Anulación y factura ARCA", () => {
     await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/no facturable/i);
-    expect(facturarArcaMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/SIM-CAE/i)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(facturarArcaMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText(/\bCAE:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Factura \(ARCA\)|Factura simulada \(ARCA\)/i)).not.toBeInTheDocument();
   });
 
   it("triangulación: factura tipo C envía tipo C elegido por usuario", async () => {
@@ -1391,6 +1400,50 @@ describe("4.1 Anulación y factura ARCA", () => {
     expect(screen.getByText(/SIM-QR-MARK/)).toBeInTheDocument();
     expect(screen.getAllByText(/simulad/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/simulado=true/i)).not.toBeInTheDocument();
+  });
+  it("factura con simulado=true y CAE sin prefijo SIM- muestra la marca simulada (cada condición por separado)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+    registrarCobroMock.mockResolvedValue(cobroOut({ id: COBRO_ID_VALIDO }));
+    facturarArcaMock.mockResolvedValue({
+      cobro_id: COBRO_ID_VALIDO,
+      tipo: "B",
+      cae: "74125896301472",
+      qr: "QR-REAL-SIMFLAG",
+      simulado: true,
+      modo: "simulado",
+    });
+    obtenerCobroMock.mockResolvedValue(
+      cobroOut({
+        id: COBRO_ID_VALIDO,
+        estado: "facturado",
+        factura_tipo: "B",
+        factura_cae: "74125896301472",
+        factura_qr: "QR-REAL-SIMFLAG",
+        simulado: true,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "10,00");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    await screen.findByText("Cobros registrados");
+
+    await user.click(screen.getByRole("button", { name: /facturar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /factur/i });
+    await user.click(within(dialog).getByLabelText(/tipo\s*B|B/i));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar factur/i }));
+
+    expect(await screen.findByText(/74125896301472/)).toBeInTheDocument();
+    expect(screen.getByText(/QR-REAL-SIMFLAG/)).toBeInTheDocument();
+    expect(screen.getByText(/^CAE:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^CAE:\s*SIM-/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Factura simulada \(ARCA\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/simulad/i).length).toBeGreaterThan(0);
   });
   it("factura con CAE SIM- y simulado=false muestra marca simulada (triangulacion)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
