@@ -13,11 +13,11 @@
 
 ## 2. Alta
 
-- [ ] 2.1 (RED) Add failing RTL test "Successful waitlist registration (happy-path)" covering alta fields (paciente, profesional opcional, prestación), patient select search using verified `GET /pacientes` parameter `q` with `limit=200` (no other params), single POST, and display of returned pending entry; verify test fails.
-- [ ] 2.2 (RED) Add failing RTL test "Backend rejects registration with entity not found (business-error)" showing normalized 404 error cause, no created entry, and no automatic POST retry; verify test fails.
-- [ ] 2.3 (RED) Add failing RTL test "Backend rejects registration with validation error (business-error)" showing normalized 422 error cause, no created entry, and no automatic POST retry; verify test fails.
-- [ ] 2.4 (RED) Add failing RTL test "Submit is blocked while registration is in flight (edge-case)" asserting submit remains disabled until completion and no duplicate `POST /lista-espera` request is sent; verify test fails.
-- [ ] 2.5 (GREEN) Replace the content of `frontend/src/pages/lista-espera.tsx` (preserving the `<h1 className="app-title">Lista de espera</h1>` / `<h1>` "Lista de espera") with registration UI and mutation handling that uses patient search via `q` with `limit=200` (no other params), disables submit in flight, and does not auto-retry POST; verify 2.1-2.4 tests pass.
+- [x] 2.1 (RED) Add failing RTL test "Successful waitlist registration (happy-path)" covering alta fields (paciente, profesional opcional, prestación), patient select search using verified `GET /pacientes` parameter `q` with `limit=200` (no other params), single POST, and display of returned pending entry; verify test fails.
+- [x] 2.2 (RED) Add failing RTL test "Backend rejects registration with entity not found (business-error)" showing normalized 404 error cause, no created entry, and no automatic POST retry; verify test fails.
+- [x] 2.3 (RED) Add failing RTL test "Backend rejects registration with validation error (business-error)" showing normalized 422 error cause, no created entry, and no automatic POST retry; verify test fails.
+- [x] 2.4 (RED) Add failing RTL test "Submit is blocked while registration is in flight (edge-case)" asserting submit remains disabled until completion and no duplicate `POST /lista-espera` request is sent; verify test fails.
+- [x] 2.5 (GREEN) Replace the content of `frontend/src/pages/lista-espera.tsx` (preserving the `<h1 className="app-title">Lista de espera</h1>` / `<h1>` "Lista de espera") with registration UI and mutation handling that uses patient search via `q` with `limit=200` (no other params), disables submit in flight, and does not auto-retry POST; verify 2.1-2.4 tests pass.
 
 ## 3. Listado, filtro y nombres
 
