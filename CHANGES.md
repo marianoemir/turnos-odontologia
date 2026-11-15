@@ -132,7 +132,7 @@ C-13 frontend-foundation [x]
     ├── C-15 frontend-catalogo-recursos [ ]
     │   └── C-16 frontend-crear-turno [ ]
     ├── C-17 frontend-agenda-turnos [ ]
-    ├── C-18 frontend-lista-de-espera [ ]
+    ├── C-18 frontend-lista-de-espera [x]
     ├── C-19 frontend-hc-odontograma [ ]
     ├── C-20 frontend-caja-pagos [x]
     ├── C-21 frontend-reserva-publica [ ]
@@ -641,7 +641,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-18] `frontend-lista-de-espera`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-15)
 - **Scope**: US-004 en UI (consume C-06)
   - `/lista-espera`: tabla ordenada FIFO por `creado_en`, filtro por profesional
   - Alta en lista: paciente, profesional opcional, prestación
