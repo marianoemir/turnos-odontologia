@@ -9,7 +9,7 @@ import { Button } from "../components/button";
 import { Card } from "../components/card";
 import { TextField } from "../components/text-field";
 import { login } from "../auth/login";
-import { safeReturnTo } from "../auth/navigation";
+import { canNavigate, isInternalPath, safeReturnTo } from "../auth/navigation";
 import { useSession } from "../auth/use-session";
 
 const loginSchema = z.object({
@@ -70,7 +70,23 @@ export default function LoginPage() {
     try {
       const session = await login(values.dni, values.password, sucursalId);
       startSession(session);
-      navigate(safeReturnTo(searchParams.get("returnTo"), session.rol), { replace: true });
+      // Fix E2E obs 3 (C-16): si el `returnTo` pedido era interno pero el rol
+      // no puede navegarlo, `safeReturnTo` aterriza en `/agenda` en silencio.
+      // El destino presenta el mismo aviso que emite el guard ("Permiso
+      // insuficiente.") vía `location.state`: solo presentación, sin tocar
+      // auth/sesión/token. Un `returnTo` externo o ausente no avisa.
+      const solicitado = searchParams.get("returnTo");
+      const destino = safeReturnTo(solicitado, session.rol);
+      const denegado =
+        solicitado !== null &&
+        isInternalPath(solicitado) &&
+        !canNavigate(session.rol, solicitado);
+      navigate(
+        destino,
+        denegado
+          ? { replace: true, state: { notice: "Permiso insuficiente." } }
+          : { replace: true },
+      );
     } catch (error) {
       if (isSucursalRequiredError(error) && !requiresSucursal) {
         setRequiresSucursal(true);

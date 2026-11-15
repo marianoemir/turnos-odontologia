@@ -82,12 +82,29 @@ export const bloqueoFormSchema = z
     },
   );
 
+/**
+ * Creación de turno (C-16, task 1.3): los cuatro ids y el `inicio`
+ * (`datetime-local`) requeridos; `fin` no es campo (derivado de
+ * `prestacion.duracion_min`, RN-AG-01, y el servidor lo ignora). La
+ * validación cliente solo bloquea lo seguro (requeridos); el resto lo
+ * decide el backend (409 por causa, 422 a campos vía
+ * `applyApiFieldErrors`).
+ */
+export const turnoFormSchema = z.object({
+  paciente_id: z.string().trim().min(1, "Elegí un paciente."),
+  profesional_id: z.string().trim().min(1, "Elegí un profesional."),
+  prestacion_id: z.string().trim().min(1, "Elegí una prestación."),
+  sillon_id: z.string().trim().min(1, "Elegí un sillón."),
+  inicio: z.string().min(1, "Ingresá el inicio."),
+});
+
 export type PacienteFormValues = z.input<typeof pacienteFormSchema>;
 export type ProfesionalFormValues = z.input<typeof profesionalFormSchema>;
 export type SillonFormValues = z.input<typeof sillonFormSchema>;
 export type PrestacionFormValues = z.input<typeof prestacionFormSchema>;
 export type HorarioFormValues = z.input<typeof horarioFormSchema>;
 export type BloqueoFormValues = z.input<typeof bloqueoFormSchema>;
+export type TurnoFormValues = z.input<typeof turnoFormSchema>;
 
 export const pacienteFormResolver = zodResolver(pacienteFormSchema);
 export const profesionalFormResolver = zodResolver(profesionalFormSchema);
@@ -95,3 +112,4 @@ export const sillonFormResolver = zodResolver(sillonFormSchema);
 export const prestacionFormResolver = zodResolver(prestacionFormSchema);
 export const horarioFormResolver = zodResolver(horarioFormSchema);
 export const bloqueoFormResolver = zodResolver(bloqueoFormSchema);
+export const turnoFormResolver = zodResolver(turnoFormSchema);
