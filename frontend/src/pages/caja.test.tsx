@@ -577,13 +577,14 @@ describe("3.1 Registro de cobros", () => {
     expect(screen.queryByText(/registrado/i)).not.toBeInTheDocument();
   });
 
-  it("obra social sin nomenclador_codigo env�a y muestra 422 con validaci�n de campos (business-error)", async () => {
+  it("obra social 422 nomenclador_codigo muestra error (forma DERIVADA, no medida)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
     // Forma DERIVADA (NO medida en sonda; esperada en FastAPI + Pydantic v2 para un
-    // model_validator sobre un body): <<SALIDA DE LA SONDA>> sin salida en esta corrección.
+    // model_validator sobre un body): Forma derivada, no medida contra el backend.
+    // nomenclador informado (pasa validación local) para poder observar el render del 422 derivado.
     registrarCobroMock.mockRejectedValue(
       normalizeApiError(422, {
         detail: [
@@ -604,18 +605,43 @@ describe("3.1 Registro de cobros", () => {
     await user.selectOptions(screen.getByLabelText(/medio/i), "obra_social");
     await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
     await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "100,00");
-    // nomenclador vacío: UI envía igual
+    await user.type(screen.getByLabelText(/nomenclador/i), "ABC123");
     await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
 
     await waitFor(() => {
       expect(registrarCobroMock).toHaveBeenCalledTimes(1);
     });
+    expect(registrarCobroMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medio: "obra_social",
+        nomenclador_codigo: "ABC123",
+      }),
+    );
     const alerta = await screen.findByRole("alert");
     // Texto exacto renderizado por normalizeApiError con loc ["body"] (derivado, no medido):
     expect(alerta).toHaveTextContent(
       "La request tiene campos inválidos: body: Value error, nomenclador_codigo es obligatorio para obra_social",
     );
     expect(screen.queryByText(/registrado/i)).not.toBeInTheDocument();
+  });
+  it("obra social con nomenclador vacio o solo espacios no envia y muestra aviso claro", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00-03:00"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    obtenerCajaPorFechaMock.mockResolvedValue(cajaAbierta());
+
+    renderPage();
+    await screen.findByText(/abierta/i);
+
+    await user.selectOptions(screen.getByLabelText(/medio/i), "obra_social");
+    await user.clear(screen.getByLabelText(/^Monto \(pesos\)$/i));
+    await user.type(screen.getByLabelText(/^Monto \(pesos\)$/i), "100,00");
+    await user.clear(screen.getByLabelText(/nomenclador/i));
+    await user.type(screen.getByLabelText(/nomenclador/i), "   ");
+    await user.click(screen.getByRole("button", { name: /registrar cobro/i }));
+
+    expect(registrarCobroMock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/nomenclador/i);
   });
 
   it("bloquea turno_id con formato inv�lido antes de enviar (edge-case)", async () => {
@@ -1325,7 +1351,7 @@ describe("4.1 Anulación y factura ARCA", () => {
     await user.click(screen.getByRole("button", { name: /facturar/i }));
     expect(facturarArcaMock).not.toHaveBeenCalled();
   });
-});
+});
 
 describe("Correccion foco CobroItem (grupo 4)", () => {
   it("al cerrar el modal de anulacion el foco vuelve al mismo boton Anular", async () => {

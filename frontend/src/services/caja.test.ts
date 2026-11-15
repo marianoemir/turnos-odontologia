@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RED de 1.1 (C-20) — contratos de servicios caja/cobros/liquidaciones y parser
  * puro de pesos a centavos. Cubre los 9 endpoints de backend/app/caja/router.py
  * y escenarios de parser "rejects invalid values" / "accepts comma and dot".
@@ -227,7 +227,7 @@ describe("triangulación contratos (1.3)", () => {
     expect(conflicto.detalle).toContain("ya existe caja abierta");
 
     // Forma DERIVADA (NO medida en sonda; esperada en FastAPI + Pydantic v2 para un
-    // model_validator sobre un body). <<SALIDA DE LA SONDA>> sin salida en esta corrección.
+    // model_validator sobre un body). Forma derivada, no medida contra el backend.
     const pydantic = normalizeApiError(422, {
       detail: [
         {

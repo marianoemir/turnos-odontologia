@@ -254,7 +254,12 @@ export default function CajaPage() {
       payload.turno_id = turnoTrim;
     }
     if (cobroMedio === "obra_social") {
-      payload.nomenclador_codigo = cobroNomenclador;
+      const nomencladorTrim = cobroNomenclador.trim();
+      if (nomencladorTrim === "") {
+        setCobroError("El nomenclador es obligatorio para obra social.");
+        return;
+      }
+      payload.nomenclador_codigo = nomencladorTrim;
       try {
         payload.cobertura_centavos = parseMontoCajaACentavos(cobroCobertura);
       } catch {
@@ -721,4 +726,3 @@ export default function CajaPage() {
     </section>
   );
 }
-
