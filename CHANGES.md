@@ -76,6 +76,12 @@
 > - **C-22, selector de sucursal superado por C-24**: el scope de C-22 dice que el selector envía `X-Sucursal-Id` y filtra profesionales y sillones. Desde C-24 ese header se ignora con token y la sucursal activa es el claim `sucursal_id` del token; no hay endpoint para cambiarla. En C-22 el selector es de solo lectura (muestra la sucursal de la sesión, resuelta por nombre con `GET /sucursales`) y cambiar de sucursal implica iniciar sesión de nuevo; cambiarla sin reautenticar requiere un change backend futuro. Quedan sin efecto la viñeta del scope sobre el envío de `X-Sucursal-Id` y el test RTL de "filtro por sucursal en profesionales/sillones".
 > - **C-22, guard por rol y acceso**: `admin` navega `/admin`, `/admin/*` y `/agenda`; `recepcion` navega todo lo interno salvo `/admin` y `/admin/*`; `odontologo` solo `/agenda`. El acceso es un grupo «Administración» en el shell, solo para `admin`, fuera de «Operación» (los cuatro enlaces aprobados no cambian). El guard del cliente no es seguridad: el respaldo es el 403 del backend.
 
+> **Nota de rectificación (2026-11-15, rev. 14)** — C-20 `frontend-caja-pagos` archivado el 2026-11-15. No se reescribe el texto de scope de ningún change; las diferencias se registran en esta nota y en la línea `**Estado**` de C-20:
+> - **C-20 archivado (2026-11-15)**: se implementó en la rama `feature/c-20-frontend-caja-pagos` y se integró en `main` (PR #48, merge `1582a77`). Queda fuera del recorte TP, que sigue en C-15 y C-16. Estado real recalculado: 24 changes, **18 archivados** (C-01 a C-14, C-20, C-22, C-23 y C-24) y **6 pendientes** (C-15 a C-19 y C-21). Se actualizan el árbol, la línea del camino crítico, el pie y los resúmenes de `AGENTS.md` y `CLAUDE.md`.
+> - **C-20, desajustes del scope con el backend**: C-10 expone nueve endpoints y no incluye listado de cajas, listado de cobros ni descarga de PDF. Por eso en C-20 el "historial de cajas" se reemplaza por la consulta de la caja por fecha (`GET /caja?fecha=`) y por id; la "descarga de PDF" se reemplaza por el listado de liquidaciones, que muestra `pdf_referencia` como texto (marcado como simulado si lleva el prefijo `SIM-`) y no ofrece descarga; y un cobro solo se anula o se factura si se creó en la pantalla o se abre por su id. El medio `transferencia` sí existe y el tipo de factura es B o C. Si el PO o la cátedra quieren historial, PDF real o listado de cobros, hace falta un change de backend.
+> - **C-20, acceso a `/caja`**: solo `recepcion` entra a `/caja` desde la UI; `admin` no la usa desde la UI aunque el backend se lo permite. Es una decisión revisable por el PO o la cátedra. El guard del cliente no es seguridad: el respaldo es el 403 del backend.
+> - **Estructura del repositorio**: la raíz es solo gobierno y configuración; no se crean carpetas nuevas en la raíz sin acuerdo del grupo y los reportes del agente no se commitean. `opsx/` salió del repositorio y quedó ignorada (PR #47). La regla se agregó a `AGENTS.md` y `CLAUDE.md`.
+> - **Camino crítico**: la línea "Ya archivados del recorte" omitía a C-20 y a C-22 entre los archivados fuera del recorte; se agregaron.
 ---
 
 ## Cómo usar este documento
@@ -128,7 +134,7 @@ C-13 frontend-foundation [x]
     ├── C-17 frontend-agenda-turnos [ ]
     ├── C-18 frontend-lista-de-espera [ ]
     ├── C-19 frontend-hc-odontograma [ ]
-    ├── C-20 frontend-caja-pagos [ ]
+    ├── C-20 frontend-caja-pagos [x]
     ├── C-21 frontend-reserva-publica [ ]
     └── C-22 frontend-admin-roles-export [x]
 ```
@@ -206,7 +212,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11, C-20 y C-22, fuera del recorte). Pendientes del recorte: **C-15, C-16**.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22). Desde la rev. 12 C-14 depende también de C-24 (archivado).
 
@@ -730,6 +736,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-14 (rev. 13)**: 24 changes. Archivados (17): C-01 a C-14, C-22, C-23 y C-24. Pendientes (7): C-15 a C-21. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
-> Además de C-13, C-14 y C-22, ningún otro change de frontend está archivado. C-22 se adelantó respecto del recorte TP.
-> Habilitados por dependencias: **C-15** y C-17 a C-21 (C-16 espera a C-15). **Próximo del recorte: C-15**.
+> **Estado del roadmap al 2026-11-15 (rev. 14)**: 24 changes. Archivados (18): C-01 a C-14, C-20, C-22, C-23 y C-24. Pendientes (6): C-15 a C-19 y C-21. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
+> Además de C-13, C-14, C-20 y C-22, ningún otro change de frontend está archivado. C-20 y C-22 quedaron fuera del recorte TP, que sigue en C-15 y C-16.
+> Habilitados por dependencias: **C-15**, C-17, C-18, C-19 y C-21 (C-16 espera a C-15). **Próximo del recorte: C-15**.
