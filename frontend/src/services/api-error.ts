@@ -220,3 +220,37 @@ export function errorDeCuerpoIlegible(
     detalle: truncar(textoCrudoCuerpo),
   });
 }
+
+/**
+ * Recurso cuyo 422 de catálogo indica inactividad.
+ *
+ * El backend responde los 422 de recurso inactivo con `detail` string plano
+ * (`"Profesional inactivo"`, `"Sillón inactivo"` en
+ * `backend/app/agenda/router_catalogo.py:426,544,561`) sin `causa`: el
+ * wording es la única señal disponible, así que el match por texto vive solo
+ * acá en vez de duplicado en cada pantalla de catálogo.
+ */
+export type RecursoInactivo = "profesional" | "sillon";
+
+const PROFESIONAL_INACTIVO = /profesional.*inactivo/i;
+const SILLON_INACTIVO = /sill[oó]n.*inactivo/i;
+
+/**
+ * Detecta el 422 de recurso inactivo del catálogo en un `ApiError` ya
+ * normalizado. Exige status 422 y mira `message` y `detalle` (el normalizador
+ * copia el `detail` string a ambos). Cualquier otra forma devuelve `null`.
+ */
+export function recursoInactivoDe(error: ApiError): RecursoInactivo | null {
+  if (error.status !== 422) {
+    return null;
+  }
+  const texto =
+    error.detalle !== "" ? `${error.message} ${error.detalle}` : error.message;
+  if (PROFESIONAL_INACTIVO.test(texto)) {
+    return "profesional";
+  }
+  if (SILLON_INACTIVO.test(texto)) {
+    return "sillon";
+  }
+  return null;
+}

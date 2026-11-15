@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { errorDeCuerpoIlegible, normalizeApiError } from "./api-error";
+import { errorDeCuerpoIlegible, normalizeApiError, recursoInactivoDe } from "./api-error";
 import { ApiError } from "../types/errors";
 import type { ApiErrorKind, CampoError } from "../types/errors";
 
@@ -240,5 +240,42 @@ describe("las formas de error del backend convergen en ApiError", () => {
     expect(error.kind).toBe("red");
     expect(error.detalle.length).toBeLessThanOrEqual(201);
     expect(error.detalle.startsWith("x".repeat(200))).toBe(true);
+  });
+});
+
+describe("recursoInactivoDe detecta el 422 de recurso inactivo del catálogo", () => {
+  it.each([
+    { detail: "Profesional inactivo", esperado: "profesional" },
+    { detail: "Sillón inactivo", esperado: "sillon" },
+  ])("422 con $detail mapea a $esperado", ({ detail, esperado }) => {
+    const error = normalizeApiError(422, { detail });
+
+    expect(recursoInactivoDe(error)).toBe(esperado);
+  });
+
+  it("422 de dominio sin inactividad no mapea", () => {
+    const error = normalizeApiError(422, {
+      detail: "desde debe ser menor que hasta",
+    });
+
+    expect(recursoInactivoDe(error)).toBeNull();
+  });
+
+  it("404 con mención al recurso no mapea (exige 422)", () => {
+    const error = normalizeApiError(404, {
+      detail: "Profesional 11111111-1111-4111-8111-111111111111 no encontrado",
+    });
+
+    expect(recursoInactivoDe(error)).toBeNull();
+  });
+
+  it("409 de conflicto no mapea aunque mencione inactividad", () => {
+    const error = new ApiError({
+      kind: "conflicto",
+      status: 409,
+      mensaje: "solape con horario inactivo",
+    });
+
+    expect(recursoInactivoDe(error)).toBeNull();
   });
 });

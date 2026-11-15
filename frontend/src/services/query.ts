@@ -13,6 +13,8 @@ export const resourceKeys = {
   profesionales: { all: ["profesionales"] as const },
   prestaciones: { all: ["prestaciones"] as const },
   sillones: { all: ["sillones"] as const },
+  horarios: { all: ["horarios"] as const },
+  bloqueos: { all: ["bloqueos"] as const },
   turnos: { all: ["turnos"] as const },
   roles: { all: ["roles"] as const },
   sucursales: { all: ["sucursales"] as const },

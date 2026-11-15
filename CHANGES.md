@@ -578,7 +578,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-15] `frontend-catalogo-recursos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-15)
 - **Scope**: Pantallas de administración del catálogo (consume C-12)
   - `/catalogo/pacientes`: tabla con búsqueda por nombre/dni, alta y edición en modal o ruta, error `409 duplicate_dni` mapeado al campo `dni`
   - `/catalogo/profesionales`: tabla + alta/edición + toggle `activo` con confirmación

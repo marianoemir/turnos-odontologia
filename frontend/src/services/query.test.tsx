@@ -30,6 +30,27 @@ function FallarCrearTurnoButton() {
   );
 }
 
+describe("raíces de catálogo", () => {
+  it("expone raíces estables para horarios y bloqueos", () => {
+    expect(resourceKeys.horarios.all).toEqual(["horarios"]);
+    expect(resourceKeys.bloqueos.all).toEqual(["bloqueos"]);
+  });
+
+  it("invalida una clave anidada de horarios al invalidar su raíz sin tocar bloqueos", async () => {
+    const queryClient = new QueryClient();
+    const claveHorarios = [...resourceKeys.horarios.all, "todas"] as const;
+    queryClient.setQueryData(claveHorarios, [{ id: "horario-1" }]);
+    queryClient.setQueryData(resourceKeys.bloqueos.all, [{ id: "bloqueo-1" }]);
+
+    await queryClient.invalidateQueries({ queryKey: resourceKeys.horarios.all });
+
+    expect(queryClient.getQueryState(claveHorarios)?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryState(resourceKeys.bloqueos.all)?.isInvalidated,
+    ).toBe(false);
+  });
+});
+
 describe("convenciones de cache por recurso", () => {
   it("invalida la consulta de caja por fecha al invalidar la raíz de caja", async () => {
     const queryClient = new QueryClient();
