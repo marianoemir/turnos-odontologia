@@ -600,7 +600,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-16] `frontend-crear-turno`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-15)
 - **Scope**: US-001 en UI — cierra el recorte TP
   - `/turnos/nuevo`: wizard de una pantalla con paciente (buscador), profesional, prestación, sillón y fecha/hora
   - Cálculo de `fin` en vivo a partir de `duracion_min` de la prestación, mostrado antes de confirmar

@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -37,9 +38,13 @@ describe("login", () => {
     const user = userEvent.setup();
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), "USUARIO-FICT-001");
     await user.type(screen.getByLabelText("Contraseña"), "secreto-no-renderizado");
@@ -79,9 +84,13 @@ describe("login", () => {
     const password = "secreto-no-renderizado";
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), "USUARIO-FICT-001");
     await user.type(screen.getByLabelText("Contraseña"), password);
@@ -111,9 +120,13 @@ describe("login", () => {
     const user = userEvent.setup();
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), "USUARIO-FICT-001");
     await user.type(screen.getByLabelText("Contraseña"), "secreto-no-renderizado");
@@ -146,9 +159,13 @@ describe("login", () => {
     const user = userEvent.setup();
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), "USUARIO-FICT-001");
     await user.type(screen.getByLabelText("Contraseña"), "secreto-no-renderizado");
@@ -178,9 +195,13 @@ describe("login", () => {
     const user = userEvent.setup();
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), "USUARIO-FICT-001");
     await user.type(screen.getByLabelText("Contraseña"), "secreto-no-renderizado");
@@ -229,9 +250,13 @@ describe("login", () => {
     const user = userEvent.setup();
 
     render(
-      <SessionProvider>
-        <RouterProvider router={router} />
-      </SessionProvider>,
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
+      </QueryClientProvider>,
     );
     await user.type(screen.getByLabelText("DNI"), dni);
     await user.type(screen.getByLabelText("Contraseña"), password);
