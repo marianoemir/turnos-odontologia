@@ -24,8 +24,15 @@ import {
   listarProfesionalesCatalogo,
   listarSillonesCatalogo,
   ofrecerHuecoListaEspera,
+  responderOfertaListaEspera,
 } from "../services/lista-espera";
 import { resourceKeys } from "../services/query";
+
+interface OfertaGuardada {
+  oferta: OfrecerHuecoResponse;
+  resuelta: boolean;
+  error: string | null;
+}
 
 const NO_DISPONIBLE = "No disponible";
 
@@ -77,7 +84,12 @@ export default function ListaEsperaPage() {
   const [sillonOfertaId, setSillonOfertaId] = useState("");
   const [errorInicioOferta, setErrorInicioOferta] = useState<string | null>(null);
   const [errorOferta, setErrorOferta] = useState<string | null>(null);
-  const [ofertasPorEntrada, setOfertasPorEntrada] = useState<Record<string, OfrecerHuecoResponse>>({});
+  const [ofertasPorEntrada, setOfertasPorEntrada] = useState<
+    Record<string, OfertaGuardada>
+  >({});
+  const [respuestaEnCursoId, setRespuestaEnCursoId] = useState<string | null>(
+    null,
+  );
 
   const pacientesQuery = useQuery({
     queryKey: ["lista-espera", "alta", "pacientes", busquedaPaciente],
@@ -147,7 +159,7 @@ export default function ListaEsperaPage() {
     onSuccess: (data, variables) => {
       setOfertasPorEntrada((prev) => ({
         ...prev,
-        [variables.id]: data,
+        [variables.id]: { oferta: data, resuelta: false, error: null },
       }));
       setErrorOferta(null);
       setErrorInicioOferta(null);
@@ -160,6 +172,53 @@ export default function ListaEsperaPage() {
     },
     onError: (error) => {
       setErrorOferta(mensajeDeError(error));
+    },
+  });
+
+  const responderMutation = useMutation({
+    mutationFn: ({ id, acepta }: { id: string; acepta: boolean }) =>
+      responderOfertaListaEspera(id, { acepta }),
+    onMutate: ({ id }) => {
+      setRespuestaEnCursoId(id);
+      setOfertasPorEntrada((prev) => {
+        const actual = prev[id];
+        if (!actual) {
+          return prev;
+        }
+        return { ...prev, [id]: { ...actual, error: null } };
+      });
+    },
+    onSuccess: (data, variables) => {
+      setOfertasPorEntrada((prev) => {
+        const actual = prev[variables.id];
+        if (!actual) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [variables.id]: {
+            oferta: { ...actual.oferta, lista: data },
+            resuelta: true,
+            error: null,
+          },
+        };
+      });
+      if (!variables.acepta) {
+        void queryClient.invalidateQueries({ queryKey: resourceKeys.listaEspera.all });
+      }
+    },
+    onError: (error, variables) => {
+      const mensaje = errorNormalizado(error).message;
+      setOfertasPorEntrada((prev) => {
+        const actual = prev[variables.id];
+        if (!actual) {
+          return prev;
+        }
+        return { ...prev, [variables.id]: { ...actual, error: mensaje } };
+      });
+    },
+    onSettled: () => {
+      setRespuestaEnCursoId(null);
     },
   });
 
@@ -415,11 +474,41 @@ export default function ListaEsperaPage() {
         <section aria-label="Ofertas realizadas">
           <h2>Ofertas realizadas</h2>
           <ul>
-            {ofertas.map(([id, oferta]) => (
+            {ofertas.map(([id, guardada]) => (
               <li key={id}>
                 <p>Entrada: {id}</p>
-                <p>Estado de lista: {oferta.lista.estado}</p>
-                <p>Estado de turno: {oferta.turno.estado}</p>
+                <p>Estado de lista: {guardada.oferta.lista.estado}</p>
+                <p>Estado de turno: {guardada.oferta.turno.estado}</p>
+                {guardada.error ? <p role="alert">{guardada.error}</p> : null}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      responderMutation.mutate({ id, acepta: true })
+                    }
+                    disabled={
+                      guardada.resuelta ||
+                      responderMutation.isPending ||
+                      respuestaEnCursoId === id
+                    }
+                  >
+                    Aceptar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      responderMutation.mutate({ id, acepta: false })
+                    }
+                    disabled={
+                      guardada.resuelta ||
+                      responderMutation.isPending ||
+                      respuestaEnCursoId === id
+                    }
+                  >
+                    Rechazar
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

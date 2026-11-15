@@ -1244,3 +1244,566 @@ describe("5. Ofrecer hueco con doble confirmación", () => {
     expect(screen.getByText(/pendiente/i)).toBeInTheDocument();
   });
 });
+
+describe("6. Responder oferta", () => {
+  it('Respond conflict shows notice and leaves entry intact (business-error)', async () => {
+    const user = userEvent.setup();
+
+    listarEntradasListaEsperaMock.mockResolvedValue([
+      {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "pendiente",
+        turno_id: null,
+      },
+    ]);
+    listarPacientesCatalogoMock.mockResolvedValue({
+      items: [
+        {
+          id: ID_PACIENTE,
+          nombre: "Paciente Ficticio Responder 409",
+          dni: "10000301",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    });
+    listarProfesionalesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PROFESIONAL,
+        nombre: "Profesional Ficticio Responder 409",
+        matricula: "MF-301",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    listarPrestacionesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PRESTACION,
+        nombre: "Prestacion Ficticia Responder 409",
+        duracion_min: 30,
+        activo: true,
+      },
+    ]);
+    listarSillonesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_SILLON,
+        nombre: "Sillon Ficticio Responder 409",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    ofrecerHuecoListaEsperaMock.mockResolvedValue({
+      lista: {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "ofrecido",
+        turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      },
+      turno: { estado: "pendiente" },
+    });
+    responderOfertaListaEsperaMock.mockRejectedValue(
+      new ApiError({
+        kind: "conflicto",
+        status: 409,
+        mensaje: "Oferta ya respondida",
+        detalle: "Oferta ya respondida",
+        causa: "conflicto",
+      }),
+    );
+
+    renderPage();
+
+    await screen.findByText("Paciente Ficticio Responder 409");
+    await user.click(screen.getByRole("button", { name: /ofrecer hueco/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T10:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    const aceptar = await screen.findByRole("button", { name: /aceptar/i });
+    await user.click(aceptar);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Oferta ya respondida/i);
+    expect(responderOfertaListaEsperaMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Estado de lista:\s*ofrecido/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Estado de lista:\s*asignado/i)).not.toBeInTheDocument();
+  });
+
+  it('Accepting an offer marks the entry as assigned (happy-path)', async () => {
+    const user = userEvent.setup();
+
+    listarEntradasListaEsperaMock.mockResolvedValue([
+      {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "pendiente",
+        turno_id: null,
+      },
+    ]);
+    listarPacientesCatalogoMock.mockResolvedValue({
+      items: [
+        {
+          id: ID_PACIENTE,
+          nombre: "Paciente Ficticio Aceptar",
+          dni: "10000302",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    });
+    listarProfesionalesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PROFESIONAL,
+        nombre: "Profesional Ficticio Aceptar",
+        matricula: "MF-302",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    listarPrestacionesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PRESTACION,
+        nombre: "Prestacion Ficticia Aceptar",
+        duracion_min: 30,
+        activo: true,
+      },
+    ]);
+    listarSillonesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_SILLON,
+        nombre: "Sillon Ficticio Aceptar",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    ofrecerHuecoListaEsperaMock.mockResolvedValue({
+      lista: {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "ofrecido",
+        turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      },
+      turno: { estado: "pendiente" },
+    });
+    responderOfertaListaEsperaMock.mockResolvedValue({
+      id: ID_ENTRADA,
+      paciente_id: ID_PACIENTE,
+      profesional_id: ID_PROFESIONAL,
+      prestacion_id: ID_PRESTACION,
+      creado_en: "2026-11-15T09:00:00-03:00",
+      estado: "asignado",
+      turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    });
+
+    renderPage();
+
+    await screen.findByText("Paciente Ficticio Aceptar");
+    await user.click(screen.getByRole("button", { name: /ofrecer hueco/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T10:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    const aceptar = await screen.findByRole("button", { name: /aceptar/i });
+    await user.click(aceptar);
+
+    await waitFor(() => {
+      expect(responderOfertaListaEsperaMock).toHaveBeenCalledWith(ID_ENTRADA, {
+        acepta: true,
+      });
+    });
+    expect(await screen.findByText(/Estado de lista:\s*asignado/i)).toBeInTheDocument();
+  });
+
+  it('Rejecting an offer marks the entry as baja and refreshes the list (happy-path)', async () => {
+    const user = userEvent.setup();
+
+    listarEntradasListaEsperaMock
+      .mockResolvedValueOnce([
+        {
+          id: ID_ENTRADA,
+          paciente_id: ID_PACIENTE,
+          profesional_id: ID_PROFESIONAL,
+          prestacion_id: ID_PRESTACION,
+          creado_en: "2026-11-15T09:00:00-03:00",
+          estado: "pendiente",
+          turno_id: null,
+        },
+      ])
+      .mockResolvedValue([]);
+    listarPacientesCatalogoMock.mockResolvedValue({
+      items: [
+        {
+          id: ID_PACIENTE,
+          nombre: "Paciente Ficticio Rechazar",
+          dni: "10000303",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    });
+    listarProfesionalesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PROFESIONAL,
+        nombre: "Profesional Ficticio Rechazar",
+        matricula: "MF-303",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    listarPrestacionesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PRESTACION,
+        nombre: "Prestacion Ficticia Rechazar",
+        duracion_min: 30,
+        activo: true,
+      },
+    ]);
+    listarSillonesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_SILLON,
+        nombre: "Sillon Ficticio Rechazar",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    ofrecerHuecoListaEsperaMock.mockResolvedValue({
+      lista: {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "ofrecido",
+        turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      },
+      turno: { estado: "pendiente" },
+    });
+    responderOfertaListaEsperaMock.mockResolvedValue({
+      id: ID_ENTRADA,
+      paciente_id: ID_PACIENTE,
+      profesional_id: ID_PROFESIONAL,
+      prestacion_id: ID_PRESTACION,
+      creado_en: "2026-11-15T09:00:00-03:00",
+      estado: "baja",
+      turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    });
+
+    renderPage();
+
+    await screen.findByText("Paciente Ficticio Rechazar");
+    await user.click(screen.getByRole("button", { name: /ofrecer hueco/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T10:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    const llamadasAntesDeRechazar = listarEntradasListaEsperaMock.mock.calls.length;
+    const rechazar = await screen.findByRole("button", { name: /rechazar/i });
+    await user.click(rechazar);
+
+    await waitFor(() => {
+      expect(responderOfertaListaEsperaMock).toHaveBeenCalledWith(ID_ENTRADA, {
+        acepta: false,
+      });
+    });
+    expect(await screen.findByText(/Estado de lista:\s*baja/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(listarEntradasListaEsperaMock.mock.calls.length).toBeGreaterThan(
+        llamadasAntesDeRechazar,
+      );
+    });
+  });
+
+  it('A second offer keeps the first offer available (edge-case)', async () => {
+    const user = userEvent.setup();
+    const ID_ENTRADA_1 = "cccccccc-cccc-4ccc-8ccc-ccccccccccc1";
+    const ID_ENTRADA_2 = "cccccccc-cccc-4ccc-8ccc-ccccccccccc2";
+    const ID_PACIENTE_2 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02";
+
+    listarEntradasListaEsperaMock.mockResolvedValue([
+      {
+        id: ID_ENTRADA_1,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "pendiente",
+        turno_id: null,
+      },
+      {
+        id: ID_ENTRADA_2,
+        paciente_id: ID_PACIENTE_2,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:30:00-03:00",
+        estado: "pendiente",
+        turno_id: null,
+      },
+    ]);
+    listarPacientesCatalogoMock.mockResolvedValue({
+      items: [
+        {
+          id: ID_PACIENTE,
+          nombre: "Paciente Ficticio Oferta Uno",
+          dni: "10000304",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+        {
+          id: ID_PACIENTE_2,
+          nombre: "Paciente Ficticio Oferta Dos",
+          dni: "10000305",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    });
+    listarProfesionalesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PROFESIONAL,
+        nombre: "Profesional Ficticio Ofertas",
+        matricula: "MF-304",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    listarPrestacionesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PRESTACION,
+        nombre: "Prestacion Ficticia Ofertas",
+        duracion_min: 30,
+        activo: true,
+      },
+    ]);
+    listarSillonesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_SILLON,
+        nombre: "Sillon Ficticio Ofertas",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    ofrecerHuecoListaEsperaMock.mockImplementation(async (id: string) => ({
+      lista: {
+        id,
+        paciente_id: id === ID_ENTRADA_1 ? ID_PACIENTE : ID_PACIENTE_2,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "ofrecido" as const,
+        turno_id: `ffffffff-ffff-4fff-8fff-fffffffffff${id.endsWith("1") ? "1" : "2"}`,
+      },
+      turno: { estado: "pendiente" },
+    }));
+
+    renderPage();
+
+    await screen.findByText("Paciente Ficticio Oferta Uno");
+    await screen.findByText("Paciente Ficticio Oferta Dos");
+
+    const filaUno = screen.getByText("Paciente Ficticio Oferta Uno").closest("tr");
+    const filaDos = screen.getByText("Paciente Ficticio Oferta Dos").closest("tr");
+    expect(filaUno).not.toBeNull();
+    expect(filaDos).not.toBeNull();
+
+    await user.click(within(filaUno as HTMLTableRowElement).getByRole("button", { name: /ofrecer hueco/i }));
+    let dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T10:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(within(filaDos as HTMLTableRowElement).getByRole("button", { name: /ofrecer hueco/i }));
+    dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T11:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(2);
+    });
+
+    const ofertaUno = screen.getByText(`Entrada: ${ID_ENTRADA_1}`).closest("li");
+    const ofertaDos = screen.getByText(`Entrada: ${ID_ENTRADA_2}`).closest("li");
+    expect(ofertaUno).not.toBeNull();
+    expect(ofertaDos).not.toBeNull();
+    expect(within(ofertaUno as HTMLElement).getByRole("button", { name: /aceptar/i })).toBeInTheDocument();
+    expect(within(ofertaUno as HTMLElement).getByRole("button", { name: /rechazar/i })).toBeInTheDocument();
+    expect(within(ofertaDos as HTMLElement).getByRole("button", { name: /aceptar/i })).toBeInTheDocument();
+  });
+
+  it('An answered offer cannot be answered again (edge-case)', async () => {
+    const user = userEvent.setup();
+
+    listarEntradasListaEsperaMock.mockResolvedValue([
+      {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "pendiente",
+        turno_id: null,
+      },
+    ]);
+    listarPacientesCatalogoMock.mockResolvedValue({
+      items: [
+        {
+          id: ID_PACIENTE,
+          nombre: "Paciente Ficticio Respondida",
+          dni: "10000306",
+          contacto: null,
+          ficticio: true,
+          activo: true,
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    });
+    listarProfesionalesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PROFESIONAL,
+        nombre: "Profesional Ficticio Respondida",
+        matricula: "MF-306",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    listarPrestacionesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_PRESTACION,
+        nombre: "Prestacion Ficticia Respondida",
+        duracion_min: 30,
+        activo: true,
+      },
+    ]);
+    listarSillonesCatalogoMock.mockResolvedValue([
+      {
+        id: ID_SILLON,
+        nombre: "Sillon Ficticio Respondida",
+        sucursal_id: null,
+        activo: true,
+      },
+    ]);
+    ofrecerHuecoListaEsperaMock.mockResolvedValue({
+      lista: {
+        id: ID_ENTRADA,
+        paciente_id: ID_PACIENTE,
+        profesional_id: ID_PROFESIONAL,
+        prestacion_id: ID_PRESTACION,
+        creado_en: "2026-11-15T09:00:00-03:00",
+        estado: "ofrecido",
+        turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      },
+      turno: { estado: "pendiente" },
+    });
+    responderOfertaListaEsperaMock.mockResolvedValue({
+      id: ID_ENTRADA,
+      paciente_id: ID_PACIENTE,
+      profesional_id: ID_PROFESIONAL,
+      prestacion_id: ID_PRESTACION,
+      creado_en: "2026-11-15T09:00:00-03:00",
+      estado: "asignado",
+      turno_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    });
+
+    renderPage();
+
+    await screen.findByText("Paciente Ficticio Respondida");
+    await user.click(screen.getByRole("button", { name: /ofrecer hueco/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /ofrecer hueco/i });
+    await user.clear(within(dialog).getByLabelText(/inicio/i));
+    await user.type(within(dialog).getByLabelText(/inicio/i), "2026-11-20T10:00:00-03:00");
+    await user.selectOptions(within(dialog).getByLabelText(/profesional/i), ID_PROFESIONAL);
+    await user.selectOptions(within(dialog).getByLabelText(/sill[oó]n/i), ID_SILLON);
+    await user.click(within(dialog).getByRole("button", { name: /continuar|siguiente/i }));
+    await user.click(within(dialog).getByRole("button", { name: /confirmar oferta/i }));
+
+    await waitFor(() => {
+      expect(ofrecerHuecoListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    const oferta = screen.getByText(`Entrada: ${ID_ENTRADA}`).closest("li");
+    expect(oferta).not.toBeNull();
+    const aceptar = within(oferta as HTMLElement).getByRole("button", { name: /aceptar/i });
+    within(oferta as HTMLElement).getByRole("button", { name: /rechazar/i });
+    await user.click(aceptar);
+
+    await waitFor(() => {
+      expect(responderOfertaListaEsperaMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(within(oferta as HTMLElement).getByRole("button", { name: /aceptar/i })).toBeDisabled();
+    expect(within(oferta as HTMLElement).getByRole("button", { name: /rechazar/i })).toBeDisabled();
+
+    await user.click(within(oferta as HTMLElement).getByRole("button", { name: /aceptar/i }));
+    await user.click(within(oferta as HTMLElement).getByRole("button", { name: /rechazar/i }));
+    expect(responderOfertaListaEsperaMock).toHaveBeenCalledTimes(1);
+  });
+});
