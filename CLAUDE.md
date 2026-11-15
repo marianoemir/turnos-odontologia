@@ -15,7 +15,7 @@
 | Auth | JWT HS256 implementado en backend (C-24 archivado). Identidad resuelta exclusivamente por `Authorization: Bearer <token>`, emitido vía `POST /login`. Cabeceras de C-11 (`X-Actor-Rol`, `X-Actor-Usuario`, `X-Sucursal-Id`) y default `recepcion` eliminados. Pantalla de login, sesión y cliente HTTP con `Authorization: Bearer` entregados por C-14 (archivado 2026-11-13). | PyJWT 2.10.1 |
 | Persistencia | PostgreSQL vía Docker Compose | Postgres 16+ |
 | Async | Redis — solo con funcionalidad asincrónica (posterior) | Redis 7+ |
-| Frontend | React + TypeScript + Vite (C-13, C-14 y C-22 archivados (2026-11-12, 2026-11-13 y 2026-11-14); C-15 a C-21 pendientes; el backend C-01..C-12 ya está archivado) | — |
+| Frontend | React + TypeScript + Vite (C-13, C-14, C-22 y C-20 archivados (2026-11-12, 2026-11-13, 2026-11-14 y 2026-11-15); C-15 a C-19 y C-21 pendientes; el backend C-01..C-12 ya está archivado) | — |
 | Tests | pytest directo (sin skill dedicada) | pytest 8+ |
 | Infra local | Docker + Docker Compose (`docker-compose.yml` en raíz) | Docker 24+ |
 
@@ -62,14 +62,14 @@ Cargá la skill correspondiente al contexto ANTES de escribir código.
 
 ## Roadmap de Changes
 
-El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (rectificado 2026-11-14, rev. 13; estados al 2026-11-14):
+El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (rectificado 2026-11-15, rev. 14; estados al 2026-11-15):
 
 - **Total**: 24 changes en 6 fases (backend C-01..C-12 + corrección de infra C-23 + auth C-24 + frontend C-13..C-22).
-- **Estado**: 17 archivados (C-01 a C-14, C-22, C-23 y C-24) y 7 pendientes (C-15 a C-21).
+- **Estado**: 18 archivados (C-01 a C-14, C-20, C-22, C-23 y C-24) y 6 pendientes (C-15 a C-19 y C-21).
 - **Camino crítico backend** (5): `C-01 → C-02 → C-03 → C-10 → C-11`.
 - **Camino crítico end-to-end con UI** (8): `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`.
-- **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (además, fuera del recorte: C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11 y C-22). Pendientes del recorte: **C-15, C-16**.
-- **Último archivado**: `C-22` (`frontend-admin-roles-export`, archivado 2026-11-14; se adelantó respecto del recorte). **Próximo del recorte**: `C-15` (`frontend-catalogo-recursos`; depende de C-12, C-13 y C-14, archivados). C-14 (`frontend-componentes-base`, archivado 2026-11-13) entregó los componentes base, la capa de datos y el login con sesión JWT. C-23 (`fix-api-contenedor`, archivado 2026-11-13) cerró la task 5.2 de C-13 y C-24 (`auth-jwt`, archivado 2026-11-13) entregó el login JWT del backend. Migraciones: C-24 sumó `009_auth_usuarios`; C-08 (`reserva-online`, archivado 2026-11-10) no agregó ninguna.
+- **Recorte TP** (8, actualizado): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`. Archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (además, fuera del recorte: C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11, C-20 y C-22). Pendientes del recorte: **C-15, C-16**.
+- **Último archivado**: `C-20` (`frontend-caja-pagos`, archivado 2026-11-15; fuera del recorte; antes, `C-22` (`frontend-admin-roles-export`, archivado 2026-11-14), también adelantado respecto del recorte). **Próximo del recorte**: `C-15` (`frontend-catalogo-recursos`; depende de C-12, C-13 y C-14, archivados). C-14 (`frontend-componentes-base`, archivado 2026-11-13) entregó los componentes base, la capa de datos y el login con sesión JWT. C-23 (`fix-api-contenedor`, archivado 2026-11-13) cerró la task 5.2 de C-13 y C-24 (`auth-jwt`, archivado 2026-11-13) entregó el login JWT del backend. Migraciones: C-24 sumó `009_auth_usuarios`; C-08 (`reserva-online`, archivado 2026-11-10) no agregó ninguna.
 - **Frontend**: C-13 `frontend-foundation` (shell/ruteo/contratos) y C-14 `frontend-componentes-base` (componentes + data layer + login y sesión JWT) son la base; C-15..C-22 son un change por capability. Consumen `frontend/design-system/` (`Revision: 1`, `Mode: system-only`). Ningún change de frontend se adelanta al endpoint que consume.
 - **Contratos vigentes (C-24 y C-08)**: hay login real con JWT: `POST /login` emite el token con rol y sucursal y el cliente envía `Authorization: Bearer <token>`. Los headers `X-Actor-Rol`, `X-Actor-Usuario` y `X-Sucursal-Id` y el default `recepcion` ya no existen (el contrato de C-11 quedó superado, rev. 12). Las rutas públicas de C-08 (`GET /reservar/{profesional}`, `POST /reservar`) no requieren login. `GET /export`: JSON, 30 días, solo admin. La importación de planilla es solo por CLI.
 
@@ -94,6 +94,7 @@ El plan de implementación completo está en [CHANGES.md](CHANGES.md). Resumen (
 - NUNCA reescribir el texto de changes archivados en `CHANGES.md` → las diferencias van en una nota de rectificación; solo se toca la línea `**Estado**` del change en curso.
 - NUNCA citar una regla `RN-*` sin verificarla → `Select-String` sobre `knowledge-base/05_reglas_de_negocio.md`; lo ambiguo es pregunta abierta, no decisión silenciosa.
 - NUNCA correr `pytest` con `DATABASE_URL` apuntando a la base `turnos` → los tests truncan tablas; usar `turnos_test`.
+- NUNCA crear carpetas nuevas en la raíz ni commitear reportes del agente → la raíz es solo gobierno y configuración; el código va en `backend/` o `frontend/`, los changes en `openspec/` y la documentación en `docs/`; una carpeta nueva en la raíz requiere acuerdo del grupo.
 - NUNCA regenerar la fundación (`/active-orchestrator:init` y similares) ni dejar `AGENTS.md` y `CLAUDE.md` distintos.
 
 ---
