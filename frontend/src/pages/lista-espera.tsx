@@ -9,10 +9,15 @@ import type { Paciente, Prestacion, Profesional } from "../types/api";
 import type { ListaEsperaCreate, ListaEsperaOut } from "../types/api-lista-espera";
 import {
   crearEntradaListaEspera,
+  listarEntradasListaEspera,
   listarPacientesCatalogo,
   listarPrestacionesCatalogo,
   listarProfesionalesCatalogo,
+  listarSillonesCatalogo,
 } from "../services/lista-espera";
+import { resourceKeys } from "../services/query";
+
+const NO_DISPONIBLE = "No disponible";
 
 function mensajeDeError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -24,6 +29,16 @@ function mensajeDeError(error: unknown): string {
   return "Error al registrar en lista de espera.";
 }
 
+function nombreDeCatalogo(
+  id: string | null,
+  mapa: Map<string, string>,
+): string {
+  if (id === null) {
+    return NO_DISPONIBLE;
+  }
+  return mapa.get(id) ?? NO_DISPONIBLE;
+}
+
 export default function ListaEsperaPage() {
   const [busquedaPaciente, setBusquedaPaciente] = useState("");
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
@@ -31,6 +46,7 @@ export default function ListaEsperaPage() {
   const [prestacionId, setPrestacionId] = useState("");
   const [ultimaEntrada, setUltimaEntrada] = useState<ListaEsperaOut | null>(null);
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
+  const [filtroProfesional, setFiltroProfesional] = useState("");
 
   const pacientesQuery = useQuery({
     queryKey: ["lista-espera", "alta", "pacientes", busquedaPaciente],
@@ -43,13 +59,39 @@ export default function ListaEsperaPage() {
   });
 
   const profesionalesQuery = useQuery({
-    queryKey: ["lista-espera", "alta", "profesionales"],
+    queryKey: [...resourceKeys.profesionales.all, "lista-espera-select"],
     queryFn: () => listarProfesionalesCatalogo(),
   });
 
   const prestacionesQuery = useQuery({
-    queryKey: ["lista-espera", "alta", "prestaciones"],
+    queryKey: [...resourceKeys.prestaciones.all, "lista-espera-select"],
     queryFn: () => listarPrestacionesCatalogo(),
+  });
+
+  const pacientesTablaQuery = useQuery({
+    queryKey: [...resourceKeys.pacientes.all, "lista-espera-tabla", { incluir_inactivos: true }],
+    queryFn: () => listarPacientesCatalogo({ incluir_inactivos: true }),
+  });
+
+  const profesionalesTablaQuery = useQuery({
+    queryKey: [...resourceKeys.profesionales.all, "lista-espera-tabla", { incluir_inactivos: true }],
+    queryFn: () => listarProfesionalesCatalogo({ incluir_inactivos: true }),
+  });
+
+  const prestacionesTablaQuery = useQuery({
+    queryKey: [...resourceKeys.prestaciones.all, "lista-espera-tabla", { incluir_inactivos: true }],
+    queryFn: () => listarPrestacionesCatalogo({ incluir_inactivos: true }),
+  });
+
+  const sillonesTablaQuery = useQuery({
+    queryKey: [...resourceKeys.sillones.all, "lista-espera-tabla", { incluir_inactivos: true }],
+    queryFn: () => listarSillonesCatalogo({ incluir_inactivos: true }),
+  });
+
+  const listaEsperaQuery = useQuery({
+    queryKey: [...resourceKeys.listaEspera.all, filtroProfesional],
+    queryFn: () =>
+      listarEntradasListaEspera(filtroProfesional || undefined),
   });
 
   const altaMutation = useMutation({
@@ -66,6 +108,26 @@ export default function ListaEsperaPage() {
   const profesionales = profesionalesQuery.data ?? [];
   const prestaciones = prestacionesQuery.data ?? [];
   const pacientes = pacientesQuery.data?.items ?? [];
+  const entradas = listaEsperaQuery.data ?? [];
+
+  const mapaPacientesTabla = new Map(
+    (pacientesTablaQuery.data?.items ?? []).map((p) => [p.id, p.nombre]),
+  );
+  const mapaProfesionalesTabla = new Map(
+    (profesionalesTablaQuery.data ?? []).map((p) => [p.id, p.nombre]),
+  );
+  const mapaPrestacionesTabla = new Map(
+    (prestacionesTablaQuery.data ?? []).map((p) => [p.id, p.nombre]),
+  );
+  // sillones resueltos para tabla (contrato exige lectura con incluir_inactivos=true)
+  void sillonesTablaQuery.data;
+
+  const errorCatalogo = [
+    pacientesTablaQuery.error,
+    profesionalesTablaQuery.error,
+    prestacionesTablaQuery.error,
+    sillonesTablaQuery.error,
+  ].find(Boolean);
 
   const opcionesProfesional = [
     { value: "", label: "Sin profesional (opcional)" },
@@ -75,6 +137,11 @@ export default function ListaEsperaPage() {
   const opcionesPrestacion = [
     { value: "", label: "Seleccionar prestación" },
     ...prestaciones.map((p: Prestacion) => ({ value: p.id, label: p.nombre })),
+  ];
+
+  const opcionesFiltroProfesional = [
+    { value: "", label: "Todos los profesionales" },
+    ...profesionales.map((p: Profesional) => ({ value: p.id, label: p.nombre })),
   ];
 
   const puedeEnviar =
@@ -160,6 +227,38 @@ export default function ListaEsperaPage() {
           <p>Estado: {ultimaEntrada.estado}</p>
         </div>
       ) : null}
+
+      <Select
+        label="Filtrar por profesional"
+        value={filtroProfesional}
+        onChange={(e) => setFiltroProfesional(e.target.value)}
+        options={opcionesFiltroProfesional}
+      />
+
+      {errorCatalogo ? (
+        <p role="alert">{mensajeDeError(errorCatalogo)}</p>
+      ) : null}
+
+      <table aria-label="Entradas de lista de espera">
+        <thead>
+          <tr>
+            <th scope="col">Paciente</th>
+            <th scope="col">Profesional</th>
+            <th scope="col">Prestación</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entradas.map((entrada) => (
+            <tr key={entrada.id}>
+              <td>{nombreDeCatalogo(entrada.paciente_id, mapaPacientesTabla)}</td>
+              <td>{nombreDeCatalogo(entrada.profesional_id, mapaProfesionalesTabla)}</td>
+              <td>{nombreDeCatalogo(entrada.prestacion_id, mapaPrestacionesTabla)}</td>
+              <td>{entrada.estado}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

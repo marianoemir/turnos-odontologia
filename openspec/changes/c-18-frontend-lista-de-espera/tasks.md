@@ -21,13 +21,13 @@
 
 ## 3. Listado, filtro y nombres
 
-- [ ] 3.1 (RED) Add failing RTL test "Entries are shown in backend FIFO order (happy-path)" using a fixture with rows deliberately out of `creado_en` order to detect any client-side sort, asserting the UI renders entries in the same order received from the backend; verify test fails.
-- [ ] 3.2 (RED) Add failing RTL test "Professional filter includes general entries (edge-case)" asserting `GET /lista-espera?profesional=<id>` renders the returned set as-is; verify test fails.
-- [ ] 3.3 (GREEN) Implement list query/rendering and professional filter preserving backend order; verify 3.1-3.2 tests pass.
-- [ ] 3.4 (RED) Add failing RTL test "Names are visible in the table (happy-path)" asserting the table and selection controls show human-readable names (not raw UUIDs) resolved from catalog reads; table name resolution uses `incluir_inactivos=true` (confirmado por Mariano) and selects use default values; verify test fails.
-- [ ] 3.5 (RED) Add failing RTL test "Unresolved reference shows a neutral label (edge-case)" asserting that when a referenced name cannot be resolved from consulted catalog data the table displays "No disponible" instead of a raw UUID; verify test fails.
-- [ ] 3.6 (RED) Add failing RTL test "Catalog read failure shows error without breaking the screen (edge-case)" asserting that a normalized `ApiError` in a catalog read request shows an error state and the screen remains usable; verify test fails.
-- [ ] 3.7 (GREEN) Implement name resolution for table/selects from catalog read functions in `frontend/src/services/lista-espera.ts` (reusing `frontend/src/types/api.ts` types), using `incluir_inactivos=true` for table name resolution (confirmado por Mariano) and default values for selects, showing "No disponible" for unresolved table references, and handling catalog read failure with an error state while keeping the screen usable; verify 3.4-3.6 tests pass.
+- [x] 3.1 (RED) Add failing RTL test "Entries are shown in backend FIFO order (happy-path)" using a fixture with rows deliberately out of `creado_en` order to detect any client-side sort, asserting the UI renders entries in the same order received from the backend; verify test fails.
+- [x] 3.2 (RED) Add failing RTL test "Professional filter includes general entries (edge-case)" asserting `GET /lista-espera?profesional=<id>` renders the returned set as-is; verify test fails.
+- [x] 3.3 (GREEN) Implement list query/rendering and professional filter preserving backend order; verify 3.1-3.2 tests pass.
+- [x] 3.4 (RED) Add failing RTL test "Names are visible in the table (happy-path)" asserting the table and selection controls show human-readable names (not raw UUIDs) resolved from catalog reads; table name resolution uses `incluir_inactivos=true` (confirmado por Mariano) and selects use default values; verify test fails.
+- [x] 3.5 (RED) Add failing RTL test "Unresolved reference shows a neutral label (edge-case)" asserting that when a referenced name cannot be resolved from consulted catalog data the table displays "No disponible" instead of a raw UUID; verify test fails.
+- [x] 3.6 (RED) Add failing RTL test "Catalog read failure shows error without breaking the screen (edge-case)" asserting that a normalized `ApiError` in a catalog read request shows an error state and the screen remains usable; verify test fails.
+- [x] 3.7 (GREEN) Implement name resolution for table/selects from catalog read functions in `frontend/src/services/lista-espera.ts` (reusing `frontend/src/types/api.ts` types), using `incluir_inactivos=true` for table name resolution (confirmado por Mariano) and default values for selects, showing "No disponible" for unresolved table references, and handling catalog read failure with an error state while keeping the screen usable; verify 3.4-3.6 tests pass.
 
 ## 4. Estados de carga, error, permiso y vacío
 
