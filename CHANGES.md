@@ -671,7 +671,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-20] `frontend-caja-pagos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-15)
 - **Scope**: Caja y cobros en UI (consume C-10)
   - `/caja`: apertura y cierre diario con arqueo (esperado vs contado, diferencia destacada), historial de cajas
   - Cobro de turno: medio (efectivo/tarjeta/transferencia/MP/OS), monto en centavos, seña vinculada a reserva
