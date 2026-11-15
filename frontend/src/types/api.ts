@@ -3,7 +3,8 @@
  *
  * Fuentes y ninguna otra: `PacienteOut` (backend/app/agenda/schemas.py:60-68),
  * `ProfesionalOut` (:103-110), `SillonOut` (:136-142), `PrestacionOut` (:168-174),
- * `HorarioOut` (:223-231), `BloqueoOut` (:251-259) y `TurnoOut`
+ * `HorarioOut` (:223-231), `BloqueoOut` (:251-259), `AgendaItemOut`
+ * (backend/app/agenda/schemas.py:18-27) y `TurnoOut`
  * (backend/app/turnos/schemas.py:23-34).
  *
  * Traducción wire → TypeScript, sin campos inventados:
@@ -77,6 +78,20 @@ export interface Bloqueo {
   /** `AwareDatetime` del backend, ISO-8601. */
   hasta: string;
   motivo: string;
+}
+
+/** AgendaItemOut — backend/app/agenda/schemas.py:18-27 (ordenado por inicio en C-05) */
+export interface AgendaItem {
+  id: string;
+  /** `AwareDatetime` del backend, ISO-8601. */
+  inicio: string;
+  /** `AwareDatetime` del backend, ISO-8601. */
+  fin: string;
+  /** `str` en el schema; el dominio lo acota a `EstadoTurno`, como `Turno.estado`. */
+  estado: EstadoTurno;
+  paciente_nombre: string;
+  prestacion_nombre: string;
+  sillon_nombre: string;
 }
 
 /** TurnoOut — backend/app/turnos/schemas.py:23-34 */

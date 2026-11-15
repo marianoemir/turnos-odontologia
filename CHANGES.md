@@ -621,7 +621,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-17] `frontend-agenda-turnos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-15)
 - **Scope**: US-002 + US-003 en UI
   - `/agenda`: filtros profesional + fecha (default hoy), turnos ordenados por inicio con paciente, prestación, sillón y estado
   - Tabla responsive: en ≤46rem pasa a filas en grilla con la línea de detalle (patrón de `components.html`)

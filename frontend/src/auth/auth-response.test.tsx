@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,9 +10,12 @@ import { SessionProvider } from "./session-context";
 
 function renderAgenda(): void {
   const router = createMemoryRouter(routes, { initialEntries: ["/agenda"] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <SessionProvider>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </SessionProvider>,
   );
 }
@@ -44,7 +48,9 @@ describe("respuestas de autenticación del cliente", () => {
 
     expect(getSession()).toBeNull();
     expect(await screen.findByRole("heading", { name: "Ingresar" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // La pantalla real de `/agenda` (C-17) pide profesionales al montar
+    // (misma respuesta 401 del doble, sin reintento) + la llamada directa.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("ante 403 conserva la sesión y comunica permiso insuficiente", async () => {
@@ -60,7 +66,12 @@ describe("respuestas de autenticación del cliente", () => {
     await expect(apiRequest("/admin")).rejects.toMatchObject({ status: 403 });
 
     expect(getSession()).not.toBeNull();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Permiso insuficiente.");
+    // La pantalla real de `/agenda` (C-17) también alerta su propio 403 de
+    // profesionales: el aviso de permiso insuficiente sigue comunicado.
+    const alertas = await screen.findAllByRole("alert");
+    expect(
+      alertas.some((alerta) => alerta.textContent?.includes("Permiso insuficiente.")),
+    ).toBe(true);
     expect(screen.getByRole("heading", { name: "Agenda" })).toBeInTheDocument();
   });
 });
