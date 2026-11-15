@@ -356,6 +356,61 @@ describe("2. Alta", () => {
   });
 });
 
+describe("4. Estados de carga, error, permiso y vacío", () => {
+  it('Empty waitlist shows empty state (edge-case)', async () => {
+    listarEntradasListaEsperaMock.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("status", { name: /sin entradas en lista de espera/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /pendiente/i })).not.toBeInTheDocument();
+  });
+
+  it('Waitlist query is loading (edge-case)', async () => {
+    listarEntradasListaEsperaMock.mockReturnValue(new Promise(() => {}));
+
+    renderPage();
+
+    expect(await screen.findByRole("status", { busy: true })).toBeInTheDocument();
+  });
+
+  it('Waitlist query fails with a non-permission error (business-error)', async () => {
+    listarEntradasListaEsperaMock.mockRejectedValue(
+      new ApiError({
+        kind: "servidor",
+        status: 500,
+        mensaje: "Error al cargar lista de espera",
+        detalle: "Error al cargar lista de espera",
+        causa: "servidor",
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Error al cargar lista de espera/i);
+    expect(screen.getByRole("heading", { name: "Lista de espera" })).toBeInTheDocument();
+  });
+
+  it('Permission error is shown without breaking the screen (business-error)', async () => {
+    listarEntradasListaEsperaMock.mockRejectedValue(
+      new ApiError({
+        kind: "permiso",
+        status: 403,
+        mensaje: "Permiso denegado",
+        detalle: "Permiso denegado",
+        causa: "permiso_denegado",
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Permiso denegado|permiso/i);
+    expect(screen.getByRole("heading", { name: "Lista de espera" })).toBeInTheDocument();
+  });
+});
+
 describe("3. Listado, filtro y nombres", () => {
   it('Entries are shown in backend FIFO order (happy-path)', async () => {
     listarEntradasListaEsperaMock.mockResolvedValue([

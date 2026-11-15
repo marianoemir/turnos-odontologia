@@ -31,11 +31,11 @@
 
 ## 4. Estados de carga, error, permiso y vacío
 
-- [ ] 4.1 (RED) Add failing RTL test "Empty waitlist shows empty state (edge-case)" using C-14 `EmptyState`; verify test fails.
-- [ ] 4.2 (RED) Add failing RTL test "Waitlist query is loading (edge-case)" asserting the UI shows the C-14 loading state until the query resolves; verify test fails.
-- [ ] 4.3 (RED) Add failing RTL test "Waitlist query fails with a non-permission error (business-error)" using C-14 error presentation and normalized message; verify test fails.
-- [ ] 4.4 (RED) Add failing RTL test "Permission error is shown without breaking the screen (business-error)" using a mocked client `ApiError` with `kind: "permiso"`; verify test fails.
-- [ ] 4.5 (GREEN/TRIANGULATE/REFACTOR) Implement empty/loading/error/permission states with C-14 components and `normalizeApiError` handling (no crash on permiso), refine layout/labels, and verify 4.1-4.4 tests remain green.
+- [x] 4.1 (RED) Add failing RTL test "Empty waitlist shows empty state (edge-case)" using C-14 `EmptyState`; verify test fails.
+- [x] 4.2 (RED) Add failing RTL test "Waitlist query is loading (edge-case)" asserting the UI shows the C-14 loading state until the query resolves; verify test fails.
+- [x] 4.3 (RED) Add failing RTL test "Waitlist query fails with a non-permission error (business-error)" using C-14 error presentation and normalized message; verify test fails.
+- [x] 4.4 (RED) Add failing RTL test "Permission error is shown without breaking the screen (business-error)" using a mocked client `ApiError` with `kind: "permiso"`; verify test fails.
+- [x] 4.5 (GREEN/TRIANGULATE/REFACTOR) Implement empty/loading/error/permission states with C-14 components and `normalizeApiError` handling (no crash on permiso), refine layout/labels, and verify 4.1-4.4 tests remain green.
 
 ## 5. Ofrecer hueco con doble confirmación
 

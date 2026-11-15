@@ -2,8 +2,11 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "../components/button";
+import { EmptyState } from "../components/empty-state";
 import { Select } from "../components/select";
+import { Skeleton } from "../components/skeleton";
 import { TextField } from "../components/text-field";
+import { normalizeApiError } from "../services/api-error";
 import { ApiError } from "../types/errors";
 import type { Paciente, Prestacion, Profesional } from "../types/api";
 import type { ListaEsperaCreate, ListaEsperaOut } from "../types/api-lista-espera";
@@ -27,6 +30,13 @@ function mensajeDeError(error: unknown): string {
     return error.message;
   }
   return "Error al registrar en lista de espera.";
+}
+
+function errorNormalizado(error: unknown): ApiError {
+  if (error instanceof ApiError) {
+    return error;
+  }
+  return normalizeApiError(0, error);
 }
 
 function nombreDeCatalogo(
@@ -165,6 +175,44 @@ export default function ListaEsperaPage() {
     altaMutation.mutate(body);
   }
 
+  let contenidoLista: React.ReactNode;
+  if (listaEsperaQuery.isPending) {
+    contenidoLista = <Skeleton style={{ width: "100%" }} />;
+  } else if (listaEsperaQuery.isError) {
+    const err = errorNormalizado(listaEsperaQuery.error);
+    contenidoLista = <p role="alert">{err.message}</p>;
+  } else if (entradas.length === 0) {
+    contenidoLista = (
+      <EmptyState
+        title="Sin entradas en lista de espera"
+        description="No hay pacientes en lista de espera."
+      />
+    );
+  } else {
+    contenidoLista = (
+      <table aria-label="Entradas de lista de espera">
+        <thead>
+          <tr>
+            <th scope="col">Paciente</th>
+            <th scope="col">Profesional</th>
+            <th scope="col">Prestación</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entradas.map((entrada) => (
+            <tr key={entrada.id}>
+              <td>{nombreDeCatalogo(entrada.paciente_id, mapaPacientesTabla)}</td>
+              <td>{nombreDeCatalogo(entrada.profesional_id, mapaProfesionalesTabla)}</td>
+              <td>{nombreDeCatalogo(entrada.prestacion_id, mapaPrestacionesTabla)}</td>
+              <td>{entrada.estado}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
     <section>
       <h1 className="app-title">Lista de espera</h1>
@@ -239,26 +287,7 @@ export default function ListaEsperaPage() {
         <p role="alert">{mensajeDeError(errorCatalogo)}</p>
       ) : null}
 
-      <table aria-label="Entradas de lista de espera">
-        <thead>
-          <tr>
-            <th scope="col">Paciente</th>
-            <th scope="col">Profesional</th>
-            <th scope="col">Prestación</th>
-            <th scope="col">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entradas.map((entrada) => (
-            <tr key={entrada.id}>
-              <td>{nombreDeCatalogo(entrada.paciente_id, mapaPacientesTabla)}</td>
-              <td>{nombreDeCatalogo(entrada.profesional_id, mapaProfesionalesTabla)}</td>
-              <td>{nombreDeCatalogo(entrada.prestacion_id, mapaPrestacionesTabla)}</td>
-              <td>{entrada.estado}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {contenidoLista}
     </section>
   );
 }
