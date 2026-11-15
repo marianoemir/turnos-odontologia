@@ -70,6 +70,12 @@
 > - **Dependencias de C-24**: C-08, C-10 y C-11, derivadas de las capabilities que modifica (`reserva-online`, `caja-pagos`, `rbac`, `multisucursal`). El proposal archivado no define Dependencias ni Governance; Governance de C-24 se fija en ALTO por la misma razón que C-11 (autenticación y permisos).
 > - **Gates y plan con 3 agentes**: reflejan el plan original y no listan C-24. Ante una diferencia manda el campo "Dependencias" de cada change (rev. 4).
 
+> **Nota de rectificación (2026-11-14, rev. 13)** — C-14 `frontend-componentes-base` archivado el 2026-11-13 y se alinea el texto de C-22 con el contrato vigente. No se reescribe el texto de scope de ningún change:
+> - **C-14 archivado**: PR #44, merge `10d3ebf`; specs nuevas `frontend-componentes` y `frontend-sesion`. Estado real recalculado: 24 changes, **17 archivados** (C-01 a C-14, C-22, C-23 y C-24) y **7 pendientes** (C-15 a C-21). La línea `**Estado**` de C-14 seguía en `[ ]` tras el merge: se corrige junto con el árbol, la leyenda, el camino crítico y el pie.
+> - **C-22 archivado (2026-11-14)**: se adelantó respecto del recorte TP, que sigue en C-15 y C-16. Se implementó en la rama `feature/c-22-frontend-admin-roles-export` y se integró en `main` (queda en `dee8e3d`).
+> - **C-22, selector de sucursal superado por C-24**: el scope de C-22 dice que el selector envía `X-Sucursal-Id` y filtra profesionales y sillones. Desde C-24 ese header se ignora con token y la sucursal activa es el claim `sucursal_id` del token; no hay endpoint para cambiarla. En C-22 el selector es de solo lectura (muestra la sucursal de la sesión, resuelta por nombre con `GET /sucursales`) y cambiar de sucursal implica iniciar sesión de nuevo; cambiarla sin reautenticar requiere un change backend futuro. Quedan sin efecto la viñeta del scope sobre el envío de `X-Sucursal-Id` y el test RTL de "filtro por sucursal en profesionales/sillones".
+> - **C-22, guard por rol y acceso**: `admin` navega `/admin`, `/admin/*` y `/agenda`; `recepcion` navega todo lo interno salvo `/admin` y `/admin/*`; `odontologo` solo `/agenda`. El acceso es un grupo «Administración» en el shell, solo para `admin`, fuera de «Operación» (los cuatro enlaces aprobados no cambian). El guard del cliente no es seguridad: el respaldo es el 403 del backend.
+
 ---
 
 ## Cómo usar este documento
@@ -101,7 +107,7 @@ C-01 foundation-setup [x]
     └── C-12 catalogo-recursos-api [x] (4) ---> C-11
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-13).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-14).
 - (1) Rev. 4: C-08 depende también de C-07.
 - (2) Rev. 11: se adelanta y se hace antes de C-14; C-13 ya está archivado, así que ya no hay choque con sus archivos.
 - (3) C-11 depende también de C-09 y, desde la rev. 8, de C-12.
@@ -116,7 +122,7 @@ C-01 foundation-setup [x]
 
 ```
 C-13 frontend-foundation [x]
-└── C-14 frontend-componentes-base [ ]
+└── C-14 frontend-componentes-base [x]
     ├── C-15 frontend-catalogo-recursos [ ]
     │   └── C-16 frontend-crear-turno [ ]
     ├── C-17 frontend-agenda-turnos [ ]
@@ -124,10 +130,10 @@ C-13 frontend-foundation [x]
     ├── C-19 frontend-hc-odontograma [ ]
     ├── C-20 frontend-caja-pagos [ ]
     ├── C-21 frontend-reserva-publica [ ]
-    └── C-22 frontend-admin-roles-export [ ]
+    └── C-22 frontend-admin-roles-export [x]
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-13).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-14).
 
 | Change | Dependencias |
 |--------|--------------|
@@ -200,7 +206,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03, C-12 y C-13 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-14, C-15, C-16**.
+Ya archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10 y C-11, fuera del recorte). Pendientes del recorte: **C-15, C-16**.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22). Desde la rev. 12 C-14 depende también de C-24 (archivado).
 
@@ -545,7 +551,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-14] `frontend-componentes-base`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-13)
 - **Scope**: Librería de componentes y capa de datos del frontend (consume C-13) e integración con la autenticación JWT de C-24 (rev. 12)
   - Componentes base React, traducidos de `components.html` sin redefinir tokens: `Button` (primario/secundario/destructivo), `TextField` (label, help, error, `aria-invalid`), `Select`, `Card`, `EstadoBadge` (5 estados: pendiente, confirmado, atendido, ausente, cancelado — color + texto + forma del punto), `DataTable` (responsive a filas en grilla ≤46rem, orden y vacío), `Modal` (focus trap, `Escape`, retorno de foco), `Toast` (`role="status"`, auto-descarte pausable), `EmptyState`, `Skeleton`
   - Estado de servidor con TanStack Query: `QueryClient` configurado una vez, claves de query por recurso, invalidación tras mutación
@@ -703,7 +709,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-22] `frontend-admin-roles-export`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-14)
 - **Scope**: Administración y cierre en UI (consume C-11). Rev. 8: ajustado a los contratos congelados de C-11 (design D6b)
   - `/admin/roles`: listado de roles y permisos en **solo lectura**; edición únicamente de `descripcion` (los roles canónicos están protegidos: cambiar `nombre` o desactivar → 409 `rol_canonico_protegido`)
   - `/admin/sucursales`: alta y edición de sucursales; alta de asignaciones usuario–sucursal (`/usuarios-sucursal`, `usuario` como texto libre)
@@ -724,6 +730,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-13 (rev. 12)**: 24 changes. Archivados (15): C-01 a C-13, C-23 y C-24. Pendientes (9): C-14 a C-22. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
-> Ningún otro change de frontend está implementado.
-> Habilitado por dependencias: **C-14** (C-13, C-23 y C-24 archivados). Sin otro change en curso. **Próximo del recorte: C-14**.
+> **Estado del roadmap al 2026-11-14 (rev. 13)**: 24 changes. Archivados (17): C-01 a C-14, C-22, C-23 y C-24. Pendientes (7): C-15 a C-21. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
+> Además de C-13, C-14 y C-22, ningún otro change de frontend está archivado. C-22 se adelantó respecto del recorte TP.
+> Habilitados por dependencias: **C-15** y C-17 a C-21 (C-16 espera a C-15). **Próximo del recorte: C-15**.
