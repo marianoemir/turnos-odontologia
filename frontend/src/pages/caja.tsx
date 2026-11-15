@@ -5,16 +5,20 @@ import { Button } from "../components/button";
 import { Card } from "../components/card";
 import { EmptyState } from "../components/empty-state";
 import { Modal } from "../components/modal";
+import { Select } from "../components/select";
 import { Skeleton } from "../components/skeleton";
 import { TextField } from "../components/text-field";
 import { ApiError } from "../types/errors";
-import type { CajaOut } from "../types/api-caja";
+import type { CajaOut, CobroOut, CobroCreate, MedioCobro, ConceptoCobro } from "../types/api-caja";
 import {
   abrirCaja,
   cerrarCaja,
   obtenerCajaPorFecha,
   parseMontoCajaACentavos,
+  parsePesosACentavos,
+  registrarCobro,
 } from "../services/caja";
+import { cajaPorFechaQueryKey, resourceKeys } from "../services/query";
 
 const TZ_BA = "America/Argentina/Buenos_Aires";
 
@@ -36,6 +40,17 @@ function esNoCaja(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
+function esUuid(valor: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    valor.trim(),
+  );
+}
+
+function mensajeError(error: unknown, fallback: string): string {
+  if (!(error instanceof ApiError)) return fallback;
+  return error.message || error.detalle || fallback;
+}
+
 export default function CajaPage() {
   const [fecha, setFecha] = useState<string>(() => hoyBuenosAires());
   const [montoApertura, setMontoApertura] = useState("0");
@@ -44,8 +59,17 @@ export default function CajaPage() {
   const [cerrarError, setCerrarError] = useState<string | null>(null);
   const [cerrarPaso2, setCerrarPaso2] = useState(false);
 
+  const [cobroMedio, setCobroMedio] = useState<MedioCobro>("efectivo");
+  const [cobroConcepto, setCobroConcepto] = useState<ConceptoCobro>("total");
+  const [cobroMonto, setCobroMonto] = useState("");
+  const [cobroTurnoId, setCobroTurnoId] = useState("");
+  const [cobroNomenclador, setCobroNomenclador] = useState("");
+  const [cobroCobertura, setCobroCobertura] = useState("0");
+  const [cobroError, setCobroError] = useState<string | null>(null);
+  const [cobrosCreados, setCobrosCreados] = useState<CobroOut[]>([]);
+
   const queryClient = useQueryClient();
-  const queryKey = ["caja", fecha] as const;
+  const queryKey = cajaPorFechaQueryKey(fecha);
 
   const cajaQuery = useQuery<CajaOut, unknown>({
     queryKey,
@@ -61,12 +85,12 @@ export default function CajaPage() {
     },
     onSuccess: () => {
       setAbrirError(null);
-      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.status === 409) {
         setAbrirError(error.message || error.detalle || "Conflicto al abrir caja");
-        void queryClient.invalidateQueries({ queryKey });
+        void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
         return;
       }
       setAbrirError(error instanceof ApiError ? error.message : "No se pudo abrir la caja");
@@ -81,12 +105,74 @@ export default function CajaPage() {
     onSuccess: () => {
       setCerrarError(null);
       setCerrarPaso2(false);
-      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
     },
     onError: (error: unknown) => {
       setCerrarError(error instanceof ApiError ? error.message : "No se pudo cerrar la caja");
     },
   });
+
+  const cobroMut = useMutation({
+    mutationFn: async (payload: CobroCreate) => registrarCobro(payload),
+    onSuccess: (creado) => {
+      setCobroError(null);
+      setCobroMonto("");
+      setCobroTurnoId("");
+      setCobroNomenclador("");
+      setCobroCobertura("0");
+      setCobrosCreados((prev) => [creado, ...prev]);
+      void queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
+    },
+    onError: (error: unknown) => {
+      if (error instanceof ApiError && error.status === 409 && error.causa === "caja_no_abierta") {
+        setCobroError("Hay que abrir la caja del día para registrar cobros.");
+        return;
+      }
+      if (error instanceof ApiError && error.status === 404 && error.kind === "no_encontrado") {
+        setCobroError(mensajeError(error, "No se encontró el recurso indicado."));
+        return;
+      }
+      if (error instanceof ApiError && error.status === 422) {
+        setCobroError(mensajeError(error, "La request tiene campos inválidos."));
+        return;
+      }
+      setCobroError(mensajeError(error, "No se pudo registrar el cobro."));
+    },
+  });
+
+  function enviarCobro() {
+    setCobroError(null);
+    const turnoTrim = cobroTurnoId.trim();
+    if (turnoTrim !== "" && !esUuid(turnoTrim)) {
+      setCobroError("El turno debe ser un UUID v�lido.");
+      return;
+    }
+    let montoCentavos: number;
+    try {
+      montoCentavos = parsePesosACentavos(cobroMonto);
+    } catch {
+      setCobroError("El monto es inválido.");
+      return;
+    }
+    const payload: CobroCreate = {
+      medio: cobroMedio,
+      concepto: cobroConcepto,
+      monto_centavos: montoCentavos,
+    };
+    if (turnoTrim !== "") {
+      payload.turno_id = turnoTrim;
+    }
+    if (cobroMedio === "obra_social") {
+      payload.nomenclador_codigo = cobroNomenclador;
+      try {
+        payload.cobertura_centavos = parseMontoCajaACentavos(cobroCobertura);
+      } catch {
+        setCobroError("La cobertura es inválida.");
+        return;
+      }
+    }
+    cobroMut.mutate(payload);
+  }
 
   const error = cajaQuery.error;
   const esPermiso = error instanceof ApiError && error.status === 403;
@@ -212,6 +298,92 @@ export default function CajaPage() {
       </div>
       {abrirError ? <p role="alert">{abrirError}</p> : null}
       {contenido}
+
+      <Card style={{ marginTop: 16 }}>
+        <h2>Registrar cobro</h2>
+        <div style={{ display: "grid", gap: 8 }}>
+          <Select
+            label="Medio"
+            value={cobroMedio}
+            onChange={(e) => setCobroMedio(e.target.value as MedioCobro)}
+            options={[
+              { value: "efectivo", label: "Efectivo" },
+              { value: "tarjeta", label: "Tarjeta" },
+              { value: "transferencia", label: "Transferencia" },
+              { value: "mercado_pago", label: "Mercado Pago" },
+              { value: "obra_social", label: "Obra social" },
+            ]}
+          />
+          <Select
+            label="Concepto"
+            value={cobroConcepto}
+            onChange={(e) => setCobroConcepto(e.target.value as ConceptoCobro)}
+            options={[
+              { value: "sena", label: "Seña" },
+              { value: "saldo", label: "Saldo" },
+              { value: "total", label: "Total" },
+            ]}
+          />
+          <TextField
+            label="Monto (pesos)"
+            value={cobroMonto}
+            onChange={(e) => setCobroMonto(e.target.value)}
+          />
+          <TextField
+            label="ID de turno (opcional)"
+            value={cobroTurnoId}
+            onChange={(e) => setCobroTurnoId(e.target.value)}
+          />
+          {cobroMedio === "obra_social" ? (
+            <>
+              <TextField
+                label="Nomenclador"
+                value={cobroNomenclador}
+                onChange={(e) => setCobroNomenclador(e.target.value)}
+              />
+              <TextField
+                label="Cobertura (pesos)"
+                value={cobroCobertura}
+                onChange={(e) => setCobroCobertura(e.target.value)}
+              />
+            </>
+          ) : null}
+          <div>
+            <Button disabled={cobroMut.isPending} onClick={enviarCobro}>
+              Registrar cobro
+            </Button>
+          </div>
+          {cobroError ? <p role="alert">{cobroError}</p> : null}
+        </div>
+      </Card>
+
+      {cobrosCreados.length > 0 ? (
+        <Card style={{ marginTop: 16 }}>
+          <h2>Cobros registrados</h2>
+          <ul>
+            {cobrosCreados.map((c) => {
+              const simMp =
+                c.simulado === true &&
+                typeof c.referencia_externa === "string" &&
+                c.referencia_externa.startsWith("SIM-MP-");
+              return (
+                <li key={c.id} style={{ marginBottom: 8 }}>
+                  <p>
+                    Estado: <strong>{c.estado}</strong> — Concepto: {c.concepto} — Medio:{" "}
+                    {c.medio} — Monto: {formatCentavos(c.monto_centavos)}
+                  </p>
+                  {simMp ? (
+                    <p>
+                      <strong>Simulado (Mercado Pago)</strong> — Referencia:{" "}
+                      {c.referencia_externa}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      ) : null}
 
       <Modal
         open={cerrarPaso2}

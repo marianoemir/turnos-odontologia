@@ -17,7 +17,13 @@ export const resourceKeys = {
   roles: { all: ["roles"] as const },
   sucursales: { all: ["sucursales"] as const },
   usuariosSucursal: { all: ["usuarios-sucursal"] as const },
+  caja: { all: ["caja"] as const },
 } as const;
+
+/** Clave de consulta de caja por fecha, anidada bajo la raíz del recurso. */
+export function cajaPorFechaQueryKey(fecha: string) {
+  return [...resourceKeys.caja.all, fecha] as const;
+}
 
 type Resource = keyof typeof resourceKeys;
 

@@ -31,6 +31,20 @@ function FallarCrearTurnoButton() {
 }
 
 describe("convenciones de cache por recurso", () => {
+  it("invalida la consulta de caja por fecha al invalidar la raíz de caja", async () => {
+    const queryClient = new QueryClient();
+    const { cajaPorFechaQueryKey } = await import("./query");
+    const keyFecha = cajaPorFechaQueryKey("2026-11-14");
+    queryClient.setQueryData(keyFecha, { id: "caja-1" });
+    queryClient.setQueryData(resourceKeys.pacientes.all, [{ id: "paciente-1" }]);
+
+    await queryClient.invalidateQueries({ queryKey: resourceKeys.caja.all });
+
+    expect(queryClient.getQueryState(keyFecha)?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryState(resourceKeys.pacientes.all)?.isInvalidated,
+    ).toBe(false);
+  });
   it("invalida turnos después de una mutación exitosa sin invalidar pacientes", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(resourceKeys.turnos.all, [{ id: "turno-1" }]);
