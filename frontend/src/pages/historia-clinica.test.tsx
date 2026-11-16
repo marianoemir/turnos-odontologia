@@ -2191,7 +2191,7 @@ describe("historia clínica", () => {
       if (ruta === `/pacientes/${UUID}/odontograma`) {
         return Promise.reject(
           new ApiError({
-            kind: "desconocido",
+            kind: "servidor",
             status: 500,
             mensaje: "Error interno",
             detalle: "Error interno",
