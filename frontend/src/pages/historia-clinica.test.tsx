@@ -194,7 +194,12 @@ describe("historia clínica", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Permiso insuficiente.",
     );
-    expect(apiRequest).not.toHaveBeenCalled();
+    // La Agenda (C-17) pide /profesionales al montarse; lo que no debe
+    // ocurrir es ningun request de la historia clinica del paciente.
+    const rutasLlamadas = vi
+      .mocked(apiRequest)
+      .mock.calls.map(([ruta]) => String(ruta));
+    expect(rutasLlamadas.filter((ruta) => ruta.includes(UUID))).toEqual([]);
   });
 
   it("Respuesta 403 del backend se trata como restricción informada", async () => {
