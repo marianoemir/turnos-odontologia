@@ -1113,4 +1113,315 @@ describe("historia clínica", () => {
     expect(screen.getByLabelText("Pieza 15, superior derecha, sin estado registrado")).toHaveFocus();
     expect(screen.getByRole("heading", { name: /pieza 16/i })).toBeInTheDocument();
   });
+
+  it("Cambio de estado envía la fecha de confirmación y se refleja tras respuesta exitosa", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-15T12:30:00.000Z"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const obsInicial = [
+      {
+        id: "odo-1",
+        paciente_id: UUID,
+        pieza: "16",
+        estado: "sano",
+        profesional_id: "prof-1",
+        fecha: "2026-01-02T10:00:00Z",
+        creado_en: "2026-01-02T10:00:00Z",
+      },
+    ];
+    const obsNueva = {
+      id: "odo-2",
+      paciente_id: UUID,
+      pieza: "16",
+      estado: "caries",
+      profesional_id: "prof-1",
+      fecha: "2026-11-15T12:30:00.000Z",
+      creado_en: "2026-11-15T12:30:00.000Z",
+    };
+    let postHecho = false;
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") {
+        postHecho = true;
+        return Promise.resolve(obsNueva);
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) {
+        return Promise.resolve(postHecho ? [...obsInicial, obsNueva] : obsInicial);
+      }
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    vi.setSystemTime(new Date("2026-11-15T12:30:00.000Z"));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Pieza 16, superior derecha, estado caries")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText("Pieza 16, superior derecha, estado caries")).toHaveFocus();
+    });
+
+    const postCalls = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === `/pacientes/${UUID}/odontograma` && c[1]?.method === "POST",
+    );
+    expect(postCalls).toHaveLength(1);
+    expect(postCalls[0]?.[1]?.body).toEqual({
+      pieza: "16",
+      estado: "caries",
+      profesional_id: "prof-1",
+      fecha: "2026-11-15T12:30:00.000Z",
+    });
+    vi.useRealTimers();
+  });
+
+  it("Cancelar la confirmación no registra el estado", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    const registrar = screen.getByRole("button", { name: /registrar estado/i });
+    await user.click(registrar);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /cancelar/i }));
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === `/pacientes/${UUID}/odontograma` && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(0);
+    expect(screen.getByLabelText("Pieza 16, superior derecha, sin estado registrado")).toBeInTheDocument();
+    expect(registrar).toHaveFocus();
+  });
+
+  it("Validación fallida al cambiar estado deja visible el estado anterior", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "validacion", status: 422, mensaje: "inválido" }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await esperar(1500);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === `/pacientes/${UUID}/odontograma` && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByLabelText("Pieza 16, superior derecha, estado sano")).toBeInTheDocument();
+  });
+
+  it("Paciente inexistente al cambiar estado deja visible el estado anterior", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "no_encontrado", status: 404, mensaje: `paciente no existe: ${UUID}`, detalle: `paciente no existe: ${UUID}` }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByLabelText("Pieza 16, superior derecha, estado sano")).toBeInTheDocument();
+  });
+
+  it("Profesional inexistente al cambiar estado deja visible el estado anterior", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "no_encontrado", status: 404, mensaje: "profesional no existe: prof-x", detalle: "profesional no existe: prof-x" }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByLabelText("Pieza 16, superior derecha, estado sano")).toBeInTheDocument();
+  });
+
+  it("Alta de estado de pieza en vuelo bloquea acciones duplicadas", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    let resolvePost!: (v: unknown) => void;
+    const postPromise = new Promise((res) => { resolvePost = res; });
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return postPromise;
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /confirmar/i })).toBeDisabled();
+    });
+    resolvePost({ id: "odo-2", paciente_id: UUID, pieza: "16", estado: "caries", profesional_id: "prof-1", fecha: "2026-11-15T12:30:00.000Z", creado_en: "2026-11-15T12:30:00.000Z" });
+  });
+
+  it("Historial de pieza muestra registros en orden del backend", async () => {
+    const user = userEvent.setup();
+    const obs = [
+      { id: "o1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-01T10:00:00Z", creado_en: "2026-01-01T10:00:00Z" },
+      { id: "o2", paciente_id: UUID, pieza: "11", estado: "otro", profesional_id: "prof-2", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" },
+      { id: "o3", paciente_id: UUID, pieza: "16", estado: "caries", profesional_id: "prof-2", fecha: "2026-01-03T10:00:00Z", creado_en: "2026-01-03T10:00:00Z" },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obs);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([
+        { id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true },
+        { id: "prof-2", nombre: "Dr. Luis", apellido: "Gomez", activo: false },
+      ]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado caries");
+    await user.click(p16);
+    const items = await screen.findAllByTestId("historial-pieza-item");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("2026-01-01T10:00:00Z");
+    expect(items[0]).toHaveTextContent(/Ana|Perez|prof-1/);
+    expect(items[1]).toHaveTextContent("2026-01-03T10:00:00Z");
+    expect(items[1]).toHaveTextContent(/Luis|Gomez|prof-2/);
+  });
+
+  it("Panel muestra los ítems de plan de la pieza con su prestación", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([
+        { id: "o1", paciente_id: UUID, pieza: "16", estado: "caries", profesional_id: "prof-1", fecha: "2026-01-01T10:00:00Z", creado_en: "2026-01-01T10:00:00Z" },
+      ]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([
+        { id: "plan-1", paciente_id: UUID, estado: "propuesto", total_centavos: 1000, items: [
+          { id: "i1", plan_id: "plan-1", pieza: "16", prestacion_id: "prest-1", estado: "pendiente", monto_centavos: 1000 },
+          { id: "i2", plan_id: "plan-1", pieza: "11", prestacion_id: "prest-2", estado: "pendiente", monto_centavos: 500 },
+        ]},
+      ]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([{ id: "prest-1", nombre: "Limpieza", activo: true }]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado caries");
+    await user.click(p16);
+    expect(await screen.findByText(/Limpieza/)).toBeInTheDocument();
+    expect(screen.queryByText(/prest-2/)).not.toBeInTheDocument();
+  });
+
+  it("Cambiar de pieza no arrastra el estado tipeado ni los avisos (sin escenario en la spec)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "validacion", status: 422, mensaje: "inválido" }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    const p17 = screen.getByLabelText("Pieza 17, superior derecha, sin estado registrado");
+    await user.click(p17);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Estado de la pieza")).toHaveValue("");
+    });
+    expect(screen.getByLabelText("Profesional de la pieza")).toHaveValue("");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("Tras un error del alta la pieza activa y el teclado siguen funcionando (sin escenario en la spec)", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "validacion", status: 422, mensaje: "inválido" }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    const celdasTab0 = screen.getAllByRole("gridcell").filter((c) => c.getAttribute("tabindex") === "0");
+    expect(celdasTab0).toHaveLength(1);
+    expect(celdasTab0[0]).toHaveAttribute("data-pieza", "16");
+    celdasTab0[0].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByLabelText("Pieza 15, superior derecha, sin estado registrado")).toHaveFocus();
+  });
 });

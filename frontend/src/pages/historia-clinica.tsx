@@ -57,7 +57,7 @@ function HistoriaClinicaValida({ pacienteId }: { pacienteId: string }) {
         <HistoriaClinicaCabeceraCrear pacienteId={pacienteId} />
       ) : null}
 
-      <OdontogramaSection observaciones={odonto.data ?? []} />
+      <OdontogramaSection pacienteId={pacienteId} observaciones={odonto.data ?? []} planes={planes.data ?? []} />
 
       {cargando ? <Skeleton aria-label="Cargando historia clínica" /> : null}
 

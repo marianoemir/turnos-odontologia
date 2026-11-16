@@ -1,20 +1,24 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import type { OdontogramaOut } from "../types/api-hc";
+import type { OdontogramaOut, PlanTratamientoOut } from "../types/api-hc";
 import {
   FILA_INFERIOR,
   FILA_SUPERIOR,
-  cuadranteDePieza,
   labelPieza,
 } from "./historia-clinica-fdi";
+import { PanelPieza } from "./historia-clinica-panel-pieza";
 
 // Mapa de estilos por token de estado: vacío y extensible; estilo neutro único.
 const estilosPorEstado: Record<string, React.CSSProperties> = {};
 
 export function OdontogramaSection({
+  pacienteId,
   observaciones,
+  planes,
 }: {
+  pacienteId: string;
   observaciones: OdontogramaOut[];
+  planes: PlanTratamientoOut[];
 }) {
   const [active, setActive] = useState<{ row: 0 | 1; col: number }>({
     row: 0,
@@ -142,10 +146,14 @@ export function OdontogramaSection({
         ))}
       </div>
       {selectedPieza ? (
-        <div>
-          <h3>Pieza {selectedPieza}</h3>
-          <p>{cuadranteDePieza(selectedPieza)}</p>
-        </div>
+        <PanelPieza
+          key={selectedPieza}
+          pieza={selectedPieza}
+          pacienteId={pacienteId}
+          observaciones={observaciones}
+          planes={planes}
+          onFocusPieza={() => refs.current[selectedPieza]?.focus()}
+        />
       ) : null}
     </section>
   );
