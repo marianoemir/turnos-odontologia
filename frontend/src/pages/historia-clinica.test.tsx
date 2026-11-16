@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -82,7 +82,7 @@ describe("historia clínica", () => {
     expect(await screen.findByText(new RegExp(UUID))).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(apiRequest).toHaveBeenCalledTimes(5);
+      expect(apiRequest).toHaveBeenCalledTimes(6);
     });
     expect(apiRequest).toHaveBeenCalledWith(
       `/pacientes/${UUID}/historia-clinica`,
@@ -102,6 +102,10 @@ describe("historia clínica", () => {
     );
     expect(apiRequest).toHaveBeenCalledWith(
       "/profesionales?incluir_inactivos=true",
+      expect.any(Object),
+    );
+    expect(apiRequest).toHaveBeenCalledWith(
+      "/prestaciones?incluir_inactivos=true",
       expect.any(Object),
     );
   });
@@ -227,9 +231,9 @@ describe("historia clínica", () => {
       await screen.findByRole("heading", { name: "Historia clínica" }),
     ).toBeInTheDocument();
     expect(await screen.findByText(new RegExp(UUID))).toBeInTheDocument();
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Acceso denegado.",
-    );
+    expect(await screen.findByText("Permiso insuficiente.")).toBeInTheDocument();
+    const odontoSection = await screen.findByLabelText(/^odontograma$/i);
+    expect(odontoSection).toBeInTheDocument();
 
     const odCalls = vi
       .mocked(apiRequest)
@@ -371,7 +375,7 @@ describe("historia clínica", () => {
     renderHc(`/hc/${UUID}`);
 
     expect(
-      await screen.findByText("No se pudo cargar la historia clínica"),
+      await screen.findByText("Recurso no encontrado."),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Crear historia clínica" }),
@@ -1412,8 +1416,9 @@ describe("historia clínica", () => {
     renderHc(`/hc/${UUID}`);
     const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado caries");
     await user.click(p16);
-    expect(await screen.findByText(/Limpieza/)).toBeInTheDocument();
-    expect(screen.queryByText(/prest-2/)).not.toBeInTheDocument();
+    const panel = await screen.findByLabelText("Ítems de plan de la pieza");
+    expect(within(panel).getByText(/Limpieza/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/prest-2/)).not.toBeInTheDocument();
   });
 
   it("Cambiar de pieza no arrastra el estado tipeado ni los avisos (sin escenario en la spec)", async () => {
@@ -1441,8 +1446,10 @@ describe("historia clínica", () => {
       expect(screen.getByLabelText("Estado de la pieza")).toHaveValue("");
     });
     expect(screen.getByLabelText("Profesional de la pieza")).toHaveValue("");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    const panel = screen.getByRole("heading", { name: /pieza 17/i }).parentElement!;
+    expect(within(panel).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(panel).queryByText("Estado registrado.")).not.toBeInTheDocument();
   });
 
   it("Tras un error del alta la pieza activa y el teclado siguen funcionando (sin escenario en la spec)", async () => {
@@ -1859,5 +1866,355 @@ describe("historia clínica", () => {
       texto: "Nota en vuelo",
       creado_en: "2026-11-15T12:30:00.000Z",
     });
+  });
+
+  it("Presupuesto muestra total informado por backend", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([
+          {
+            id: "plan-1",
+            paciente_id: UUID,
+            profesional_id: "prof-1",
+            estado: "propuesto",
+            creado_en: "2026-01-01T10:00:00Z",
+            items: [],
+            total_centavos: 4000000,
+            cobertura_centavos: 750000,
+          },
+        ]);
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText(/\$ 40\.000,00/)).toBeInTheDocument();
+    expect(screen.getByText(/\$ 7\.500,00/)).toBeInTheDocument();
+  });
+
+  it("Plan con ítems muestra pieza, prestación y monto por ítem", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([
+          {
+            id: "plan-1",
+            paciente_id: UUID,
+            profesional_id: "prof-1",
+            estado: "propuesto",
+            creado_en: "2026-01-01T10:00:00Z",
+            total_centavos: 1500000,
+            cobertura_centavos: 0,
+            items: [
+              {
+                id: "i1",
+                plan_id: "plan-1",
+                pieza: "16",
+                prestacion_id: "prest-1",
+                estado: "pendiente",
+                monto_centavos: 1500000,
+                monto_cobertura_centavos: null,
+              },
+            ],
+          },
+        ]);
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) {
+        return Promise.resolve([{ id: "prest-1", nombre: "Limpieza", duracion_min: 30, activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("16")).toBeInTheDocument();
+    expect(await screen.findByText("Limpieza")).toBeInTheDocument();
+    expect(screen.getByText("pendiente")).toBeInTheDocument();
+    expect(screen.getAllByText("$ 15.000,00").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /crear plan|nuevo plan|editar plan|agregar ítem|agregar item/i })).not.toBeInTheDocument();
+  });
+
+  it("Paciente sin planes muestra estado vacío", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText(/sin planes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no se pudo cargar la historia clínica/i)).not.toBeInTheDocument();
+  });
+
+  it("Paciente inexistente al consultar planes no oculta datos clínicos ya disponibles", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: "Antecedente visible",
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.reject(
+          new ApiError({
+            kind: "no_encontrado",
+            status: 404,
+            mensaje: `paciente no existe: ${UUID}`,
+            detalle: `paciente no existe: ${UUID}`,
+          }),
+        );
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Antecedente visible")).toBeInTheDocument();
+    const planesSection = await screen.findByLabelText(/planes de tratamiento/i);
+    expect(planesSection).toBeInTheDocument();
+    expect(
+      await screen.findByText(/paciente no existe|no se pudo cargar/i, {
+        selector: 'section[aria-label="Planes de tratamiento"] *',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("Acceso denegado al consultar planes no oculta datos clínicos ya disponibles", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: "Antecedente visible",
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.reject(
+          new ApiError({
+            kind: "permiso",
+            status: 403,
+            mensaje: "Acceso denegado.",
+            causa: "permiso_denegado",
+            detalle: "Acceso denegado.",
+          }),
+        );
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Antecedente visible")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Historia clínica" })).toBeInTheDocument();
+    const planesSection = await screen.findByLabelText(/planes de tratamiento/i);
+    expect(planesSection).toBeInTheDocument();
+    expect(within(planesSection).getByText("Acceso denegado.")).toBeInTheDocument();
+
+    const planesCalls = vi
+      .mocked(apiRequest)
+      .mock.calls.filter(([ruta]) => ruta === `/pacientes/${UUID}/planes-tratamiento`);
+    expect(planesCalls).toHaveLength(1);
+    expect((planesCalls[0][1] as { method?: string } | undefined)?.method ?? "GET").toBe("GET");
+  });
+
+  it("Plan sin ítems muestra total cero", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([
+          {
+            id: "plan-1",
+            paciente_id: UUID,
+            profesional_id: "prof-1",
+            estado: "propuesto",
+            creado_en: "2026-01-01T10:00:00Z",
+            items: [],
+            total_centavos: 0,
+            cobertura_centavos: 0,
+          },
+        ]);
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText(/Total: \$ 0,00/)).toBeInTheDocument();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+  });
+
+  it("Cobertura informada literal y sin mutaciones de planes ni ítems", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([
+          {
+            id: "plan-1",
+            paciente_id: UUID,
+            profesional_id: "prof-1",
+            estado: "propuesto",
+            creado_en: "2026-01-01T10:00:00Z",
+            items: [
+              {
+                id: "i1",
+                plan_id: "plan-1",
+                pieza: "16",
+                prestacion_id: "prest-1",
+                estado: "pendiente",
+                monto_centavos: 1000,
+                monto_cobertura_centavos: null,
+              },
+            ],
+            total_centavos: 12345,
+            cobertura_centavos: 6789,
+          },
+        ]);
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([{ id: "prest-1", nombre: "Prest", duracion_min: 30, activo: true }]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText(/Cobertura: \$ 67,89/)).toBeInTheDocument();
+    expect(screen.getByText(/Total: \$ 123,45/)).toBeInTheDocument();
+    const mutacionesPlanes = vi.mocked(apiRequest).mock.calls.filter(([, opciones]) => {
+      const metodo = (opciones as { method?: string } | undefined)?.method;
+      return metodo === "POST" || metodo === "PATCH";
+    }).filter(([ruta]) => String(ruta).includes("plan"));
+    expect(mutacionesPlanes).toHaveLength(0);
+  });
+
+  it("Carga inicial usa estados diferenciados", async () => {
+    vi.mocked(apiRequest).mockImplementation(() => new Promise(() => {}));
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByLabelText(/cargando cabecera/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/cargando odontograma/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/cargando planes/i)).toBeInTheDocument();
+  });
+
+  it("Falla de carga de una sección muestra error propio", async () => {
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: "Antecedente visible",
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) {
+        return Promise.reject(
+          new ApiError({
+            kind: "desconocido",
+            status: 500,
+            mensaje: "Error interno",
+            detalle: "Error interno",
+          }),
+        );
+      }
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Antecedente visible")).toBeInTheDocument();
+    const odontoSection = await screen.findByLabelText(/^odontograma$/i);
+    expect(odontoSection).toBeInTheDocument();
+    expect(await screen.findByText("Error interno")).toBeInTheDocument();
+    await esperar(1200);
+    const odCalls = vi
+      .mocked(apiRequest)
+      .mock.calls.filter(([ruta]) => ruta === `/pacientes/${UUID}/odontograma`);
+    expect(odCalls).toHaveLength(1);
   });
 });

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 
+import { Skeleton } from "../components/skeleton";
 import type { OdontogramaOut, PlanTratamientoOut } from "../types/api-hc";
+import type { ApiError } from "../types/errors";
 import {
   FILA_INFERIOR,
   FILA_SUPERIOR,
@@ -15,10 +17,16 @@ export function OdontogramaSection({
   pacienteId,
   observaciones,
   planes,
+  isPending = false,
+  isError = false,
+  error = null,
 }: {
   pacienteId: string;
   observaciones: OdontogramaOut[];
   planes: PlanTratamientoOut[];
+  isPending?: boolean;
+  isError?: boolean;
+  error?: ApiError | null;
 }) {
   const [active, setActive] = useState<{ row: 0 | 1; col: number }>({
     row: 0,
@@ -106,54 +114,65 @@ export function OdontogramaSection({
 
   return (
     <section aria-label="Odontograma">
-      <div role="grid" aria-label="Odontograma FDI">
-        {filas.map((fila, rowIndex) => (
-          <div key={rowIndex} role="row" style={{ display: "flex" }}>
-            {fila.map((pieza, colIndex) => {
-              const estado = estadoPorPieza[pieza] ?? null;
-              const isActive =
-                active.row === rowIndex && active.col === colIndex;
-              const isSelected = selectedPieza === pieza;
-              return (
-                <div
-                  key={pieza}
-                  ref={(el) => {
-                    refs.current[pieza] = el;
-                  }}
-                  role="gridcell"
-                  data-pieza={pieza}
-                  tabIndex={isActive ? 0 : -1}
-                  aria-label={labelPieza(pieza, estado)}
-                  aria-selected={isSelected ? "true" : undefined}
-                  onFocus={() =>
-                    setActive({ row: rowIndex as 0 | 1, col: colIndex })
-                  }
-                  onKeyDown={(e) =>
-                    onKeyDown(e, rowIndex as 0 | 1, colIndex)
-                  }
-                  onClick={() => {
-                    setActive({ row: rowIndex as 0 | 1, col: colIndex });
-                    selectPieza(pieza);
-                  }}
-                  style={estado ? (estilosPorEstado[estado] ?? {}) : {}}
-                >
-                  <span>{pieza}</span>
-                  <span>{estado ?? "sin estado registrado"}</span>
-                </div>
-              );
-            })}
+      <h2>Odontograma</h2>
+      {isPending ? <Skeleton aria-label="Cargando odontograma" /> : null}
+      {isError ? (
+        <p role="alert">
+          {error?.message ?? error?.detalle ?? "No se pudo cargar el odontograma."}
+        </p>
+      ) : null}
+      {!isPending && !isError ? (
+        <>
+          <div role="grid" aria-label="Odontograma FDI">
+            {filas.map((fila, rowIndex) => (
+              <div key={rowIndex} role="row" style={{ display: "flex" }}>
+                {fila.map((pieza, colIndex) => {
+                  const estado = estadoPorPieza[pieza] ?? null;
+                  const isActive =
+                    active.row === rowIndex && active.col === colIndex;
+                  const isSelected = selectedPieza === pieza;
+                  return (
+                    <div
+                      key={pieza}
+                      ref={(el) => {
+                        refs.current[pieza] = el;
+                      }}
+                      role="gridcell"
+                      data-pieza={pieza}
+                      tabIndex={isActive ? 0 : -1}
+                      aria-label={labelPieza(pieza, estado)}
+                      aria-selected={isSelected ? "true" : undefined}
+                      onFocus={() =>
+                        setActive({ row: rowIndex as 0 | 1, col: colIndex })
+                      }
+                      onKeyDown={(e) =>
+                        onKeyDown(e, rowIndex as 0 | 1, colIndex)
+                      }
+                      onClick={() => {
+                        setActive({ row: rowIndex as 0 | 1, col: colIndex });
+                        selectPieza(pieza);
+                      }}
+                      style={estado ? (estilosPorEstado[estado] ?? {}) : {}}
+                    >
+                      <span>{pieza}</span>
+                      <span>{estado ?? "sin estado registrado"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      {selectedPieza ? (
-        <PanelPieza
-          key={selectedPieza}
-          pieza={selectedPieza}
-          pacienteId={pacienteId}
-          observaciones={observaciones}
-          planes={planes}
-          onFocusPieza={() => refs.current[selectedPieza]?.focus()}
-        />
+          {selectedPieza ? (
+            <PanelPieza
+              key={selectedPieza}
+              pieza={selectedPieza}
+              pacienteId={pacienteId}
+              observaciones={observaciones}
+              planes={planes}
+              onFocusPieza={() => refs.current[selectedPieza]?.focus()}
+            />
+          ) : null}
+        </>
       ) : null}
     </section>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Skeleton } from "../components/skeleton";
 import { useProfesionales } from "../services/catalogo";
 import { useCrearEntradaHc, useEntradasHc } from "../services/hc";
 import type { ApiError } from "../types/errors";
@@ -52,58 +53,70 @@ export function EntradasClinicasSection({ hcId }: { hcId: string }) {
 
   const lista = entradas.data ?? [];
   const deshabilitado = crear.isPending;
+  const errorCarga = entradas.error as ApiError | null;
 
   return (
     <section aria-label="Entradas clínicas">
       <h2>Entradas clínicas</h2>
 
-      {lista.length === 0 ? (
-        <p>Sin entradas clínicas registradas.</p>
-      ) : (
-        <ul>
-          {lista.map((entrada) => (
-            <li key={entrada.id} data-testid="entrada-clinica-item">
-              <span>{nombreProfesional(entrada.profesional_id, profesionales.data)}</span>
-              <span> {entrada.fecha}</span>
-              <p>{entrada.texto}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {entradas.isPending ? <Skeleton aria-label="Cargando entradas" /> : null}
+      {entradas.isError ? (
+        <p role="alert">
+          {errorCarga?.message ?? errorCarga?.detalle ?? "No se pudo cargar las entradas clínicas."}
+        </p>
+      ) : null}
 
-      <form aria-label="Nueva entrada clínica" onSubmit={onSubmit}>
-        <label>
-          Profesional
-          <select
-            aria-label="Profesional de la entrada"
-            value={profesionalId}
-            onChange={(evento) => setProfesionalId(evento.target.value)}
-            disabled={deshabilitado}
-          >
-            <option value="">Seleccionar</option>
-            {(profesionales.data ?? []).map((profesional) => (
-              <option key={profesional.id} value={profesional.id}>
-                {nombreProfesional(profesional.id, [profesional])}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Texto
-          <textarea
-            aria-label="Texto de la entrada"
-            value={texto}
-            onChange={(evento) => setTexto(evento.target.value)}
-            disabled={deshabilitado}
-          />
-        </label>
-        <button type="submit" disabled={deshabilitado}>
-          Registrar entrada
-        </button>
-      </form>
+      {!entradas.isPending && !entradas.isError ? (
+        <>
+          {lista.length === 0 ? (
+            <p>Sin entradas clínicas registradas.</p>
+          ) : (
+            <ul>
+              {lista.map((entrada) => (
+                <li key={entrada.id} data-testid="entrada-clinica-item">
+                  <span>{nombreProfesional(entrada.profesional_id, profesionales.data)}</span>
+                  <span> {entrada.fecha}</span>
+                  <p>{entrada.texto}</p>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {error ? (
-        <p role="alert">{error.message ?? error.detalle ?? "Error al registrar entrada"}</p>
+          <form aria-label="Nueva entrada clínica" onSubmit={onSubmit}>
+            <label>
+              Profesional
+              <select
+                aria-label="Profesional de la entrada"
+                value={profesionalId}
+                onChange={(evento) => setProfesionalId(evento.target.value)}
+                disabled={deshabilitado}
+              >
+                <option value="">Seleccionar</option>
+                {(profesionales.data ?? []).map((profesional) => (
+                  <option key={profesional.id} value={profesional.id}>
+                    {nombreProfesional(profesional.id, [profesional])}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Texto
+              <textarea
+                aria-label="Texto de la entrada"
+                value={texto}
+                onChange={(evento) => setTexto(evento.target.value)}
+                disabled={deshabilitado}
+              />
+            </label>
+            <button type="submit" disabled={deshabilitado}>
+              Registrar entrada
+            </button>
+          </form>
+
+          {error ? (
+            <p role="alert">{error.message ?? error.detalle ?? "Error al registrar entrada"}</p>
+          ) : null}
+        </>
       ) : null}
     </section>
   );

@@ -56,14 +56,14 @@
 
 ## 5b. Planes, presupuesto, formateo de montos y estados por bloque
 
-- [ ] 5b.1 RED: crear tests para "Presupuesto muestra total informado por backend", "Plan con ítems muestra pieza, prestación y monto por ítem", "Paciente sin planes muestra estado vacío", "Paciente inexistente al consultar planes no oculta datos clínicos ya disponibles" y "Acceso denegado al consultar planes no oculta datos clínicos ya disponibles"; verificar fallos.
-- [ ] 5b.2 RED (formateo, D12): partiendo de la función `formatCentavos` pegada en 1.2, agregar `frontend/src/services/money.test.ts` con una tabla de entradas y salidas derivada del comportamiento real actual (cero, negativo, miles, decimales) y verificar que falla antes de la extracción.
-- [ ] 5b.3 GREEN (formateo): extraer `formatCentavos` a `frontend/src/services/money.ts` (sin crear `utils/`), importar desde `frontend/src/pages/caja.tsx` y desde HC sin cambiar comportamiento; no hay otros consumidores: el `git grep` de 1.2 mostró que `formatCentavos` solo se define y usa en `pages/caja.tsx`; verificar los tests del módulo, `caja.test.tsx` (60 tests) y los consumidores en verde.
-- [ ] 5b.4 GREEN: implementar `frontend/src/pages/historia-clinica-planes.tsx` en solo lectura usando el formateador compartido y los ítems anidados (sin consumir `GET /planes-tratamiento/{id}`); verificar que caja mantiene su comportamiento.
-- [ ] 5b.5 TRIANGULATE: agregar "Plan sin ítems muestra total cero", `cobertura_centavos` informada literal y la verificación de que no se emite ningún `POST` ni `PATCH` de planes ni ítems; verificar tests en verde.
-- [ ] 5b.6 RED y GREEN de estados por bloque: tests de "Carga inicial usa estados diferenciados" y "Falla de carga de una sección muestra error propio" sobre cabecera, odontograma, entradas y planes con componentes de C-14; implementar lo que falte y componer las secciones en `pages/historia-clinica.tsx`; verificar en verde.
-- [ ] 5b.7 REFACTOR: ordenar la composición de secciones sin cambiar contratos; verificar tests de página HC en verde.
-- [ ] 5b.8 Cierre del grupo: `npm run lint` directo (pegar `Found 0 warnings and 0 errors`) y verificación de bytes (§0d) de los archivos tocados en este grupo.
+- [x] 5b.1 RED: crear tests para "Presupuesto muestra total informado por backend", "Plan con ítems muestra pieza, prestación y monto por ítem", "Paciente sin planes muestra estado vacío", "Paciente inexistente al consultar planes no oculta datos clínicos ya disponibles" y "Acceso denegado al consultar planes no oculta datos clínicos ya disponibles"; verificar fallos.
+- [x] 5b.2 RED (formateo, D12): partiendo de la función `formatCentavos` pegada en 1.2, agregar `frontend/src/services/money.test.ts` con una tabla de entradas y salidas derivada del comportamiento real actual (cero, negativo, miles, decimales) y verificar que falla antes de la extracción.
+- [x] 5b.3 GREEN (formateo): extraer `formatCentavos` a `frontend/src/services/money.ts` (sin crear `utils/`), importar desde `frontend/src/pages/caja.tsx` y desde HC sin cambiar comportamiento; no hay otros consumidores: el `git grep` de 1.2 mostró que `formatCentavos` solo se define y usa en `pages/caja.tsx`; verificar los tests del módulo, `caja.test.tsx` (60 tests) y los consumidores en verde.
+- [x] 5b.4 GREEN: implementar `frontend/src/pages/historia-clinica-planes.tsx` en solo lectura usando el formateador compartido y los ítems anidados (sin consumir `GET /planes-tratamiento/{id}`); verificar que caja mantiene su comportamiento.
+- [x] 5b.5 TRIANGULATE: agregar "Plan sin ítems muestra total cero", `cobertura_centavos` informada literal y la verificación de que no se emite ningún `POST` ni `PATCH` de planes ni ítems; verificar tests en verde.
+- [x] 5b.6 RED y GREEN de estados por bloque: tests de "Carga inicial usa estados diferenciados" y "Falla de carga de una sección muestra error propio" sobre cabecera, odontograma, entradas y planes con componentes de C-14; implementar lo que falte y componer las secciones en `pages/historia-clinica.tsx`; verificar en verde.
+- [x] 5b.7 REFACTOR: ordenar la composición de secciones sin cambiar contratos; verificar tests de página HC en verde.
+- [x] 5b.8 Cierre del grupo: `npm run lint` directo (pegar `Found 0 warnings and 0 errors`) y verificación de bytes (§0d) de los archivos tocados en este grupo.
 
 ## 6. Verificación final e integración
 

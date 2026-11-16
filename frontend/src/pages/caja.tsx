@@ -30,22 +30,13 @@ import {
   parsePesosACentavos,
   registrarCobro,
 } from "../services/caja";
+import { formatCentavos } from "../services/money";
 import { cajaPorFechaQueryKey, resourceKeys } from "../services/query";
 
 const TZ_BA = "America/Argentina/Buenos_Aires";
 
 function hoyBuenosAires(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: TZ_BA });
-}
-
-function formatCentavos(centavos: number): string {
-  const signo = centavos < 0 ? "-" : "";
-  const abs = Math.abs(Math.trunc(centavos));
-  const pesos = Math.trunc(abs / 100);
-  const resto = abs % 100;
-  const restoStr = resto < 10 ? `0${resto}` : String(resto);
-  const miles = String(pesos).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${signo}$ ${miles},${restoStr}`;
 }
 
 function esNoCaja(error: unknown): boolean {

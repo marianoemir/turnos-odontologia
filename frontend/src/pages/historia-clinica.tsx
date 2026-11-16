@@ -1,6 +1,5 @@
 import { useParams } from "react-router-dom";
 
-import { EmptyState } from "../components/empty-state";
 import { Skeleton } from "../components/skeleton";
 import {
   clasificar404HistoriaClinica,
@@ -15,6 +14,7 @@ import {
 } from "./historia-clinica-cabecera";
 import { EntradasClinicasSection } from "./historia-clinica-entradas";
 import { OdontogramaSection } from "./historia-clinica-odontograma";
+import { PlanesSection } from "./historia-clinica-planes";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,11 +28,6 @@ function HistoriaClinicaValida({ pacienteId }: { pacienteId: string }) {
   const odonto = useOdontogramaPaciente(pacienteId);
   const planes = usePlanesPorPaciente(pacienteId);
 
-  const cargando = hc.isPending || odonto.isPending || planes.isPending;
-
-  const errores = [hc.error, odonto.error, planes.error].filter(
-    (error): error is ApiError => error != null,
-  );
   const errorHc = hc.error as ApiError | null;
   const clasificacionHc404 =
     hc.isError && errorHc?.status === 404
@@ -40,41 +35,55 @@ function HistoriaClinicaValida({ pacienteId }: { pacienteId: string }) {
       : null;
   const pacienteInexistente = clasificacionHc404 === "paciente_inexistente";
   const sinHistoria = clasificacionHc404 === "sin_historia";
-
-  const accesoDenegado = errores.some((error) => error.status === 403);
-  const hayErrorGenerico =
-    !pacienteInexistente &&
-    !sinHistoria &&
-    (hc.isError || odonto.isError || planes.isError);
+  const errorHcPropio = hc.isError && !pacienteInexistente && !sinHistoria;
 
   return (
     <section>
       <h1 className="app-title">Historia clínica</h1>
       <p>Paciente {pacienteId}</p>
 
+      {hc.isPending ? (
+        <section aria-label="Cabecera de historia clínica">
+          <h2>Cabecera</h2>
+          <Skeleton aria-label="Cargando cabecera" />
+        </section>
+      ) : null}
+
       {hc.isSuccess ? (
         <>
           <HistoriaClinicaCabeceraExistente historia={hc.data} />
           <EntradasClinicasSection hcId={hc.data.id} />
         </>
-      ) : sinHistoria ? (
-        <HistoriaClinicaCabeceraCrear pacienteId={pacienteId} />
       ) : null}
 
-      <OdontogramaSection pacienteId={pacienteId} observaciones={odonto.data ?? []} planes={planes.data ?? []} />
+      {sinHistoria ? <HistoriaClinicaCabeceraCrear pacienteId={pacienteId} /> : null}
 
-      {cargando ? <Skeleton aria-label="Cargando historia clínica" /> : null}
-
-      {pacienteInexistente ? (
-        <p role="alert">Paciente inexistente.</p>
-      ) : accesoDenegado ? (
-        <p role="alert">Acceso denegado.</p>
-      ) : hayErrorGenerico ? (
-        <EmptyState
-          title="No se pudo cargar la historia clínica"
-          description="Ocurrió un error al consultar la información clínica."
-        />
+      {errorHcPropio ? (
+        <section aria-label="Cabecera de historia clínica">
+          <h2>Cabecera</h2>
+          <p role="alert">
+            {errorHc?.message ?? errorHc?.detalle ?? "No se pudo cargar la historia clínica."}
+          </p>
+        </section>
       ) : null}
+
+      {pacienteInexistente ? <p role="alert">Paciente inexistente.</p> : null}
+
+      <OdontogramaSection
+        pacienteId={pacienteId}
+        observaciones={odonto.data ?? []}
+        planes={planes.data ?? []}
+        isPending={odonto.isPending}
+        isError={odonto.isError}
+        error={(odonto.error as ApiError | null) ?? null}
+      />
+
+      <PlanesSection
+        planes={planes.data}
+        isPending={planes.isPending}
+        isError={planes.isError}
+        error={(planes.error as ApiError | null) ?? null}
+      />
     </section>
   );
 }
