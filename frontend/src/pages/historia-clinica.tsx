@@ -13,6 +13,7 @@ import {
   HistoriaClinicaCabeceraCrear,
   HistoriaClinicaCabeceraExistente,
 } from "./historia-clinica-cabecera";
+import { EntradasClinicasSection } from "./historia-clinica-entradas";
 import { OdontogramaSection } from "./historia-clinica-odontograma";
 
 const UUID_REGEX =
@@ -52,7 +53,10 @@ function HistoriaClinicaValida({ pacienteId }: { pacienteId: string }) {
       <p>Paciente {pacienteId}</p>
 
       {hc.isSuccess ? (
-        <HistoriaClinicaCabeceraExistente historia={hc.data} />
+        <>
+          <HistoriaClinicaCabeceraExistente historia={hc.data} />
+          <EntradasClinicasSection hcId={hc.data.id} />
+        </>
       ) : sinHistoria ? (
         <HistoriaClinicaCabeceraCrear pacienteId={pacienteId} />
       ) : null}

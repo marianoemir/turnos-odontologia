@@ -49,10 +49,10 @@
 
 ## 5a. Entradas clínicas
 
-- [ ] 5a.1 RED: crear tests para "Listado de entradas muestra datos trazables", "Alta de entrada agrega el registro confirmado con fecha de confirmación" (`profesional_id`, `fecha` y `texto`), "Error de validación al crear entrada no altera el listado previo", "Historia inexistente al crear entrada no altera el listado previo" y "Profesional inexistente al crear entrada no altera el listado previo"; verificar fallos.
-- [ ] 5a.2 GREEN: implementar `frontend/src/pages/historia-clinica-entradas.tsx` con componentes C-14 y sin mutación optimista; verificar listado y alta confirmada.
-- [ ] 5a.3 TRIANGULATE con mutación de guardias: retirar temporalmente deshabilitado en vuelo, no reintento automático y preservación del estado previo; ejecutar los tests de "Alta de entrada en vuelo bloquea acciones duplicadas" y de los escenarios 422 y 404 (sin reintento, listado intacto) y pegar la salida que evidencie el FAIL; luego restaurar las guardias y verificar que pasan.
-- [ ] 5a.4 Cierre del grupo: `npm run lint` directo (pegar `Found 0 warnings and 0 errors`) y verificación de bytes (§0d) de los archivos tocados en este grupo.
+- [x] 5a.1 RED: crear tests para "Listado de entradas muestra datos trazables", "Alta de entrada agrega el registro confirmado con fecha de confirmación" (`profesional_id`, `fecha` y `texto`), "Error de validación al crear entrada no altera el listado previo", "Historia inexistente al crear entrada no altera el listado previo" y "Profesional inexistente al crear entrada no altera el listado previo"; verificar fallos.
+- [x] 5a.2 GREEN: implementar `frontend/src/pages/historia-clinica-entradas.tsx` con componentes C-14 y sin mutación optimista; verificar listado y alta confirmada.
+- [x] 5a.3 TRIANGULATE con mutación de guardias: retirar temporalmente deshabilitado en vuelo, no reintento automático y preservación del estado previo; ejecutar los tests de "Alta de entrada en vuelo bloquea acciones duplicadas" y de los escenarios 422 y 404 (sin reintento, listado intacto) y pegar la salida que evidencie el FAIL; luego restaurar las guardias y verificar que pasan.
+- [x] 5a.4 Cierre del grupo: `npm run lint` directo (pegar `Found 0 warnings and 0 errors`) y verificación de bytes (§0d) de los archivos tocados en este grupo.
 
 ## 5b. Planes, presupuesto, formateo de montos y estados por bloque
 

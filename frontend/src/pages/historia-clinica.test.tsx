@@ -81,7 +81,9 @@ describe("historia clínica", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText(new RegExp(UUID))).toBeInTheDocument();
 
-    expect(apiRequest).toHaveBeenCalledTimes(3);
+    await waitFor(() => {
+      expect(apiRequest).toHaveBeenCalledTimes(5);
+    });
     expect(apiRequest).toHaveBeenCalledWith(
       `/pacientes/${UUID}/historia-clinica`,
       expect.any(Object),
@@ -92,6 +94,14 @@ describe("historia clínica", () => {
     );
     expect(apiRequest).toHaveBeenCalledWith(
       `/pacientes/${UUID}/planes-tratamiento`,
+      expect.any(Object),
+    );
+    expect(apiRequest).toHaveBeenCalledWith(
+      "/historias-clinicas/hc-1/entradas",
+      expect.any(Object),
+    );
+    expect(apiRequest).toHaveBeenCalledWith(
+      "/profesionales?incluir_inactivos=true",
       expect.any(Object),
     );
   });
@@ -1461,5 +1471,393 @@ describe("historia clínica", () => {
     celdasTab0[0].focus();
     await user.keyboard("{ArrowRight}");
     expect(screen.getByLabelText("Pieza 15, superior derecha, sin estado registrado")).toHaveFocus();
+  });
+
+  it("Listado de entradas muestra datos trazables", async () => {
+    const entradas = [
+      {
+        id: "e1",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-1",
+        fecha: "2026-02-01T09:00:00Z",
+        texto: "Primera entrada",
+        creado_en: "2026-02-01T09:00:00Z",
+      },
+      {
+        id: "e2",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-2",
+        fecha: "2026-02-02T10:00:00Z",
+        texto: "Segunda entrada",
+        creado_en: "2026-02-02T10:00:00Z",
+      },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(entradas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([
+          { id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true },
+          { id: "prof-2", nombre: "Dr. Luis", apellido: "Gomez", activo: true },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    const items = await screen.findAllByTestId("entrada-clinica-item");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("2026-02-01T09:00:00Z");
+    expect(items[0]).toHaveTextContent(/Ana|Perez|prof-1/);
+    expect(items[0]).toHaveTextContent("Primera entrada");
+    expect(items[1]).toHaveTextContent("2026-02-02T10:00:00Z");
+    expect(items[1]).toHaveTextContent(/Luis|Gomez|prof-2/);
+    expect(items[1]).toHaveTextContent("Segunda entrada");
+  });
+
+  it("Alta de entrada agrega el registro confirmado con fecha de confirmación", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-15T12:30:00.000Z"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    let entradas: Array<{
+      id: string;
+      historia_clinica_id: string;
+      profesional_id: string;
+      fecha: string;
+      texto: string;
+      creado_en: string;
+    }> = [];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        const nueva = {
+          id: "e-nueva",
+          historia_clinica_id: "hc-1",
+          profesional_id: "prof-1",
+          fecha: "2026-11-15T12:30:00.000Z",
+          texto: "Nota confirmada",
+          creado_en: "2026-11-15T12:30:00.000Z",
+        };
+        entradas = [...entradas, nueva];
+        return Promise.resolve(nueva);
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(entradas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    await user.selectOptions(await screen.findByLabelText("Profesional de la entrada"), "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Nota confirmada");
+    vi.setSystemTime(new Date("2026-11-15T12:30:00.000Z"));
+    await user.click(screen.getByRole("button", { name: /registrar entrada/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Nota confirmada")).toBeInTheDocument();
+    });
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.[1]?.body).toEqual({
+      profesional_id: "prof-1",
+      fecha: "2026-11-15T12:30:00.000Z",
+      texto: "Nota confirmada",
+    });
+    expect(screen.getByTestId("entrada-clinica-item")).toHaveTextContent("Nota confirmada");
+    vi.useRealTimers();
+  });
+
+  it("Error de validación al crear entrada no altera el listado previo", async () => {
+    const user = userEvent.setup();
+    const previas = [
+      {
+        id: "e-previa",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-1",
+        fecha: "2026-02-01T09:00:00Z",
+        texto: "Texto previo",
+        creado_en: "2026-02-01T09:00:00Z",
+      },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        return Promise.reject(new ApiError({ kind: "validacion", status: 422, mensaje: "texto inválido", detalle: "texto inválido" }));
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(previas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Texto previo")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Profesional de la entrada"), "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Intento inválido");
+    await user.click(screen.getByRole("button", { name: /registrar entrada/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/texto inválido/i));
+    await esperar(1500);
+    expect(screen.getByText("Texto previo")).toBeInTheDocument();
+    expect(screen.getAllByTestId("entrada-clinica-item")).toHaveLength(1);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+  });
+
+  it("Historia inexistente al crear entrada no altera el listado previo", async () => {
+    const user = userEvent.setup();
+    const previas = [
+      {
+        id: "e-previa",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-1",
+        fecha: "2026-02-01T09:00:00Z",
+        texto: "Texto previo",
+        creado_en: "2026-02-01T09:00:00Z",
+      },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        return Promise.reject(new ApiError({ kind: "no_encontrado", status: 404, mensaje: "historia clinica no existe: hc-1", detalle: "historia clinica no existe: hc-1" }));
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(previas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Texto previo")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Profesional de la entrada"), "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Intento fallido");
+    await user.click(screen.getByRole("button", { name: /registrar entrada/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/historia clinica no existe/i));
+    await esperar(1500);
+    expect(screen.getByText("Texto previo")).toBeInTheDocument();
+    expect(screen.getAllByTestId("entrada-clinica-item")).toHaveLength(1);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+  });
+
+  it("Profesional inexistente al crear entrada no altera el listado previo", async () => {
+    const user = userEvent.setup();
+    const previas = [
+      {
+        id: "e-previa",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-1",
+        fecha: "2026-02-01T09:00:00Z",
+        texto: "Texto previo",
+        creado_en: "2026-02-01T09:00:00Z",
+      },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        return Promise.reject(new ApiError({ kind: "no_encontrado", status: 404, mensaje: "profesional no existe: prof-x", detalle: "profesional no existe: prof-x" }));
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(previas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Texto previo")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Profesional de la entrada"), "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Intento fallido");
+    await user.click(screen.getByRole("button", { name: /registrar entrada/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/profesional no existe/i));
+    await esperar(1500);
+    expect(screen.getByText("Texto previo")).toBeInTheDocument();
+    expect(screen.getAllByTestId("entrada-clinica-item")).toHaveLength(1);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+  });
+
+  it("Respuesta 403 del backend al crear entrada se trata como restricción informada", async () => {
+    const user = userEvent.setup();
+    const previas = [
+      {
+        id: "e-previa",
+        historia_clinica_id: "hc-1",
+        profesional_id: "prof-1",
+        fecha: "2026-02-01T09:00:00Z",
+        texto: "Texto previo",
+        creado_en: "2026-02-01T09:00:00Z",
+      },
+    ];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: "Antecedente visible",
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        return Promise.reject(new ApiError({ kind: "permiso", status: 403, mensaje: "Acceso denegado.", causa: "permiso_denegado", detalle: "Acceso denegado." }));
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve(previas);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    expect(await screen.findByText("Texto previo")).toBeInTheDocument();
+    expect(screen.getByText("Antecedente visible")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Profesional de la entrada"), "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Intento denegado");
+    await user.click(screen.getByRole("button", { name: /registrar entrada/i }));
+
+    await esperar(1500);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/acceso denegado/i));
+    expect(screen.getByText("Antecedente visible")).toBeInTheDocument();
+    expect(screen.getByText("Texto previo")).toBeInTheDocument();
+    expect(screen.getAllByTestId("entrada-clinica-item")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /registrar entrada/i })).toBeEnabled();
+  });
+
+  it("Alta de entrada en vuelo bloquea acciones duplicadas", async () => {
+    const user = userEvent.setup();
+    let resolvePost!: (v: unknown) => void;
+    const postPromise = new Promise((res) => {
+      resolvePost = res;
+    });
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas" && opciones?.method === "POST") {
+        return postPromise;
+      }
+      if (ruta === "/historias-clinicas/hc-1/entradas") return Promise.resolve([]);
+      if (ruta === `/pacientes/${UUID}/odontograma` || ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      if (ruta.startsWith("/profesionales")) {
+        return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    const selectProfesional = await screen.findByLabelText("Profesional de la entrada");
+    await screen.findByRole("option", { name: /Ana|Perez|prof-1/ });
+    await user.selectOptions(selectProfesional, "prof-1");
+    await user.type(screen.getByLabelText("Texto de la entrada"), "Nota en vuelo");
+    const boton = screen.getByRole("button", { name: /registrar entrada/i });
+    await user.click(boton);
+
+    await waitFor(() => {
+      expect(boton).toBeDisabled();
+    });
+    await user.click(boton);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === "/historias-clinicas/hc-1/entradas" && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    resolvePost({
+      id: "e-1",
+      historia_clinica_id: "hc-1",
+      profesional_id: "prof-1",
+      fecha: "2026-11-15T12:30:00.000Z",
+      texto: "Nota en vuelo",
+      creado_en: "2026-11-15T12:30:00.000Z",
+    });
   });
 });
