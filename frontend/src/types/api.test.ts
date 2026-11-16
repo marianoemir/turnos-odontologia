@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   ESTADO_TURNO_LABELS,
+  type AgendaItem,
   type Bloqueo,
   type EstadoTurno,
   type HorarioAtencion,
@@ -81,6 +82,18 @@ describe("contratos espejo de los schemas de lectura", () => {
       desde: string;
       hasta: string;
       motivo: string;
+    }>();
+  });
+
+  it("AgendaItem replica AgendaItemOut (agenda/schemas.py:18-27)", () => {
+    expectTypeOf<AgendaItem>().toEqualTypeOf<{
+      id: string;
+      inicio: string;
+      fin: string;
+      estado: EstadoTurno;
+      paciente_nombre: string;
+      prestacion_nombre: string;
+      sillon_nombre: string;
     }>();
   });
 
