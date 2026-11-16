@@ -659,7 +659,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-19] `frontend-hc-odontograma`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-16)
 - **Scope**: HC y odontograma en UI (consume C-09)
   - `/hc/:pacienteId`: datos del paciente (solo lectura desde catálogo), historia clínica editable con permisos por rol
   - Odontograma FDI: SVG de 32 piezas, cada pieza con estado y color por token; **navegable por teclado** (roving tabindex), `aria-label` por pieza (`"Pieza 16, superior derecha, estado caries"`), sin depender solo del color
