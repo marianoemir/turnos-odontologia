@@ -830,4 +830,287 @@ describe("historia clínica", () => {
       });
     }
   });
+
+  it("estructura role=\"grid\" con dos filas de 16 gridcell en orden anatómico D11", async () => {
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const grid = await screen.findByRole("grid");
+    expect(grid).toBeInTheDocument();
+    const filas = screen.getAllByRole("row");
+    expect(filas).toHaveLength(2);
+    const orden = [
+      "18","17","16","15","14","13","12","11","21","22","23","24","25","26","27","28",
+      "48","47","46","45","44","43","42","41","31","32","33","34","35","36","37","38",
+    ];
+    const celdas = screen.getAllByRole("gridcell");
+    expect(celdas).toHaveLength(32);
+    expect(celdas.map((c) => c.getAttribute("data-pieza"))).toEqual(orden);
+  });
+
+  it("Odontograma sin observaciones muestra estado vacío por pieza", async () => {
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const celdas = await screen.findAllByRole("gridcell");
+    expect(celdas).toHaveLength(32);
+    expect(screen.getByLabelText("Pieza 18, superior derecha, sin estado registrado")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pieza 38, inferior izquierda, sin estado registrado")).toBeInTheDocument();
+  });
+
+  it("Estado de texto largo permanece comprensible sin depender del color", async () => {
+    const estadoLargo = "estado clinico extremadamente largo y no catalogado para la pieza";
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) {
+        return Promise.resolve([
+          {
+            id: "odo-1",
+            paciente_id: UUID,
+            pieza: "16",
+            estado: estadoLargo,
+            profesional_id: "prof-1",
+            fecha: "2026-01-02T10:00:00Z",
+            creado_en: "2026-01-02T10:00:00Z",
+          },
+        ]);
+      }
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+
+    renderHc(`/hc/${UUID}`);
+
+    const pieza16 = await screen.findByLabelText(
+      `Pieza 16, superior derecha, estado ${estadoLargo}`,
+    );
+    expect(pieza16).toBeInTheDocument();
+    expect(pieza16).toHaveTextContent(estadoLargo);
+  });
+
+  it("Tab entra al odontograma en la pieza activa", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const celdas = await screen.findAllByRole("gridcell");
+    expect(celdas).toHaveLength(32);
+    const antes = document.createElement("button");
+    antes.textContent = "antes";
+    const grid = screen.getByRole("grid");
+    grid.parentElement?.insertBefore(antes, grid);
+    antes.focus();
+    await user.tab();
+    expect(screen.getByLabelText("Pieza 18, superior derecha, sin estado registrado")).toHaveFocus();
+    expect(
+      screen.getByLabelText("Pieza 18, superior derecha, sin estado registrado"),
+    ).toHaveAttribute("tabindex", "0");
+    const resto = celdas.filter(
+      (c) =>
+        c.getAttribute("aria-label") !==
+        "Pieza 18, superior derecha, sin estado registrado",
+    );
+    for (const celda of resto) {
+      expect(celda).toHaveAttribute("tabindex", "-1");
+    }
+  });
+
+  it("Tab sale del odontograma sin recorrer las piezas", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const activa = await screen.findByLabelText(
+      "Pieza 18, superior derecha, sin estado registrado",
+    );
+    const despues = document.createElement("button");
+    despues.textContent = "despues";
+    const grid = screen.getByRole("grid");
+    grid.parentElement?.insertBefore(despues, grid.nextSibling);
+    activa.focus();
+    await user.tab();
+    expect(despues).toHaveFocus();
+  });
+
+  it("Flechas llevan el foco a una pieza con aria-label correcto", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) {
+        return Promise.resolve([
+          {
+            id: "odo-1",
+            paciente_id: UUID,
+            pieza: "16",
+            estado: "caries",
+            profesional_id: "prof-1",
+            fecha: "2026-01-02T10:00:00Z",
+            creado_en: "2026-01-02T10:00:00Z",
+          },
+        ]);
+      }
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    const p18 = await screen.findByLabelText("Pieza 18, superior derecha, sin estado registrado");
+    p18.focus();
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(screen.getByLabelText("Pieza 16, superior derecha, estado caries")).toHaveFocus();
+  });
+
+  it("Navegación por teclado alcanza una pieza de otro cuadrante", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) {
+        return Promise.resolve({
+          id: "hc-1",
+          paciente_id: UUID,
+          antecedentes: null,
+          alergias: null,
+          observaciones: null,
+          creado_en: "2026-01-01T10:00:00Z",
+        });
+      }
+      if (ruta === `/pacientes/${UUID}/odontograma`) {
+        return Promise.resolve([
+          {
+            id: "odo-38",
+            paciente_id: UUID,
+            pieza: "38",
+            estado: "sano",
+            profesional_id: "prof-1",
+            fecha: "2026-01-02T10:00:00Z",
+            creado_en: "2026-01-02T10:00:00Z",
+          },
+        ]);
+      }
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+
+    const p18 = await screen.findByLabelText("Pieza 18, superior derecha, sin estado registrado");
+    p18.focus();
+    await user.keyboard("{ArrowDown}{End}");
+    expect(screen.getByLabelText("Pieza 38, inferior izquierda, estado sano")).toHaveFocus();
+  });
+
+  it("Flecha derecha cruza la línea media", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p11 = await screen.findByLabelText("Pieza 11, superior derecha, sin estado registrado");
+    p11.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByLabelText("Pieza 21, superior izquierda, sin estado registrado")).toHaveFocus();
+  });
+
+  it("Flecha abajo conserva la columna", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p11 = await screen.findByLabelText("Pieza 11, superior derecha, sin estado registrado");
+    p11.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByLabelText("Pieza 41, inferior derecha, sin estado registrado")).toHaveFocus();
+  });
+
+  it("Home va a la primera pieza de la fila", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    p16.focus();
+    await user.keyboard("{Home}");
+    expect(screen.getByLabelText("Pieza 18, superior derecha, sin estado registrado")).toHaveFocus();
+  });
+
+  it("End va a la última pieza de la fila", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    p16.focus();
+    await user.keyboard("{End}");
+    expect(screen.getByLabelText("Pieza 28, superior izquierda, sin estado registrado")).toHaveFocus();
+  });
+
+  it("Sin envoltura en el borde de la fila", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p18 = await screen.findByLabelText("Pieza 18, superior derecha, sin estado registrado");
+    p18.focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByLabelText("Pieza 18, superior derecha, sin estado registrado")).toHaveFocus();
+  });
+
+  it("Enter sobre una pieza abre su panel", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    p16.focus();
+    await user.keyboard("{Enter}");
+    expect(p16).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: /pieza 16/i })).toBeInTheDocument();
+  });
+
+  it("Espacio sobre una pieza abre su panel", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    p16.focus();
+    await user.keyboard(" ");
+    expect(p16).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: /pieza 16/i })).toBeInTheDocument();
+  });
+
+  it("Mover el foco con flechas no cambia la pieza seleccionada", async () => {
+    const user = userEvent.setup();
+    mockHcExitoso(UUID);
+    renderHc(`/hc/${UUID}`);
+
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, sin estado registrado");
+    p16.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("heading", { name: /pieza 16/i })).toBeInTheDocument();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByLabelText("Pieza 15, superior derecha, sin estado registrado")).toHaveFocus();
+    expect(screen.getByRole("heading", { name: /pieza 16/i })).toBeInTheDocument();
+  });
 });

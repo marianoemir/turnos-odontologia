@@ -13,6 +13,7 @@ import {
   HistoriaClinicaCabeceraCrear,
   HistoriaClinicaCabeceraExistente,
 } from "./historia-clinica-cabecera";
+import { OdontogramaSection } from "./historia-clinica-odontograma";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,6 +56,8 @@ function HistoriaClinicaValida({ pacienteId }: { pacienteId: string }) {
       ) : sinHistoria ? (
         <HistoriaClinicaCabeceraCrear pacienteId={pacienteId} />
       ) : null}
+
+      <OdontogramaSection observaciones={odonto.data ?? []} />
 
       {cargando ? <Skeleton aria-label="Cargando historia clínica" /> : null}
 
