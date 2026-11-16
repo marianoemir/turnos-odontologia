@@ -1288,6 +1288,44 @@ describe("historia clínica", () => {
     expect(screen.getByLabelText("Pieza 16, superior derecha, estado sano")).toBeInTheDocument();
   });
 
+  it("Respuesta 403 del backend se trata como restricción informada en el alta de estado de pieza", async () => {
+    const user = userEvent.setup();
+    const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];
+    vi.mocked(apiRequest).mockImplementation((ruta: string, opciones?: Parameters<typeof apiRequest>[1]) => {
+      if (ruta === `/pacientes/${UUID}/historia-clinica`) return Promise.resolve({ id: "hc-1", paciente_id: UUID, antecedentes: null, alergias: null, observaciones: null, creado_en: "2026-01-01T10:00:00Z" });
+      if (ruta === `/pacientes/${UUID}/odontograma` && opciones?.method === "POST") return Promise.reject(new ApiError({ kind: "permiso", status: 403, mensaje: "Acceso denegado.", causa: "permiso_denegado", detalle: "Acceso denegado." }));
+      if (ruta === `/pacientes/${UUID}/odontograma`) return Promise.resolve(obsInicial);
+      if (ruta === `/pacientes/${UUID}/planes-tratamiento`) return Promise.resolve([]);
+      if (ruta.startsWith("/profesionales")) return Promise.resolve([{ id: "prof-1", nombre: "Dra. Ana", apellido: "Perez", activo: true }]);
+      if (ruta.startsWith("/prestaciones")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderHc(`/hc/${UUID}`);
+    expect(await screen.findByText(new RegExp(UUID))).toBeInTheDocument();
+    const p16 = await screen.findByLabelText("Pieza 16, superior derecha, estado sano");
+    await user.click(p16);
+    await user.type(screen.getByLabelText("Estado de la pieza"), "caries");
+    await user.selectOptions(screen.getByLabelText("Profesional de la pieza"), "prof-1");
+    await user.click(screen.getByRole("button", { name: /registrar estado/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+    await esperar(1500);
+    const posts = vi.mocked(apiRequest).mock.calls.filter(
+      (c) => c[0] === `/pacientes/${UUID}/odontograma` && c[1]?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/acceso denegado/i));
+    expect(screen.getByRole("heading", { name: "Historia clínica" })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(UUID))).toBeInTheDocument();
+    expect(screen.getByLabelText("Pieza 16, superior derecha, estado sano")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /registrar estado/i })).toBeEnabled();
+    const celdasTab0 = screen.getAllByRole("gridcell").filter((c) => c.getAttribute("tabindex") === "0");
+    expect(celdasTab0).toHaveLength(1);
+    expect(celdasTab0[0]).toHaveAttribute("data-pieza", "16");
+    celdasTab0[0].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByLabelText("Pieza 15, superior derecha, sin estado registrado")).toHaveFocus();
+  });
+
   it("Alta de estado de pieza en vuelo bloquea acciones duplicadas", async () => {
     const user = userEvent.setup();
     const obsInicial = [{ id: "odo-1", paciente_id: UUID, pieza: "16", estado: "sano", profesional_id: "prof-1", fecha: "2026-01-02T10:00:00Z", creado_en: "2026-01-02T10:00:00Z" }];

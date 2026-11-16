@@ -45,6 +45,7 @@
 - [x] 4b.3 TRIANGULATE con mutación de guardias: partir de la implementación con doble confirmación, controles deshabilitados en vuelo, sin optimistic update, sin reintento automático y preservación del estado previo; retirar temporalmente esas guardias, ejecutar los tests de "Alta de estado de pieza en vuelo bloquea acciones duplicadas" y de los escenarios 422, 404 de paciente, 404 de profesional y cancelación (más el 403 y la estabilidad del teclado tras un error) y pegar la salida que evidencie el FAIL; luego restaurar las guardias y verificar que pasan.
 - [x] 4b.4 REFACTOR: consolidar estilos neutros y labels del panel sin cambiar comportamiento; verificar tests de odontograma y panel en verde.
 - [x] 4b.5 Cierre del grupo: `npm run lint` directo (pegar `Found 0 warnings and 0 errors`) y verificación de bytes (§0d) de los archivos tocados en este grupo.
+- [x] 4b.6 Test del 403 en el alta de estado de pieza (pendiente de 4b.3): RED con POST /pacientes/{id}/odontograma respondiendo 403 con detail.causa permiso_denegado; verificar aviso de acceso denegado, cabecera visible, estado anterior de la pieza intacto, un único POST (sin reintento automático), controles de confirmación habilitados otra vez y estabilidad del teclado. Trazar contra el escenario 'Respuesta 403 del backend se trata como restricción informada'. TRIANGULATE: retirar temporalmente la guardia que se evidencia (preservación del estado previo o no reintento) y pegar el FAIL; restaurar y pegar el PASS.
 
 ## 5a. Entradas clínicas
 
