@@ -183,6 +183,7 @@ export default function ReservarPage() {
                   aria-pressed={seleccionado}
                   onClick={() => seleccionarSlot(slot)}
                   variant={seleccionado ? "primary" : "secondary"}
+                  style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
                 >
                   {etiqueta}
                 </Button>
@@ -233,12 +234,14 @@ export default function ReservarPage() {
           options={opcionesPrestacion}
           value={prestacionId}
           onChange={(event) => cambiarPrestacion(event.target.value)}
+          style={{ minHeight: "2.75rem" }}
         />
         <TextField
           label="Fecha"
           type="date"
           value={fecha}
           onChange={(event) => cambiarFecha(event.target.value)}
+          style={{ minHeight: "2.75rem" }}
         />
       </Card>
 
@@ -256,18 +259,26 @@ export default function ReservarPage() {
               label="Nombre"
               value={nombre}
               onChange={(event) => setNombre(event.target.value)}
+              style={{ minHeight: "2.75rem" }}
             />
             <TextField
               label="DNI"
               value={dni}
               onChange={(event) => setDni(event.target.value)}
+              style={{ minHeight: "2.75rem" }}
             />
             <TextField
               label="Contacto (opcional)"
               value={contacto}
               onChange={(event) => setContacto(event.target.value)}
+              style={{ minHeight: "2.75rem" }}
             />
-            <Button type="submit" disabled={envioEnCurso}>
+            <Button
+              type="submit"
+              disabled={envioEnCurso}
+              aria-busy={envioEnCurso || undefined}
+              style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+            >
               Confirmar reserva
             </Button>
           </form>
@@ -279,7 +290,11 @@ export default function ReservarPage() {
       ) : null}
 
       {conflictoAgenda ? (
-        <Button type="button" onClick={() => void slotsQuery.refetch()}>
+        <Button
+          type="button"
+          onClick={() => void slotsQuery.refetch()}
+          style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+        >
           Reconsultar horarios
         </Button>
       ) : null}

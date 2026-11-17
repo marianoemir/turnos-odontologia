@@ -38,10 +38,18 @@ export default function ConfirmarPage() {
     mutacion.mutate(token);
   }
 
+  const enviando = mutacion.isPending;
   let contenido = (
     <Card>
       <p>Confirmá tu turno cuando estés listo. Esta acción no se ejecuta sola.</p>
-      <Button onClick={ejecutar}>Confirmar turno</Button>
+      <Button
+        onClick={ejecutar}
+        disabled={enviando}
+        aria-busy={enviando || undefined}
+        style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+      >
+        Confirmar turno
+      </Button>
     </Card>
   );
 
@@ -118,7 +126,12 @@ export default function ConfirmarPage() {
       contenido = (
         <Card aria-label="Resultado">
           <p role="alert">{mensaje}</p>
-          <Button onClick={ejecutar}>Reintentar</Button>
+          <Button
+            onClick={ejecutar}
+            style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+          >
+            Reintentar
+          </Button>
         </Card>
       );
     }

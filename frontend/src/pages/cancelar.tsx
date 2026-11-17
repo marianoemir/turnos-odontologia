@@ -38,10 +38,18 @@ export default function CancelarPage() {
     mutacion.mutate(token);
   }
 
+  const enviando = mutacion.isPending;
   let contenido = (
     <Card>
       <p>Cancelá tu turno cuando estés listo. Esta acción no se ejecuta sola.</p>
-      <Button onClick={ejecutar}>Cancelar turno</Button>
+      <Button
+        onClick={ejecutar}
+        disabled={enviando}
+        aria-busy={enviando || undefined}
+        style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+      >
+        Cancelar turno
+      </Button>
     </Card>
   );
 
@@ -118,7 +126,12 @@ export default function CancelarPage() {
       contenido = (
         <Card aria-label="Resultado">
           <p role="alert">{mensaje}</p>
-          <Button onClick={ejecutar}>Reintentar</Button>
+          <Button
+            onClick={ejecutar}
+            style={{ minHeight: "2.75rem", minWidth: "2.75rem" }}
+          >
+            Reintentar
+          </Button>
         </Card>
       );
     }
