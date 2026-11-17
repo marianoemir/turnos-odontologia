@@ -10,13 +10,20 @@
  * renderice DENTRO del layout público (`<main>`). Sin esa aserción no habría
  * RED posible.
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { routes } from "./router";
 import { SessionProvider } from "../auth/session-context";
 import { clearSession, setSession } from "../auth/session";
+
+// `/reservar/:profesional` ya carga prestaciones públicas (C-21 grupo 3); esta
+// prueba sólo verifica el layout, así que se simula la capa HTTP.
+vi.mock("../services/http", () => ({
+  apiRequest: vi.fn(() => Promise.resolve([])),
+}));
 
 beforeEach(() => setSession({ token: "jwt", rol: "recepcion", usuario: "test", sucursalId: null }));
 afterEach(() => { cleanup(); clearSession(); });
@@ -29,7 +36,14 @@ const RUTAS_PUBLICAS: { path: string; heading: string }[] = [
 
 function renderEn(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<SessionProvider><RouterProvider router={router} /></SessionProvider>);
+  const client = new QueryClient();
+  render(
+    <SessionProvider>
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </SessionProvider>,
+  );
 }
 
 describe("layout público", () => {

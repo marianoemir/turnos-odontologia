@@ -10,7 +10,8 @@
  * deben exponer el valor del segmento (`pacienteId`, `profesional`, `token`).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -137,11 +138,40 @@ describe("tabla de rutas", () => {
   });
 
   it("expone profesional a la pantalla de reserva pública", async () => {
+    const prestacionId = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(apiRequest).mockImplementation((ruta: string) => {
+      if (ruta === "/prestaciones") {
+        return Promise.resolve([
+          {
+            id: prestacionId,
+            nombre: "Control ficticio",
+            duracion_min: 20,
+            activo: true,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    const user = userEvent.setup();
     renderEn("/reservar/dr-aguirre");
 
-    expect(
-      await screen.findByText("Profesional dr-aguirre"),
-    ).toBeInTheDocument();
+    const select = await screen.findByLabelText("Prestación");
+    await waitFor(() =>
+      expect(
+        within(select).getByRole("option", { name: "Control ficticio" }),
+      ).toBeInTheDocument(),
+    );
+    await user.selectOptions(select, prestacionId);
+    fireEvent.change(screen.getByLabelText("Fecha"), {
+      target: { value: "2026-11-20" },
+    });
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        `/reservar/dr-aguirre?prestacion=${prestacionId}&fecha=2026-11-20`,
+        expect.objectContaining({ publica: true }),
+      ),
+    );
   });
 
   it("expone token a las pantallas de confirmación y cancelación", async () => {

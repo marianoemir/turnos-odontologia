@@ -14,6 +14,7 @@ import {
   obtenerPrestacionesPublicas,
   obtenerSlotsPublicos,
   usePrestacionesPublicas,
+  useSlotsPublicos,
 } from "./reserva-publica";
 
 type ImplementacionFetch = (
@@ -290,6 +291,81 @@ describe("reserva-publica contra http real — hook sin retry por defecto del cl
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    esperarSesionActiva();
+  });
+});
+
+describe("3.1 hook público de slots — sin credenciales, sin handlers y sin reintentos", () => {
+  const PARAMS = { prestacion: PREST_ID, fecha: "2026-11-20" };
+
+  it("useSlotsPublicos: pide los slots con publica:true, sin Authorization y con signal", async () => {
+    const fetchMock = stubFetch(() => Promise.resolve(respuestaJson(200, [])));
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useSlotsPublicos(PROF_ID, PARAMS), {
+      wrapper: crearWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      `/reservar/${PROF_ID}?prestacion=${PREST_ID}&fecha=2026-11-20`,
+    );
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    esperarRequestPublicaSinAuthorization(fetchMock);
+    esperarSesionActiva();
+  });
+
+  it("useSlotsPublicos: 401 produce ApiError, no notifica handlers y conserva sesión", async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(respuestaJson(401, { detail: "no autenticado" })),
+    );
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useSlotsPublicos(PROF_ID, PARAMS), {
+      wrapper: crearWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect((result.current.error as ApiError).status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    esperarRequestPublicaSinAuthorization(fetchMock);
+    esperarSesionActiva();
+  });
+
+  it("useSlotsPublicos: 403 produce ApiError, no notifica handlers y conserva sesión", async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(respuestaJson(403, { detail: "acceso denegado" })),
+    );
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useSlotsPublicos(PROF_ID, PARAMS), {
+      wrapper: crearWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect((result.current.error as ApiError).status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    esperarRequestPublicaSinAuthorization(fetchMock);
+    esperarSesionActiva();
+  });
+
+  it("useSlotsPublicos: 429 llama fetch exactamente 1 vez (sin retry)", async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(respuestaJson(429, { detail: "limite excedido" })),
+    );
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useSlotsPublicos(PROF_ID, PARAMS), {
+      wrapper: crearWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect((result.current.error as ApiError).status).toBe(429);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     esperarSesionActiva();
   });

@@ -12,9 +12,9 @@
 
 ## 3. Reserva pública (`/reservar/:profesional`)
 
-- [ ] 3.1 Implementar la selección de prestación y fecha y la consulta de slots reales `GET /reservar/{profesional}?prestacion=&fecha=` mostrando solo `[{inicio,fin}]` y permitiendo elegir un slot para el alta.
-- [ ] 3.2 Implementar el estado vacío cuando la consulta devuelve `[]`, permitiendo cambiar fecha/prestación sin inferir causa interna.
-- [ ] 3.3 Implementar el manejo de cambios de prestación/fecha con request en curso (cancelar o descartar respuestas obsoletas) para no mostrar slots de una selección anterior.
+- [x] 3.1 Implementar la selección de prestación y fecha y la consulta de slots reales `GET /reservar/{profesional}?prestacion=&fecha=` mostrando solo `[{inicio,fin}]` y permitiendo elegir un slot para el alta.
+- [x] 3.2 Implementar el estado vacío cuando la consulta devuelve `[]`, permitiendo cambiar fecha/prestación sin inferir causa interna.
+- [x] 3.3 Implementar el manejo de cambios de prestación/fecha con request en curso (cancelar o descartar respuestas obsoletas) para no mostrar slots de una selección anterior.
 - [ ] 3.4 Implementar el alta `POST /reservar` con datos mínimos del contrato (`nombre`, `dni`, `contacto` opcional, `profesional_id`, `prestacion_id`, `inicio`), bloqueo de doble envío en vuelo y confirmación de estado `pendiente` usando solo campos del 201 (`turno_id`, `profesional_id`, `prestacion_id`, `inicio`, `fin`, `estado`) sin link inventado.
 - [ ] 3.5 Implementar manejo de 409 con causa y alternativa explícita (reconsultar/elegir otro horario o fecha) sin reintento automático.
 - [ ] 3.6 Implementar manejo de 422 (entrada inválida y rechazo por paciente inactivo con el detalle provisto por el backend, como error local claro sin inferencias ni exposición de terceros) y de 429 con mensaje local sin reintento automático, conservando el contexto del formulario.
@@ -37,9 +37,9 @@
 - [x] 6.5 Verificar escenario `"Error 401 o 403 en request pública no altera la sesión"`: ante 401 o 403 en request pública se muestra error local comprensible, no navega a `/login`, no finaliza sesión activa y no muestra aviso global de permiso insuficiente.
 - [x] 6.6 Verificar escenario `"Error 429 en request pública se maneja localmente"`: ante 429 en request pública se informa el límite alcanzado sin reintento automático, sin redirección y sin efectos globales de sesión.
 - [x] 6.7 Verificar escenario `"Las prestaciones se listan sin sesión"`: la pantalla solicita `GET /prestaciones` como request pública sin `Authorization` y sin `incluir_inactivos`, con `queryKey` propia, muestra prestaciones activas y un 401/403 no dispara `notifyUnauthorized`/`notifyForbidden` ni efectos globales.
-- [ ] 6.8 Verificar escenario `"Slots disponibles se muestran tras elegir prestación y fecha"`: con respuesta 200 con slots se muestran los intervalos disponibles y se permite continuar con el alta sobre un slot elegido.
-- [ ] 6.9 Verificar escenario `"Respuesta vacía se comunica como ausencia de disponibilidad"`: con respuesta 200 vacía se muestra mensaje de ausencia de disponibilidad para la selección sin datos de otros pacientes ni error genérico.
-- [ ] 6.10 Verificar escenario `"Respuesta tardía no reemplaza la selección vigente"`: al cambiar prestación o fecha con consulta en curso, solo queda visible el resultado de la selección vigente y se descartan/cancelan respuestas obsoletas.
+- [x] 6.8 Verificar escenario `"Slots disponibles se muestran tras elegir prestación y fecha"`: con respuesta 200 con slots se muestran los intervalos disponibles y se permite continuar con el alta sobre un slot elegido.
+- [x] 6.9 Verificar escenario `"Respuesta vacía se comunica como ausencia de disponibilidad"`: con respuesta 200 vacía se muestra mensaje de ausencia de disponibilidad para la selección sin datos de otros pacientes ni error genérico.
+- [x] 6.10 Verificar escenario `"Respuesta tardía no reemplaza la selección vigente"`: al cambiar prestación o fecha con consulta en curso, solo queda visible el resultado de la selección vigente y se descartan/cancelan respuestas obsoletas.
 - [ ] 6.11 Verificar escenario `"Alta exitosa muestra confirmación pendiente"`: `POST /reservar` responde 201 y la pantalla confirma turno pendiente con los campos devueltos (`turno_id`, `profesional_id`, `prestacion_id`, `inicio`, `fin`, `estado`) sin datos de terceros ni enlace inventado.
 - [ ] 6.12 Verificar escenario `"Conflicto de agenda ofrece alternativa"`: `POST /reservar` responde 409 con causa y la pantalla informa indisponibilidad, permitiendo reconsultar/elegir otro horario o fecha sin reintento automático.
 - [ ] 6.13 Verificar escenario `"Datos inválidos, DNI inactivo o límite se informan sin reintento automático"`: `POST /reservar` responde 422 (incluido paciente inactivo con detalle provisto por backend) o 429 y la pantalla muestra mensaje local acorde sin reenviar automáticamente, conservando controles para corregir o reintentar manualmente cuando corresponda.

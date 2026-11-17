@@ -1,10 +1,17 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { routes } from "./router";
 import { SessionProvider } from "../auth/session-context";
 import { clearSession, getSession, setSession } from "../auth/session";
+
+// `/reservar/:profesional` carga prestaciones públicas (C-21 grupo 3). Esta
+// prueba verifica enrutado y `noindex`, no la carga de datos.
+vi.mock("../services/http", () => ({
+  apiRequest: vi.fn(() => Promise.resolve([])),
+}));
 
 /**
  * C-21, grupo 2 — enrutado público y `noindex` (design D1, D8).
@@ -36,9 +43,12 @@ afterEach(() => {
 
 function renderEn(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const client = new QueryClient();
   const { unmount } = render(
     <SessionProvider>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </SessionProvider>,
   );
   return { router, unmount };
