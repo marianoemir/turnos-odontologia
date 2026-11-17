@@ -29,7 +29,12 @@ import { clearSession, getSession } from "../auth/session";
 import { SessionProvider } from "../auth/session-context";
 import { apiRequest } from "../services/http";
 import type { Prestacion } from "../types/api";
-import type { SlotPublico } from "../types/api-reserva-publica";
+import type {
+  ReservaCreatePublica,
+  ReservaOutPublica,
+  SlotPublico,
+} from "../types/api-reserva-publica";
+import { ApiError } from "../types/errors";
 
 vi.mock("../services/http", () => ({ apiRequest: vi.fn() }));
 
@@ -40,6 +45,7 @@ const PREST_A = "22222222-2222-4222-8222-222222222222";
 const PREST_B = "33333333-3333-4333-8333-333333333333";
 const PREST_INACTIVA = "44444444-4444-4444-8444-444444444444";
 const FECHA = "2026-11-20";
+const TURNO_ID = "55555555-5555-4555-8555-555555555555";
 
 const PRESTACIONES: Prestacion[] = [
   { id: PREST_A, nombre: "Limpieza ficticia", duracion_min: 30, activo: true },
@@ -107,6 +113,71 @@ function mockApi(responderSlots: (ruta: string) => Promise<SlotPublico[]>): void
     }
     return Promise.resolve([]);
   });
+}
+
+/** Mock del borde HTTP para la pantalla con alta: slots + `POST /reservar`. */
+function mockApiConAlta(
+  responderSlots: (ruta: string) => Promise<SlotPublico[]>,
+  responderAlta: (cuerpo: ReservaCreatePublica) => Promise<ReservaOutPublica>,
+): void {
+  apiRequestMock.mockImplementation((ruta: string, opciones) => {
+    if (ruta === "/prestaciones") {
+      return Promise.resolve(PRESTACIONES);
+    }
+    if (ruta.startsWith(`/reservar/${PROF_ID}?`)) {
+      return responderSlots(ruta);
+    }
+    if (ruta === "/reservar" && opciones?.method === "POST") {
+      return responderAlta(opciones.body as ReservaCreatePublica);
+    }
+    return Promise.resolve([]);
+  });
+}
+
+function llamadasDeAlta(): string[] {
+  return apiRequestMock.mock.calls
+    .filter(
+      ([ruta, opciones]) =>
+        String(ruta) === "/reservar" && opciones?.method === "POST",
+    )
+    .map(([ruta]) => String(ruta));
+}
+
+function cuerposDeAlta(): ReservaCreatePublica[] {
+  return apiRequestMock.mock.calls
+    .filter(
+      ([ruta, opciones]) =>
+        String(ruta) === "/reservar" && opciones?.method === "POST",
+    )
+    .map(([, opciones]) => opciones?.body as ReservaCreatePublica);
+}
+
+function diferidaConError<T>(): {
+  promesa: Promise<T>;
+  resolver: (valor: T) => void;
+  rechazar: (error: unknown) => void;
+} {
+  let resolver!: (valor: T) => void;
+  let rechazar!: (error: unknown) => void;
+  const promesa = new Promise<T>((resolve, reject) => {
+    resolver = resolve;
+    rechazar = reject;
+  });
+  return { promesa, resolver, rechazar };
+}
+
+async function completarDatosDeReserva(
+  user: ReturnType<typeof userEvent.setup>,
+  datos: { nombre: string; dni: string; contacto?: string },
+): Promise<void> {
+  await user.type(screen.getByLabelText("Nombre"), datos.nombre);
+  await user.type(screen.getByLabelText("DNI"), datos.dni);
+  if (datos.contacto !== undefined) {
+    await user.type(
+      screen.getByLabelText("Contacto (opcional)"),
+      datos.contacto,
+    );
+  }
 }
 
 async function elegirPrestacionYFecha(
@@ -376,5 +447,277 @@ describe("Re-verificación a nivel pantalla", () => {
     );
     expect(llamada?.[1]).toMatchObject({ publica: true });
     expect(getSession()).toBeNull();
+  });
+});
+
+describe("Grupo 4 — alta pública (tasks 3.4–3.6)", () => {
+  async function elegirSlot(
+    user: ReturnType<typeof userEvent.setup>,
+    etiquetaDeSlot = "09:00 a 09:30",
+  ): Promise<void> {
+    await elegirPrestacionYFecha(user, PREST_A);
+    const slot = await screen.findByRole("button", { name: etiquetaDeSlot });
+    await user.click(slot);
+  }
+
+  it("Alta exitosa muestra confirmación pendiente", async () => {
+    const user = userEvent.setup();
+    const alta = diferida<ReservaOutPublica>();
+    mockApiConAlta(
+      () => Promise.resolve(SLOTS_A),
+      () => alta.promesa,
+    );
+    renderReserva();
+
+    await elegirSlot(user);
+    expect(screen.getByLabelText("Contacto (opcional)")).toBeInTheDocument();
+    await completarDatosDeReserva(user, {
+      nombre: "Paciente Ficticio Alta",
+      dni: "10000009",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Confirmar reserva" }));
+
+    expect(llamadasDeAlta()).toHaveLength(1);
+    expect(cuerposDeAlta()[0]).toEqual({
+      nombre: "Paciente Ficticio Alta",
+      dni: "10000009",
+      profesional_id: PROF_ID,
+      prestacion_id: PREST_A,
+      inicio: "2026-11-20T09:00:00-03:00",
+    });
+    expect(cuerposDeAlta()[0]).not.toHaveProperty("contacto");
+
+    await act(async () => {
+      alta.resolver({
+        turno_id: TURNO_ID,
+        profesional_id: PROF_ID,
+        prestacion_id: PREST_A,
+        inicio: "2026-11-20T09:00:00-03:00",
+        fin: "2026-11-20T09:30:00-03:00",
+        estado: "pendiente",
+      });
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "Turno pendiente" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(TURNO_ID)).toBeInTheDocument();
+    expect(screen.getByText(PROF_ID)).toBeInTheDocument();
+    expect(screen.getByText(PREST_A)).toBeInTheDocument();
+    expect(screen.getByText("09:00")).toBeInTheDocument();
+    expect(screen.getByText("09:30")).toBeInTheDocument();
+    expect(screen.getByText("pendiente")).toBeInTheDocument();
+
+    // Sin link inventado ni campos que el 201 no devuelve.
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/confirmar\//i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sill[oó]n/i)).not.toBeInTheDocument();
+    expect(llamadasDeAlta()).toHaveLength(1);
+  });
+
+  it("Conflicto de agenda ofrece alternativa", async () => {
+    const user = userEvent.setup();
+    const conflicto = new ApiError({
+      kind: "conflicto",
+      status: 409,
+      causa: "profesional",
+      mensaje: "El profesional ya tiene un turno en ese horario.",
+      detalle: "El profesional ya tiene un turno en ese horario.",
+    });
+    mockApiConAlta(
+      () => Promise.resolve(SLOTS_A),
+      () => Promise.reject(conflicto),
+    );
+    renderReserva();
+
+    await elegirSlot(user);
+    await completarDatosDeReserva(user, {
+      nombre: "Paciente Ficticio Conflicto",
+      dni: "10000010",
+    });
+    await user.click(screen.getByRole("button", { name: "Confirmar reserva" }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("ya no está disponible");
+    expect(alerta).toHaveTextContent(
+      "El profesional ya tiene un turno en ese horario.",
+    );
+    expect(alerta).toHaveTextContent(/otro horario o fecha/i);
+    expect(llamadasDeAlta()).toHaveLength(1);
+    // Sin reintento ni reconsulta automática de la disponibilidad.
+    expect(llamadasDeSlots()).toHaveLength(1);
+    expect(screen.getByLabelText("Nombre")).toHaveValue(
+      "Paciente Ficticio Conflicto",
+    );
+
+    const llamadasAntes = llamadasDeSlots().length;
+    await user.click(
+      screen.getByRole("button", { name: "Reconsultar horarios" }),
+    );
+    await waitFor(() =>
+      expect(llamadasDeSlots().length).toBe(llamadasAntes + 1),
+    );
+  });
+
+  it("Datos inválidos, DNI inactivo o límite se informan sin reintento automático", async () => {
+    const user = userEvent.setup();
+    const errores: ApiError[] = [
+      new ApiError({
+        kind: "validacion",
+        status: 422,
+        mensaje: "el paciente esta inactivo",
+        detalle: "el paciente esta inactivo",
+      }),
+      new ApiError({
+        kind: "validacion",
+        status: 429,
+        mensaje: "limite de solicitudes excedido",
+        detalle: "limite de solicitudes excedido",
+      }),
+    ];
+    mockApiConAlta(
+      () => Promise.resolve(SLOTS_A),
+      () => Promise.reject(errores.shift()),
+    );
+    renderReserva();
+
+    await elegirSlot(user);
+    await completarDatosDeReserva(user, {
+      nombre: "Paciente Ficticio Invalido",
+      dni: "10000011",
+      contacto: "contacto-ficticio",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Confirmar reserva" }));
+
+    const alerta422 = await screen.findByRole("alert");
+    expect(alerta422).toHaveTextContent("el paciente esta inactivo");
+    expect(llamadasDeAlta()).toHaveLength(1);
+    expect(screen.getByLabelText("Nombre")).toHaveValue(
+      "Paciente Ficticio Invalido",
+    );
+    expect(screen.getByLabelText("DNI")).toHaveValue("10000011");
+    expect(screen.getByLabelText("Contacto (opcional)")).toHaveValue(
+      "contacto-ficticio",
+    );
+    expect(
+      screen.getByRole("button", { name: "Confirmar reserva" }),
+    ).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Confirmar reserva" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /límite de solicitudes/i,
+      ),
+    );
+    expect(llamadasDeAlta()).toHaveLength(2);
+    expect(screen.getByLabelText("Nombre")).toHaveValue(
+      "Paciente Ficticio Invalido",
+    );
+    expect(screen.getByLabelText("DNI")).toHaveValue("10000011");
+    expect(screen.getByLabelText("Contacto (opcional)")).toHaveValue(
+      "contacto-ficticio",
+    );
+    expect(
+      screen.getByRole("button", { name: "Confirmar reserva" }),
+    ).toBeEnabled();
+  });
+
+  it("Doble envío bloqueado y fallo de transporte recuperable", async () => {
+    const user = userEvent.setup();
+    const primera = diferidaConError<ReservaOutPublica>();
+    const segunda = diferidaConError<ReservaOutPublica>();
+    const tercera = diferida<ReservaOutPublica>();
+    let llamada = 0;
+    mockApiConAlta(
+      () => Promise.resolve(SLOTS_A),
+      () => {
+        llamada += 1;
+        if (llamada === 1) {
+          return primera.promesa;
+        }
+        if (llamada === 2) {
+          return segunda.promesa;
+        }
+        return tercera.promesa;
+      },
+    );
+    renderReserva();
+
+    await elegirSlot(user);
+    await completarDatosDeReserva(user, {
+      nombre: "Paciente Ficticio Transporte",
+      dni: "10000012",
+      contacto: "contacto-ficticio",
+    });
+
+    const boton = screen.getByRole("button", { name: "Confirmar reserva" });
+    await user.click(boton);
+    expect(boton).toBeDisabled();
+
+    const formulario = screen.getByRole("form", { name: "Alta de reserva" });
+    fireEvent.submit(formulario);
+    fireEvent.submit(formulario);
+    expect(llamadasDeAlta()).toHaveLength(1);
+
+    await act(async () => {
+      primera.rechazar(
+        new ApiError({
+          kind: "red",
+          status: null,
+          mensaje: "No se pudo conectar con el servidor.",
+        }),
+      );
+    });
+
+    const alertaRed = await screen.findByRole("alert");
+    expect(alertaRed).toHaveTextContent("No se pudo conectar con el servidor.");
+    expect(
+      screen.queryByRole("heading", { name: "Turno pendiente" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre")).toHaveValue(
+      "Paciente Ficticio Transporte",
+    );
+    expect(boton).toBeEnabled();
+
+    await user.click(boton);
+    await act(async () => {
+      segunda.rechazar(
+        new ApiError({
+          kind: "timeout",
+          status: null,
+          mensaje: "La solicitud superó el tiempo de espera.",
+        }),
+      );
+    });
+
+    const alertaTimeout = await screen.findByRole("alert");
+    expect(alertaTimeout).toHaveTextContent(
+      "La solicitud superó el tiempo de espera.",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Turno pendiente" }),
+    ).not.toBeInTheDocument();
+    expect(llamadasDeAlta()).toHaveLength(2);
+    expect(boton).toBeEnabled();
+
+    await user.click(boton);
+    await act(async () => {
+      tercera.resolver({
+        turno_id: TURNO_ID,
+        profesional_id: PROF_ID,
+        prestacion_id: PREST_A,
+        inicio: "2026-11-20T09:00:00-03:00",
+        fin: "2026-11-20T09:30:00-03:00",
+        estado: "pendiente",
+      });
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "Turno pendiente" }),
+    ).toBeInTheDocument();
+    expect(llamadasDeAlta()).toHaveLength(3);
   });
 });

@@ -19,6 +19,7 @@ import {
   obtenerPrestacionesPublicas,
   obtenerSlotsPublicos,
   prestacionesPublicasQueryKey,
+  useCrearReservaPublica,
   usePrestacionesPublicas,
 } from "./reserva-publica";
 
@@ -359,6 +360,39 @@ describe("6.7 Prestaciones se listan sin sesión (helper/hook)", () => {
       new ApiError({ kind: "permiso", status: 403, mensaje: "Prohibido" }),
     );
     await expect(obtenerPrestacionesPublicas()).rejects.toBeInstanceOf(ApiError);
+    expect(notifyUnauthorizedMock).not.toHaveBeenCalled();
+    expect(notifyForbiddenMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("3.4 hook de alta pública", () => {
+  it("useCrearReservaPublica envía una sola request pública y no reintenta un 429", async () => {
+    setSesionActiva();
+    const body = {
+      nombre: "Paciente Ficticio Hook",
+      dni: "10000013",
+      profesional_id: PROF_ID,
+      prestacion_id: PREST_ID,
+      inicio: "2026-11-20T09:00:00-03:00",
+    };
+    apiRequestMock.mockRejectedValue(
+      new ApiError({ kind: "validacion", status: 429, mensaje: "rate_limit" }),
+    );
+    const client = nuevoCliente();
+    const { result } = renderHook(() => useCrearReservaPublica(), {
+      wrapper: crearWrapper(client),
+    });
+
+    result.current.mutate(body);
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect(apiRequestMock).toHaveBeenCalledTimes(1);
+    expect(apiRequestMock).toHaveBeenCalledWith("/reservar", {
+      method: "POST",
+      body,
+      publica: true,
+    });
     expect(notifyUnauthorizedMock).not.toHaveBeenCalled();
     expect(notifyForbiddenMock).not.toHaveBeenCalled();
   });

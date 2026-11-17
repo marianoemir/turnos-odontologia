@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 
 import { Button } from "../components/button";
@@ -8,11 +8,15 @@ import { Select } from "../components/select";
 import { Skeleton } from "../components/skeleton";
 import { TextField } from "../components/text-field";
 import {
+  useCrearReservaPublica,
   usePrestacionesPublicas,
   useSlotsPublicos,
 } from "../services/reserva-publica";
 import { ApiError } from "../types/errors";
-import type { SlotPublico } from "../types/api-reserva-publica";
+import type {
+  ReservaOutPublica,
+  SlotPublico,
+} from "../types/api-reserva-publica";
 
 /**
  * Pantalla pública `/reservar/:profesional` (C-21, grupo 3).
@@ -36,10 +40,31 @@ function etiquetaDeSlot(slot: SlotPublico): string {
   return `${horaDe(slot.inicio)} a ${horaDe(slot.fin)}`;
 }
 
-function mensajeDeError(error: unknown): string {
+function mensajeDeErrorSlots(error: unknown): string {
   return error instanceof ApiError
     ? error.message
     : "No se pudieron consultar los horarios disponibles.";
+}
+
+function mensajeDeErrorAlta(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return "No se pudo completar la reserva.";
+  }
+  if (error.status === 409) {
+    const causa =
+      error.detalle !== "" ? error.detalle : error.message;
+    return `El horario ya no está disponible. ${causa} Podés elegir otro horario o fecha.`;
+  }
+  if (error.status === 429) {
+    return "Se alcanzó el límite de solicitudes. Intentá más tarde.";
+  }
+  if (error.status === 422) {
+    return error.detalle !== "" ? error.detalle : error.message;
+  }
+  if (error.kind === "red" || error.kind === "timeout") {
+    return error.message;
+  }
+  return error.message;
 }
 
 export default function ReservarPage() {
@@ -50,11 +75,19 @@ export default function ReservarPage() {
   const [slotSeleccionado, setSlotSeleccionado] = useState<SlotPublico | null>(
     null,
   );
+  const [nombre, setNombre] = useState("");
+  const [dni, setDni] = useState("");
+  const [contacto, setContacto] = useState("");
+  const [reservaCreada, setReservaCreada] = useState<ReservaOutPublica | null>(
+    null,
+  );
+  const [errorAlta, setErrorAlta] = useState<unknown>(null);
 
   const prestacionesQuery = usePrestacionesPublicas();
   const prestaciones = (prestacionesQuery.data ?? []).filter(
     (prestacion) => prestacion.activo,
   );
+  const altaMutation = useCrearReservaPublica();
 
   const seleccionCompleta = prestacionId.length > 0 && fecha.length > 0;
   const slotsQuery = useSlotsPublicos(
@@ -77,11 +110,49 @@ export default function ReservarPage() {
   function cambiarPrestacion(valor: string): void {
     setPrestacionId(valor);
     setSlotSeleccionado(null);
+    setErrorAlta(null);
   }
 
   function cambiarFecha(valor: string): void {
     setFecha(valor);
     setSlotSeleccionado(null);
+    setErrorAlta(null);
+  }
+
+  function seleccionarSlot(slot: SlotPublico): void {
+    setSlotSeleccionado(slot);
+    setErrorAlta(null);
+  }
+
+  async function enviarReserva(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    if (altaMutation.isPending || slotSeleccionado === null) {
+      return;
+    }
+    setErrorAlta(null);
+    const body: {
+      nombre: string;
+      dni: string;
+      contacto?: string;
+      profesional_id: string;
+      prestacion_id: string;
+      inicio: string;
+    } = {
+      nombre,
+      dni,
+      profesional_id: profesionalId,
+      prestacion_id: prestacionId,
+      inicio: slotSeleccionado.inicio,
+    };
+    if (contacto.length > 0) {
+      body.contacto = contacto;
+    }
+    try {
+      const respuesta = await altaMutation.mutateAsync(body);
+      setReservaCreada(respuesta);
+    } catch (error) {
+      setErrorAlta(error);
+    }
   }
 
   let contenido: ReactNode;
@@ -90,7 +161,7 @@ export default function ReservarPage() {
   } else if (slotsQuery.isPending) {
     contenido = <Skeleton style={{ width: "100%" }} />;
   } else if (slotsQuery.isError) {
-    contenido = <p role="alert">{mensajeDeError(slotsQuery.error)}</p>;
+    contenido = <p role="alert">{mensajeDeErrorSlots(slotsQuery.error)}</p>;
   } else if (slots.length === 0) {
     contenido = (
       <EmptyState
@@ -110,7 +181,7 @@ export default function ReservarPage() {
               <li key={slot.inicio}>
                 <Button
                   aria-pressed={seleccionado}
-                  onClick={() => setSlotSeleccionado(slot)}
+                  onClick={() => seleccionarSlot(slot)}
                   variant={seleccionado ? "primary" : "secondary"}
                 >
                   {etiqueta}
@@ -122,6 +193,35 @@ export default function ReservarPage() {
       </section>
     );
   }
+
+  if (reservaCreada !== null) {
+    return (
+      <section>
+        <h1 className="app-title">Reservar turno</h1>
+        <Card aria-label="Confirmación de reserva">
+          <h2>Turno pendiente</h2>
+          <dl>
+            <dt>Turno</dt>
+            <dd>{reservaCreada.turno_id}</dd>
+            <dt>Profesional</dt>
+            <dd>{reservaCreada.profesional_id}</dd>
+            <dt>Prestación</dt>
+            <dd>{reservaCreada.prestacion_id}</dd>
+            <dt>Inicio</dt>
+            <dd>{horaDe(reservaCreada.inicio)}</dd>
+            <dt>Fin</dt>
+            <dd>{horaDe(reservaCreada.fin)}</dd>
+            <dt>Estado</dt>
+            <dd>{reservaCreada.estado}</dd>
+          </dl>
+        </Card>
+      </section>
+    );
+  }
+
+  const envioEnCurso = altaMutation.isPending;
+  const conflictoAgenda =
+    errorAlta instanceof ApiError && errorAlta.status === 409;
 
   return (
     <section>
@@ -143,14 +243,46 @@ export default function ReservarPage() {
       </Card>
 
       {prestacionesQuery.isError ? (
-        <p role="alert">{mensajeDeError(prestacionesQuery.error)}</p>
+        <p role="alert">{mensajeDeErrorSlots(prestacionesQuery.error)}</p>
       ) : null}
 
       {contenido}
 
       {slotSeleccionado === null ? null : (
-        <p>Horario seleccionado: {etiquetaDeSlot(slotSeleccionado)}</p>
+        <>
+          <p>Horario seleccionado: {etiquetaDeSlot(slotSeleccionado)}</p>
+          <form aria-label="Alta de reserva" onSubmit={enviarReserva}>
+            <TextField
+              label="Nombre"
+              value={nombre}
+              onChange={(event) => setNombre(event.target.value)}
+            />
+            <TextField
+              label="DNI"
+              value={dni}
+              onChange={(event) => setDni(event.target.value)}
+            />
+            <TextField
+              label="Contacto (opcional)"
+              value={contacto}
+              onChange={(event) => setContacto(event.target.value)}
+            />
+            <Button type="submit" disabled={envioEnCurso}>
+              Confirmar reserva
+            </Button>
+          </form>
+        </>
       )}
+
+      {errorAlta ? (
+        <p role="alert">{mensajeDeErrorAlta(errorAlta)}</p>
+      ) : null}
+
+      {conflictoAgenda ? (
+        <Button type="button" onClick={() => void slotsQuery.refetch()}>
+          Reconsultar horarios
+        </Button>
+      ) : null}
     </section>
   );
 }

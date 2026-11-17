@@ -13,6 +13,7 @@ import {
   crearReservaPublica,
   obtenerPrestacionesPublicas,
   obtenerSlotsPublicos,
+  useCrearReservaPublica,
   usePrestacionesPublicas,
   useSlotsPublicos,
 } from "./reserva-publica";
@@ -40,6 +41,15 @@ const BODY_RESERVA: ReservaCreatePublica = {
   profesional_id: PROF_ID,
   prestacion_id: PREST_ID,
   inicio: "2026-11-20T09:00:00-03:00",
+};
+
+const RESPUESTA_ALTA = {
+  turno_id: "55555555-5555-4555-8555-555555555555",
+  profesional_id: PROF_ID,
+  prestacion_id: PREST_ID,
+  inicio: "2026-11-20T09:00:00-03:00",
+  fin: "2026-11-20T09:30:00-03:00",
+  estado: "pendiente",
 };
 
 function stubFetch(implementacion: ImplementacionFetch) {
@@ -361,6 +371,48 @@ describe("3.1 hook público de slots — sin credenciales, sin handlers y sin re
     const { result } = renderHook(() => useSlotsPublicos(PROF_ID, PARAMS), {
       wrapper: crearWrapper(client),
     });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect((result.current.error as ApiError).status).toBe(429);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    esperarSesionActiva();
+  });
+});
+
+describe("3.4 hook público de alta — sin credenciales, sin handlers y sin reintentos", () => {
+  it("useCrearReservaPublica: POST /reservar sin Authorization y con la respuesta 201", async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(respuestaJson(201, RESPUESTA_ALTA)),
+    );
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useCrearReservaPublica(), {
+      wrapper: crearWrapper(client),
+    });
+
+    result.current.mutate(BODY_RESERVA);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toEqual(RESPUESTA_ALTA);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/reservar");
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
+    esperarRequestPublicaSinAuthorization(fetchMock);
+    esperarSesionActiva();
+  });
+
+  it("useCrearReservaPublica: 429 produce ApiError y llama fetch exactamente 1 vez", async () => {
+    const fetchMock = stubFetch(() =>
+      Promise.resolve(respuestaJson(429, { detail: "limite excedido" })),
+    );
+    const client = nuevoClienteSinRetryPorDefecto();
+    const { result } = renderHook(() => useCrearReservaPublica(), {
+      wrapper: crearWrapper(client),
+    });
+
+    result.current.mutate(BODY_RESERVA);
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 

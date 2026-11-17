@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import type { Prestacion } from "../types/api";
 import type {
@@ -55,6 +55,13 @@ export function crearReservaPublica(
     method: "POST",
     body,
     publica: true,
+  });
+}
+
+export function useCrearReservaPublica() {
+  return useMutation({
+    mutationFn: crearReservaPublica,
+    retry: false,
   });
 }
 
