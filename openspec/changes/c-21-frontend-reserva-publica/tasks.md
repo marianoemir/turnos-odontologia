@@ -7,8 +7,8 @@
 
 ## 2. Enrutado público y layout
 
-- [ ] 2.1 Confirmar/ajustar que `/reservar/:profesional`, `/confirmar/:token` y `/cancelar/:token` permanecen bajo `PublicLayout` fuera de `ProtectedRoute`/`Shell` y sin `canNavigate` interno.
-- [ ] 2.2 Implementar la gestión de `noindex` en cliente SPA para `/confirmar/:token` y `/cancelar/:token` (meta robots en montaje/actualización y limpieza al desmontar) sin contaminar otras rutas.
+- [x] 2.1 Confirmar/ajustar que `/reservar/:profesional`, `/confirmar/:token` y `/cancelar/:token` permanecen bajo `PublicLayout` fuera de `ProtectedRoute`/`Shell` y sin `canNavigate` interno.
+- [x] 2.2 Implementar la gestión de `noindex` en cliente SPA para `/confirmar/:token` y `/cancelar/:token` (meta robots en montaje/actualización y limpieza al desmontar) sin contaminar otras rutas.
 
 ## 3. Reserva pública (`/reservar/:profesional`)
 
@@ -30,9 +30,9 @@
 
 ## 6. Verificación por escenario (RTL, una task por escenario)
 
-- [ ] 6.1 Verificar escenario `"Visitante anónimo accede a la reserva pública"`: visitante sin sesión abre `/reservar/:profesional` y la pantalla se muestra sin navegación interna ni redirección a `/login`.
-- [ ] 6.2 Verificar escenario `"Visitante anónimo accede a rutas con token"`: visitante sin sesión abre `/confirmar/:token` o `/cancelar/:token` y la pantalla se muestra sin navegación interna ni redirección a `/login`.
-- [ ] 6.3 Verificar escenario `"Sesión interna activa no interfiere con rutas públicas"`: con sesión interna válida, abrir `/reservar/:profesional`, `/confirmar/:token` o `/cancelar/:token` mantiene la ruta pública accesible, sin redirigir a `/agenda` ni a `/login` y sin navegación del shell interno.
+- [x] 6.1 Verificar escenario `"Visitante anónimo accede a la reserva pública"`: visitante sin sesión abre `/reservar/:profesional` y la pantalla se muestra sin navegación interna ni redirección a `/login`.
+- [x] 6.2 Verificar escenario `"Visitante anónimo accede a rutas con token"`: visitante sin sesión abre `/confirmar/:token` o `/cancelar/:token` y la pantalla se muestra sin navegación interna ni redirección a `/login`.
+- [x] 6.3 Verificar escenario `"Sesión interna activa no interfiere con rutas públicas"`: con sesión interna válida, abrir `/reservar/:profesional`, `/confirmar/:token` o `/cancelar/:token` mantiene la ruta pública accesible, sin redirigir a `/agenda` ni a `/login` y sin navegación del shell interno.
 - [x] 6.4 Verificar escenario `"Reserva sin token de sesión"`: la consulta de slots o el alta se envían sin `Authorization` y la respuesta exitosa se presenta en la propia pantalla sin iniciar sesión interna.
 - [x] 6.5 Verificar escenario `"Error 401 o 403 en request pública no altera la sesión"`: ante 401 o 403 en request pública se muestra error local comprensible, no navega a `/login`, no finaliza sesión activa y no muestra aviso global de permiso insuficiente.
 - [x] 6.6 Verificar escenario `"Error 429 en request pública se maneja localmente"`: ante 429 en request pública se informa el límite alcanzado sin reintento automático, sin redirección y sin efectos globales de sesión.
@@ -49,7 +49,7 @@
 - [ ] 6.17 Verificar escenario `"Token expirado o ya usado"`: tras acción explícita, respuesta 200 `expirado` o 409 `ya_usado` se distingue de éxito/inexistente y muestra `accion_previa` si está disponible.
 - [ ] 6.18 Verificar escenario `"Token inexistente o inválido y errores de transporte"`: tras acción explícita, 404/422 o fallo de red/timeout muestra estado de error o no encontrado comprensible sin redirigir a login ni alterar sesión.
 - [ ] 6.19 Verificar escenario `"Controles táctiles y estados perceptibles"`: en viewport móvil los controles interactivos tienen objetivo táctil `>= 44x44px` CSS, estados/errores legibles y la tarea se completa sin hover.
-- [ ] 6.20 Verificar escenario `"Rutas con token declaran noindex"`: al renderizar `/confirmar/:token` o `/cancelar/:token` el documento expone directiva `noindex` verificable y otras rutas no quedan contaminadas.
+- [x] 6.20 Verificar escenario `"Rutas con token declaran noindex"`: al renderizar `/confirmar/:token` o `/cancelar/:token` el documento expone directiva `noindex` verificable y otras rutas no quedan contaminadas.
 - [ ] 6.21 Verificar escenario `"Contenido público no revela terceros"`: slots, confirmación de alta y resultado de token no incluyen datos personales de otros pacientes ni información no provista por contratos públicos.
 
 ## 7. Calidad del change
