@@ -21,8 +21,8 @@
 
 ## 4. Confirmación y cancelación por token
 
-- [ ] 4.1 Implementar pantallas `/confirmar/:token` y `/cancelar/:token` con estado inicial informativo y ejecución de `POST` solo por acción explícita del usuario (control táctil `>= 44px`), sin mutación automática en montaje.
-- [ ] 4.2 Implementar estados finales `confirmado`, `cancelado`, `expirado`, `ya usado` (409 `detail.causa=ya_usado`, mostrando `accion_previa` si existe), `no encontrado` (404) y error/formato inválido (422) o fallo de transporte, todos locales y sin efectos globales de sesión.
+- [x] 4.1 Implementar pantallas `/confirmar/:token` y `/cancelar/:token` con estado inicial informativo y ejecución de `POST` solo por acción explícita del usuario (control táctil `>= 44px`), sin mutación automática en montaje.
+- [x] 4.2 Implementar estados finales `confirmado`, `cancelado`, `expirado`, `ya usado` (409 `detail.causa=ya_usado`, mostrando `accion_previa` si existe), `no encontrado` (404) y error/formato inválido (422) o fallo de transporte, todos locales y sin efectos globales de sesión.
 
 ## 5. Accesibilidad, mobile-first y privacidad
 
@@ -44,10 +44,10 @@
 - [x] 6.12 Verificar escenario `"Conflicto de agenda ofrece alternativa"`: `POST /reservar` responde 409 con causa y la pantalla informa indisponibilidad, permitiendo reconsultar/elegir otro horario o fecha sin reintento automático.
 - [x] 6.13 Verificar escenario `"Datos inválidos, DNI inactivo o límite se informan sin reintento automático"`: `POST /reservar` responde 422 (incluido paciente inactivo con detalle provisto por backend) o 429 y la pantalla muestra mensaje local acorde sin reenviar automáticamente, conservando controles para corregir o reintentar manualmente cuando corresponda.
 - [x] 6.14 Verificar escenario `"Doble envío bloqueado y fallo de transporte recuperable"`: solo hay una solicitud activa a la vez y, ante red o timeout, se informa el fallo sin éxito falso y se permite reintentar manualmente.
-- [ ] 6.15 Verificar escenario `"abrir el enlace no ejecuta la acción hasta que la persona la confirma"`: al renderizar `/confirmar/:token` o `/cancelar/:token` no se envía POST automático, no hay efectos de sesión y se muestra estado informativo con control explícito.
-- [ ] 6.16 Verificar escenario `"Confirmación o cancelación exitosa"`: tras acción explícita, respuesta 200 `confirmado` o `cancelado` muestra el estado correspondiente sin datos personales de terceros.
-- [ ] 6.17 Verificar escenario `"Token expirado o ya usado"`: tras acción explícita, respuesta 200 `expirado` o 409 `ya_usado` se distingue de éxito/inexistente y muestra `accion_previa` si está disponible.
-- [ ] 6.18 Verificar escenario `"Token inexistente o inválido y errores de transporte"`: tras acción explícita, 404/422 o fallo de red/timeout muestra estado de error o no encontrado comprensible sin redirigir a login ni alterar sesión.
+- [x] 6.15 Verificar escenario `"abrir el enlace no ejecuta la acción hasta que la persona la confirma"`: al renderizar `/confirmar/:token` o `/cancelar/:token` no se envía POST automático, no hay efectos de sesión y se muestra estado informativo con control explícito.
+- [x] 6.16 Verificar escenario `"Confirmación o cancelación exitosa"`: tras acción explícita, respuesta 200 `confirmado` o `cancelado` muestra el estado correspondiente sin datos personales de terceros.
+- [x] 6.17 Verificar escenario `"Token expirado o ya usado"`: tras acción explícita, respuesta 200 `expirado` o 409 `ya_usado` se distingue de éxito/inexistente y muestra `accion_previa` si está disponible.
+- [x] 6.18 Verificar escenario `"Token inexistente o inválido y errores de transporte"`: tras acción explícita, 404/422 o fallo de red/timeout muestra estado de error o no encontrado comprensible sin redirigir a login ni alterar sesión.
 - [ ] 6.19 Verificar escenario `"Controles táctiles y estados perceptibles"`: en viewport móvil los controles interactivos tienen objetivo táctil `>= 44x44px` CSS, estados/errores legibles y la tarea se completa sin hover.
 - [x] 6.20 Verificar escenario `"Rutas con token declaran noindex"`: al renderizar `/confirmar/:token` o `/cancelar/:token` el documento expone directiva `noindex` verificable y otras rutas no quedan contaminadas.
 - [ ] 6.21 Verificar escenario `"Contenido público no revela terceros"`: slots, confirmación de alta y resultado de token no incluyen datos personales de otros pacientes ni información no provista por contratos públicos.

@@ -175,15 +175,40 @@ describe("tabla de rutas", () => {
   });
 
   it("expone token a las pantallas de confirmación y cancelación", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiRequest).mockResolvedValue({
+      resultado: "confirmado",
+      turno_id: "55555555-5555-4555-8555-555555555555",
+      inicio: "2026-11-20T09:00:00-03:00",
+    });
     renderEn("/confirmar/tok-confirmar");
     expect(
-      await screen.findByText("Token tok-confirmar"),
+      await screen.findByRole("heading", { name: "Confirmar turno" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Confirmar turno" }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        "/confirmar/tok-confirmar",
+        expect.objectContaining({ method: "POST", publica: true }),
+      ),
+    );
     cleanup();
 
+    vi.mocked(apiRequest).mockResolvedValue({
+      resultado: "cancelado",
+      turno_id: "55555555-5555-4555-8555-555555555555",
+      inicio: "2026-11-20T09:00:00-03:00",
+    });
     renderEn("/cancelar/tok-cancelar");
     expect(
-      await screen.findByText("Token tok-cancelar"),
+      await screen.findByRole("heading", { name: "Cancelar turno" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar turno" }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        "/cancelar/tok-cancelar",
+        expect.objectContaining({ method: "POST", publica: true }),
+      ),
+    );
   });
 });

@@ -110,3 +110,17 @@ export function useSlotsPublicos(
     retry: false,
   });
 }
+
+export function useConfirmarToken() {
+  return useMutation({
+    mutationFn: (token: string) => confirmarToken(token),
+    retry: false,
+  });
+}
+
+export function useCancelarToken() {
+  return useMutation({
+    mutationFn: (token: string) => cancelarToken(token),
+    retry: false,
+  });
+}
