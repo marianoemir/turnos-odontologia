@@ -697,7 +697,7 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 ---
 
 ### [C-21] `frontend-reserva-publica`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` archivado (2026-11-17)
 - **Scope**: Rutas públicas sin login: reserva + confirmación/cancelación en 1 toque (consume C-07 y C-08)
   - `/reservar/:profesional`: elegir prestación y fecha → slots reales (horario − bloqueos − turnos activos); alta `pendiente` con rate limit y feedback de `409`
   - `/confirmar/:token` y `/cancelar/:token`: páginas públicas de un solo toque de C-07, con estado de resultado explícito (`confirmado`, `cancelado`, `expirado`, `ya usado`) y sin requerir login
