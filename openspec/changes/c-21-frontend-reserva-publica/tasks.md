@@ -26,7 +26,7 @@
 
 ## 5. Accesibilidad, mobile-first y privacidad
 
-- [ ] 5.1 Asegurar objetivos táctiles `>= 44px` CSS, operación sin hover, feedback accesible y contenido con datos mínimos sin revelar terceros en reserva y token.
+- [x] 5.1 Asegurar objetivos táctiles `>= 44px` CSS, operación sin hover, feedback accesible y contenido con datos mínimos sin revelar terceros en reserva y token.
 
 ## 6. Verificación por escenario (RTL, una task por escenario)
 
@@ -48,15 +48,15 @@
 - [x] 6.16 Verificar escenario `"Confirmación o cancelación exitosa"`: tras acción explícita, respuesta 200 `confirmado` o `cancelado` muestra el estado correspondiente sin datos personales de terceros.
 - [x] 6.17 Verificar escenario `"Token expirado o ya usado"`: tras acción explícita, respuesta 200 `expirado` o 409 `ya_usado` se distingue de éxito/inexistente y muestra `accion_previa` si está disponible.
 - [x] 6.18 Verificar escenario `"Token inexistente o inválido y errores de transporte"`: tras acción explícita, 404/422 o fallo de red/timeout muestra estado de error o no encontrado comprensible sin redirigir a login ni alterar sesión.
-- [ ] 6.19 Verificar escenario `"Controles táctiles y estados perceptibles"`: en viewport móvil los controles interactivos tienen objetivo táctil `>= 44x44px` CSS, estados/errores legibles y la tarea se completa sin hover.
+- [x] 6.19 Verificar escenario `"Controles táctiles y estados perceptibles"`: en viewport móvil los controles interactivos tienen objetivo táctil `>= 44x44px` CSS, estados/errores legibles y la tarea se completa sin hover.
 - [x] 6.20 Verificar escenario `"Rutas con token declaran noindex"`: al renderizar `/confirmar/:token` o `/cancelar/:token` el documento expone directiva `noindex` verificable y otras rutas no quedan contaminadas.
-- [ ] 6.21 Verificar escenario `"Contenido público no revela terceros"`: slots, confirmación de alta y resultado de token no incluyen datos personales de otros pacientes ni información no provista por contratos públicos.
+- [x] 6.21 Verificar escenario `"Contenido público no revela terceros"`: slots, confirmación de alta y resultado de token no incluyen datos personales de otros pacientes ni información no provista por contratos públicos.
 
 ## 7. Calidad del change
 
-- [ ] 7.1 Ejecutar la suite de tests frontend relevante (Vitest/RTL) y verificar que pasan los escenarios nuevos de `frontend-reserva-publica` sin regresiones en rutas públicas/sesión relacionadas.
-- [ ] 7.2 Ejecutar `npm run lint`, `tsc -b` y `npm run build` en `frontend/` (si aplica al estado del repo en apply) y verificar que finalizan en verde.
-- [ ] 7.3 Verificar que no se modificaron `CHANGES.md`, backend ni archivos fuera del alcance, y que no hay credenciales/secretos en los cambios.
+- [x] 7.1 Ejecutar la suite de tests frontend relevante (Vitest/RTL) y verificar que pasan los escenarios nuevos de `frontend-reserva-publica` sin regresiones en rutas públicas/sesión relacionadas.
+- [x] 7.2 Ejecutar `npm run lint`, `tsc -b` y `npm run build` en `frontend/` (si aplica al estado del repo en apply) y verificar que finalizan en verde.
+- [x] 7.3 Verificar que no se modificaron `CHANGES.md`, backend ni archivos fuera del alcance, y que no hay credenciales/secretos en los cambios.
 
 ## Workflow follow-up
 
