@@ -1,226 +1,161 @@
 # turnos-odontologia
 
-Trabajo de Integración de **Metodología I** (UTN, Tecnicatura Universitaria en Programación): del Discovery al primer Change, con Spec-Driven Development (OpenSpec) y Active Stack.
+Trabajo de Integración de **Metodología I** (UTN, Tecnicatura Universitaria en Programación), desarrollado con Spec-Driven Development (OpenSpec) y Active Stack.
 
-Integrantes: Mariano Chirino, Andres Fabre, Facundo Quiroga.
+Integrantes: Mariano Chirino, Andrés Fabre y Facundo Quiroga.
 
-Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos (Argentina). Núcleo implementado: **crear un turno sin solapamientos**, por profesional y por sillón/box.
+Sistema de gestión de turnos y agenda de pacientes para consultorios odontológicos. Incluye API y aplicación web para catálogo, turnos, agenda y demás funcionalidades del proyecto. Solo se usan datos ficticios.
 
-Stack impuesto por el profesor: backend Python + FastAPI + SQLAlchemy + PostgreSQL (+ Redis solo con funcionalidad asincrónica) + Docker Compose; frontend React + TypeScript + Vite (estructura base creada en `frontend/`, todavía sin funcionalidad: su desarrollo está planificado en los changes C-13 a C-22). El primer change es solo backend.
-
-Recorte del TP (todos archivados en `openspec/changes/archive/`): `C-01 foundation-setup` → `C-02 catalogo-recursos` → `C-03 crear-turno-sin-solapamientos`. Además, fuera del recorte, están archivados `C-04 cancelar-reprogramar`, `C-05 agenda-del-dia` y `C-06 lista-de-espera`.
+Stack: Python 3.13, FastAPI, SQLAlchemy, Alembic, PostgreSQL 16, Docker Compose, React, TypeScript y Vite. La autenticación es JWT; la identidad se envía con `Authorization: Bearer <token>`.
 
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
 
-## Roadmap
+## Estado del proyecto
 
-El roadmap completo tiene **23 changes**: implementados y archivados **C-01 a C-06**; pendientes los **17** restantes. La rectificación del 2026-10-28 agregó:
+Los **24 changes (C-01 a C-24) están implementados y archivados**. El recorte del TP y las funcionalidades posteriores están completos; no hay changes pendientes. El detalle se encuentra en [CHANGES.md](CHANGES.md).
 
-- **C-12 `catalogo-recursos-api`** (backend): expone por API el catálogo que C-02 modeló y sembró —pacientes, profesionales, sillones, prestaciones, horarios y bloqueos—, que hasta ahora solo existía en la base.
-- **C-13 a C-22** (frontend): React + TypeScript + Vite, un change por capability del backend. C-13 `frontend-foundation` (shell, ruteo y contratos) y C-14 `frontend-componentes-base` (componentes y capa de datos) son la base; C-15 a C-22 son las pantallas.
-- **C-23 `fix-api-contenedor`** (corregido): el `Dockerfile` copia `backend/` completo, arranca `uvicorn backend.app.main:app` y las migraciones corren dentro del contenedor (ver el paso 4).
-
-| ID | Nombre | Estado |
-|----|--------|--------|
-| C-12 | `catalogo-recursos-api` | pendiente |
-| C-13 | `frontend-foundation` | pendiente |
-| C-14 | `frontend-componentes-base` | pendiente |
-| C-15 | `frontend-catalogo-recursos` | pendiente |
-| C-16 | `frontend-crear-turno` | pendiente |
-| C-17 | `frontend-agenda-turnos` | pendiente |
-| C-18 | `frontend-lista-de-espera` | pendiente |
-| C-19 | `frontend-hc-odontograma` | pendiente |
-| C-20 | `frontend-caja-pagos` | pendiente |
-| C-21 | `frontend-reserva-publica` | pendiente |
-| C-22 | `frontend-admin-roles-export` | pendiente |
-| C-23 | `fix-api-contenedor` | pendiente |
-
-El detalle de cada change, sus dependencias, el orden de ejecución y el recorte evaluable están en [CHANGES.md](CHANGES.md).
+Límite conocido para la demostración: la agenda puede mostrar las horas **3 horas adelantadas** respecto de Argentina (UTC); el dato guardado y la hora mostrada al crear el turno son correctos. Es un defecto de visualización, no de persistencia.
 
 ## Requisitos
 
-- **Git**.
-- **Python 3.13** (el CI usa 3.13; el `Dockerfile` de `api` usa `python:3.13-slim`).
-- **PostgreSQL 16**: la forma más simple es **Docker Desktop** con el `docker-compose.yml` del repo. Sin base de datos se puede instalar y correr el subconjunto de tests que no la necesita (paso 2).
-- Los comandos están en **PowerShell** (Windows) y en **bash** (Linux/macOS).
+- Git.
+- Docker Desktop con Docker Compose v2 para levantar todo el sistema.
+- Python 3.13 para instalar dependencias y ejecutar los tests del backend.
+- Node.js `^20.19.0` o `>=22.12.0` (el CI usa Node 24) y npm para desarrollar/probar el frontend fuera del contenedor.
+- Los comandos de esta guía están escritos para **PowerShell en Windows**.
 
-## 1. Clonar e instalar
-
-PowerShell:
+## 1. Clonar e instalar dependencias
 
 ```powershell
 git clone https://github.com/marianoemir/turnos-odontologia.git
 cd turnos-odontologia
-py -m venv .venv
-.venv\Scripts\Activate.ps1
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+cd frontend
+npm ci
+cd ..
 ```
 
-bash:
-
-```bash
-git clone https://github.com/marianoemir/turnos-odontologia.git
-cd turnos-odontologia
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-```
-
-Notas:
-
-- Crear el entorno virtual puede tardar uno o dos minutos: **no lo interrumpas**. Al activarlo, la consola muestra `(.venv)` al principio de la línea.
-- Si PowerShell bloquea la activación por la política de ejecución, corré antes `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
-- Si usás una versión de Python muy nueva y `pip install` falla al instalar alguna dependencia, creá el entorno con Python 3.12 o 3.13, por ejemplo `py -3.13 -m venv .venv`.
-
-## 2. Probar sin base de datos
+Si PowerShell bloquea la activación del entorno virtual:
 
 ```powershell
-python -m pytest backend/tests
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
 ```
 
-Resultado esperado sin PostgreSQL: **24 passed, 131 skipped**. Los tests de integración se saltean porque no encuentran la base. Con la variable `CI=true` la falta de PostgreSQL **falla** en lugar de saltear, para que nunca haya un resultado verde sin haber probado nada.
+## 2. Levantar backend y frontend (recomendado: Docker Compose)
 
-## 3. Levantar PostgreSQL
+Desde la raíz del repositorio, crear la configuración local ignorada por Git:
 
 ```powershell
-docker compose up -d postgres
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
 ```
 
-Hay que tener **Docker Desktop encendido**. El servicio crea la base `turnos` con usuario `odontologia` y contraseña `odontologia` (valores ficticios del `docker-compose.yml`).
+En `.env`, reemplazar `SECRET_KEY` por un valor aleatorio de al menos 32 caracteres. No compartir ni commitear ese archivo. El puerto de PostgreSQL por defecto es 5432; si ya está ocupado, cambiar `POSTGRES_PORT` a `5433` y el puerto de `DATABASE_URL` al mismo valor. Antes de continuar, comprobar que el puerto elegido no lo esté usando otro proyecto.
 
-> **El servicio `api` ya funciona en contenedor.** El `Dockerfile` copia `backend/` completo y arranca `uvicorn backend.app.main:app`; para levantar API + web usá `docker compose up --build`. Las migraciones también pueden correrse adentro del contenedor (paso 4).
-
-Para levantar la API y el frontend junto con la base: `docker compose up --build` (la API queda en `http://127.0.0.1:8000` y el frontend en `http://localhost:8080`).
-
-**Si el puerto 5432 ya está ocupado** en tu equipo (por ejemplo, por un PostgreSQL instalado), cambiá en `docker-compose.yml` el mapeo `"5432:5432"` por `"5433:5432"` y usá el puerto 5433 en la `DATABASE_URL`. Si en el 5432 hay otro PostgreSQL, la conexión con el usuario `odontologia` va a fallar por autenticación: no crees ese usuario en un servidor que no sea el de este proyecto. Síntoma típico: `alembic` o el seed fallan con «la autenticación password falló para el usuario odontologia»; en Windows suele ser un servicio de PostgreSQL instalado que ocupa el 5432. Antes de migrar, esperá a que `docker compose ps` muestre el servicio `postgres` como `healthy`.
-
-Definí la base a la que apuntan los comandos en **cada consola** donde los uses:
-
-PowerShell:
+Construir y levantar PostgreSQL, API y frontend:
 
 ```powershell
-$env:DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos"
+docker compose up --build -d
+docker compose ps
 ```
 
-bash:
-
-```bash
-export DATABASE_URL="postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos"
-```
-
-> ⚠️ Los tests **truncan** las 8 tablas (`pacientes`, `profesionales`, `sillones`, `prestaciones`, `horarios`, `bloqueos`, `turnos` y `lista_espera`) de **la base a la que apunte `DATABASE_URL`**. Solo se permite la base `turnos` o una terminada en `_test`; cualquier otro nombre es rehusado con error antes de conectar o truncar. No apuntes los tests a una base con datos que quieras conservar.
-
-## 4. Migrar, cargar datos ficticios y correr todos los tests
-
-PowerShell:
+Esperar que `postgres` figure como `healthy`. Aplicar migraciones y cargar el catálogo ficticio:
 
 ```powershell
-docker compose up --build -d api
 docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
-$env:SEED_FICTICIO="true"; python -m backend.app.seed.catalogo
-python -m pytest -rs backend/tests
+$secure = Read-Host "Contraseña local para las cuentas ficticias (entrada oculta)" -AsSecureString
+$pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+try { $env:SEED_USUARIO_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+docker compose exec -e SEED_FICTICIO=true -e "SEED_USUARIO_PASSWORD=$env:SEED_USUARIO_PASSWORD" api python -c "import backend.app.rbac.models; from backend.app.seed.catalogo import main; main()"
 ```
 
-bash:
+El seed carga el catálogo y crea `USUARIO-FICT-001` con rol `admin`. Si se omite `SEED_USUARIO_PASSWORD`, genera una contraseña aleatoria y la muestra una sola vez en la consola. La contraseña que ingreses arriba también se puede usar para la cuenta opcional de recepción que se crea abajo.
 
-```bash
-docker compose up --build -d api
-docker compose exec api python -m alembic -c backend/alembic.ini upgrade head
-SEED_FICTICIO=true python -m backend.app.seed.catalogo
-python -m pytest -rs backend/tests
-```
-
-Resultado esperado:
-
-- La migración crea las 8 tablas (si ya existían, informa que está al día).
-- El seed informa `seed ok` con 2 profesionales, 2 sillones, 3 prestaciones, 10 horarios, 1 bloqueo y 3 pacientes ficticios. Es idempotente y no crea turnos.
-- Los tests: **155 passed, 0 skipped**.
-
-Rollback de la migración, si hace falta:
+El seed **no** crea una cuenta de recepción. Para probar las pantallas operativas del frontend, crear `RECEP-FICT-001` (no existe endpoint de alta de usuarios). Ejecutar desde la raíz del repo y con la variable anterior aún definida; el comando no reemplaza una cuenta que ya exista:
 
 ```powershell
-docker compose exec api python -m alembic -c backend/alembic.ini downgrade -1
+docker compose exec -T -e "SEED_USUARIO_PASSWORD=$env:SEED_USUARIO_PASSWORD" api python -c "import os; from backend.app.db import get_session; from backend.app.auth.models import Usuario; from backend.app.auth.password import hashear_password; from backend.app.rbac.models import Rol; s=get_session()(); u=s.query(Usuario).filter_by(dni='RECEP-FICT-001').first(); r=s.query(Rol).filter_by(nombre='recepcion').one(); (s.add(Usuario(dni='RECEP-FICT-001', password_hash=hashear_password(os.environ['SEED_USUARIO_PASSWORD']), rol_id=r.id, activo=True)) if u is None else None); s.commit(); print('RECEP-FICT-001 creado' if u is None else 'RECEP-FICT-001 ya existe'); s.close()"
+Remove-Item Env:\SEED_USUARIO_PASSWORD
 ```
 
-Comprobación del estado de la migración:
+### URLs y acceso
+
+- **Frontend:** [http://localhost:8080](http://localhost:8080)
+- **Salud de la API:** [http://localhost:8000/health](http://localhost:8000/health) — debe responder `{"status":"ok"}`.
+- **Swagger:** [http://localhost:8000/docs](http://localhost:8000/docs).
+
+Iniciar sesión en la web con `USUARIO-FICT-001` (administración) o, si se creó, `RECEP-FICT-001` (operación), usando la contraseña ficticia elegida localmente. Si la cuenta de recepción ya existía, el comando no cambia su contraseña. No guardar contraseñas ni tokens en este README, capturas o video. El rol `admin` accede a `/agenda` y `/admin`; `recepcion` accede a las pantallas operativas y de catálogo.
+
+Para detener los contenedores sin borrar la base ficticia:
 
 ```powershell
-docker compose exec api python -m alembic -c backend/alembic.ini current
+docker compose stop
 ```
 
-> **Cuidado con el volumen `pgdata`:** si el volumen ya fue inicializado, Postgres conserva las credenciales y la base con las que se creó; cambiar `POSTGRES_USER`, `POSTGRES_PASSWORD` o `POSTGRES_DB` en el entorno **no** tiene efecto y `api` falla la autenticación (o la base pedida no existe). El remedio es `docker compose down -v` y volver a levantar, pero eso **borra los datos** del volumen: solo es aceptable con datos ficticios.
+No usar `docker compose down -v` salvo que se quiera borrar deliberadamente el volumen y todos sus datos.
 
-## 5. Probar la API (`POST /turnos`)
+## 3. Desarrollo del frontend con Vite (opcional)
 
-Necesitás **dos consolas**. En ambas: carpeta del repo, entorno virtual activado y `DATABASE_URL` definida (paso 3), con la base migrada y el seed cargado (paso 4).
-
-**Consola 1: el servidor.** Queda ocupada mientras corre; no la cierres.
+Con la API de Compose disponible en el puerto 8000, abrir otra consola:
 
 ```powershell
-python -m uvicorn backend.app.main:app --port 8000
+cd frontend
+npm ci
+npm run dev
 ```
 
-Comprobación rápida: `http://127.0.0.1:8000/health` responde `{"status":"ok"}`. FastAPI también trae una pantalla para probar el endpoint en `http://127.0.0.1:8000/docs`.
+Abrir [http://localhost:5173](http://localhost:5173). Vite reenvía `/api/*` a `http://localhost:8000` y quita el prefijo `/api`; no hace falta configurar CORS. Para detener el servidor, usar `Ctrl+C` en esa consola.
 
-**Consola 2: los pedidos** (PowerShell). Primero los IDs reales del seed. Es **una sola línea larga**: copiala entera, hasta `ConvertFrom-Json`.
+## 4. Ejecutar las pruebas
+
+### Backend
+
+Las pruebas borran/truncan datos de las tablas en la base indicada. **Usar únicamente `turnos_test`; nunca apuntar pytest a `turnos`.** Con Compose levantado, crear la base de pruebas una sola vez:
 
 ```powershell
-$ids = python -c "import json; from backend.app.db import get_session; from backend.app.agenda.models import Paciente, Profesional, SillonBox, Prestacion; s = get_session()(); q = lambda m, **f: str(s.query(m).filter_by(**f).one().id); print(json.dumps({'paciente': q(Paciente, dni='DNI-FICT-001'), 'profesional': q(Profesional, matricula='MAT-FICT-001'), 'profesional2': q(Profesional, matricula='MAT-FICT-002'), 'sillon': q(SillonBox, nombre='Sillon 1'), 'sillon2': q(SillonBox, nombre='Sillon 2'), 'consulta30': q(Prestacion, nombre='Consulta')})); s.close()" | ConvertFrom-Json
+docker compose ps
+docker port turnos-odontologia-postgres-1
+$existe = docker compose exec -T postgres psql -U odontologia -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='turnos_test';"
+if ($existe.Trim() -ne "1") { docker compose exec postgres psql -U odontologia -d postgres -c "CREATE DATABASE turnos_test;" }
 ```
 
-Comprobá con `$ids`: tienen que aparecer seis códigos.
+Confirmar que `docker port` muestra el puerto configurado en `.env` para el contenedor `turnos-odontologia-postgres-1`; no continuar si ese puerto pertenece a otro proyecto.
 
-**a) Turno válido** (lunes 12/10/2026 10:00, dentro del horario del seed; `Consulta` dura 30 min). Responde `201` con estado `pendiente` y `fin` a las 10:30:
+Desde la raíz del repositorio, en una consola con el entorno `.venv` activado, definir la URL de `turnos_test` (usar 5433 si ese es el puerto configurado en `.env`) y comprobarla antes de pytest:
 
 ```powershell
-$body = @{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:00:00-03:00" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body $body
+$env:DATABASE_URL = "postgresql+psycopg://odontologia:odontologia@localhost:5432/turnos_test"
+$env:PYTHONPATH = (Get-Location).Path
+if ((($env:DATABASE_URL -split "/")[-1]) -ne "turnos_test") { throw "DATABASE_URL debe apuntar a turnos_test" }
+python -m pytest backend/tests -p no:randomly -q --tb=short
 ```
 
-**b) El `fin` lo calcula el servidor** (`inicio + duración de la prestación`); un `fin` enviado por el cliente se ignora. Responde `201` con `fin` 11:30, no 12:00:
+Última verificación local (2026-11-17): **789 passed**, 4 warnings de deprecación, sin fallos ni tests omitidos (aprox. 4 minutos).
+
+### Frontend
+
+Desde `frontend/`:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T11:00:00-03:00"; fin="2026-10-12T12:00:00-03:00" } | ConvertTo-Json) | Select-Object inicio, fin
+npx tsc -b
+npm run test:run
+npm run build
 ```
 
-**c) Solape con el mismo profesional** (otro sillón, 10:15). Responde `409` con cuerpo `{"detail": {"causa": ..., "detalle": ...}}`:
+Última verificación local (2026-11-17): **658 tests en 65 archivos**; TypeScript y build correctos. Vite puede mostrar una advertencia de tamaño de bundle; no impide el build.
 
-```powershell
-try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; sillon_id=$ids.sillon2; prestacion_id=$ids.consulta30; inicio="2026-10-12T10:15:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
-```
+## 5. Comprobación rápida de la API
 
-`causa` es una de `profesional`, `sillon`, `horario` o `bloqueo`.
+Con el stack levantado, `GET /health` debe responder `{"status":"ok"}` y Swagger está disponible en `/docs`. Las rutas protegidas requieren login en `POST /login` y el token JWT en `Authorization: Bearer <token>`. Las pruebas automatizadas cubren login, permisos y los contratos de la API.
 
-**d) Sin sillón.** Responde `422` (el sillón es obligatorio; también da `422` ante un sillón inactivo o un `inicio` sin zona horaria):
-
-```powershell
-try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$ids.profesional; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
-```
-
-**e) Recurso inexistente.** Responde `404` (`{"detail": "<recurso> no existe: <id>"}`):
-
-```powershell
-$inexistente = [guid]::NewGuid().ToString()
-try { Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/turnos -ContentType "application/json" -Body (@{ paciente_id=$ids.paciente; profesional_id=$inexistente; sillon_id=$ids.sillon; prestacion_id=$ids.consulta30; inicio="2026-10-12T14:00:00-03:00" } | ConvertTo-Json) } catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
-```
-
-Resumen de resultados:
-
-| Pedido | Resultado |
-|---|---|
-| Turno válido | `201`, estado `pendiente`, `fin` calculado |
-| Solape con el mismo profesional o sillón | `409` con `causa` |
-| Fuera del horario de atención o sobre un bloqueo | `409` con `causa` |
-| Sin sillón, sillón inactivo o `inicio` sin zona horaria | `422` |
-| Profesional, sillón, paciente o prestación inexistente | `404` |
-
-Si repetís el pedido a), da `409`: el turno de las 10:00 ya quedó guardado. Para cerrar, `Ctrl + C` en la consola 1.
-
-El solape se rechaza en dos niveles: el servicio valida primero y devuelve el `409` con la causa, y dos restricciones `EXCLUDE` de PostgreSQL (`btree_gist`, intervalo `[inicio, fin)`) garantizan que no se creen turnos pisados ni con pedidos simultáneos. Un turno que empieza justo cuando termina otro **no** es solapamiento.
+---
 
 ## Variables de entorno
 
-Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). Los comandos de este README leen `DATABASE_URL` y `SEED_FICTICIO` de la consola. Reserva online (C-08): `RESERVA_RATE_LIMIT_N` (default `5`) y `RESERVA_RATE_LIMIT_VENTANA_SEG` (default `600`) definidos en `.env.example`.
+Ver `.env.example` (valores ficticios; **nunca** commitear un `.env` real ni secretos). La API de Compose usa la URL interna del servicio Postgres; los tests ejecutados desde el host necesitan `DATABASE_URL` apuntando explícitamente a `turnos_test`. Reserva online (C-08): `RESERVA_RATE_LIMIT_N` (default `5`) y `RESERVA_RATE_LIMIT_VENTANA_SEG` (default `600`) definidos en `.env.example`.
 
 > **Redis todavía no está en uso.** `.env.example` define `REDIS_URL`, pero `docker-compose.yml` **no** levanta un servicio Redis: ningún change implementado hasta hoy necesita funcionalidad asincrónica. C-07 `recordatorios-confirmacion` tampoco lo usa: su procesamiento es determinista y se invoca por cron (ver §Recordatorios 48h/24h). Redis queda reservado para el primer change con funcionalidad asincrónica real.
 
@@ -400,10 +335,10 @@ A partir de C-24, la app requiere autenticación mediante tokens JWT firmados co
 - `backend/app/agenda/` — horarios, bloqueos y recursos del catálogo (C-02) y `GET /agenda` (C-05).
 - `backend/app/reserva_online/` — reserva pública sin login: `GET /reservar/{profesional}` y `POST /reservar` (C-08).
 - `backend/app/seed/` — datos ficticios.
-- `backend/alembic/` — migraciones (001 catálogo, 002 turnos con `EXCLUDE`).
+- `backend/alembic/` — migraciones de esquema con Alembic.
 - `backend/tests/` — suite pytest (un test por escenario de la especificación).
-- `docker-compose.yml` — PostgreSQL 16 y un servicio `api` que ya funciona en contenedor: su `Dockerfile` copia `backend/` completo y arranca `uvicorn backend.app.main:app` (ver la nota del paso 3).
-- `frontend/` — estructura base de React + TypeScript + Vite, todavía sin funcionalidad; su desarrollo está planificado en C-13 a C-22.
+- `docker-compose.yml` — PostgreSQL 16, API FastAPI y frontend estático servido por Nginx.
+- `frontend/` — aplicación React + TypeScript + Vite con login JWT y pantallas operativas, públicas y de administración.
 - `frontend/design-system/` — fundación visual aprobada: tokens, marca y referencia de componentes, con `components.html` para verla en el navegador.
 - `docs/discovery/` — informe de Discovery (`.md` y PDF) y resultado del checklist de once puntos.
 - `docs/export/` — contrato de exportación de datos (`GET /export`, C-11): [docs/export/README.md](docs/export/README.md).
@@ -411,7 +346,7 @@ A partir de C-24, la app requiere autenticación mediante tokens JWT firmados co
 - `docs/explore/` y `docs/verify/` — exploración y verificación de cada change.
 - `docs/capturas-evidencia/` — capturas de Engram y del instalador de Active Stack.
 - `knowledge-base/` — base de conocimiento del dominio.
-- `CHANGES.md` — roadmap completo (C-01 a C-23) y recorte del TP original (C-01 → C-02 → C-03).
+- `CHANGES.md` — índice de los 24 changes archivados (C-01 a C-24) y el recorte del TP.
 - `openspec/` — especificaciones vigentes (`specs/`) y changes archivados (`changes/archive/`).
 - `AGENTS.md` y `CLAUDE.md` — reglas del agente; `.atl/skill-registry.md` — registro de skills; `.active-orchestrator-state.json` — estado del orquestador.
 - `opencode.json` — comandos del flujo active-orchestrator para OpenCode.
