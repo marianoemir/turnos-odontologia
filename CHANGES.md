@@ -82,6 +82,12 @@
 > - **C-20, acceso a `/caja`**: solo `recepcion` entra a `/caja` desde la UI; `admin` no la usa desde la UI aunque el backend se lo permite. Es una decisión revisable por el PO o la cátedra. El guard del cliente no es seguridad: el respaldo es el 403 del backend.
 > - **Estructura del repositorio**: la raíz es solo gobierno y configuración; no se crean carpetas nuevas en la raíz sin acuerdo del grupo y los reportes del agente no se commitean. `opsx/` salió del repositorio y quedó ignorada (PR #47). La regla se agregó a `AGENTS.md` y `CLAUDE.md`.
 > - **Camino crítico**: la línea "Ya archivados del recorte" omitía a C-20 y a C-22 entre los archivados fuera del recorte; se agregaron.
+
+> **Nota de rectificación (2026-11-17, rev. 15)** — cierre del roadmap: C-15, C-16, C-17, C-18, C-19 y C-21 figuran archivados. No se reescribe el texto de scope de ningún change; las diferencias se registran en esta nota, en el árbol, en la línea del camino crítico, en el pie y en los resúmenes de `AGENTS.md` y `CLAUDE.md`:
+> - **Archivados desde la rev. 14**: C-15, C-16, C-17 y C-18 (2026-11-15), C-19 (2026-11-16) y C-21 (2026-11-17, PR #55, merge `e6dfdb0`), según la línea `**Estado**` de cada change. Estado real recalculado: 24 changes, **24 archivados** (C-01 a C-24) y **0 pendientes**.
+> - **Recorte TP**: completo (C-01, C-02, C-03, C-12, C-13, C-14, C-15 y C-16 archivados).
+> - **Árbol del frontend**: los cinco `[ ]` restantes pasan a `[x]` (el árbol seguía con el estado del 2026-11-14).
+> - **Preguntas abiertas**: Q1 (reserva online del paciente) sigue abierta aunque C-08 y C-21 están implementados; se decide con el PO o la cátedra.
 ---
 
 ## Cómo usar este documento
@@ -113,7 +119,7 @@ C-01 foundation-setup [x]
     └── C-12 catalogo-recursos-api [x] (4) ---> C-11
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-14).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-17).
 - (1) Rev. 4: C-08 depende también de C-07.
 - (2) Rev. 11: se adelanta y se hace antes de C-14; C-13 ya está archivado, así que ya no hay choque con sus archivos.
 - (3) C-11 depende también de C-09 y, desde la rev. 8, de C-12.
@@ -129,17 +135,17 @@ C-01 foundation-setup [x]
 ```
 C-13 frontend-foundation [x]
 └── C-14 frontend-componentes-base [x]
-    ├── C-15 frontend-catalogo-recursos [ ]
-    │   └── C-16 frontend-crear-turno [ ]
-    ├── C-17 frontend-agenda-turnos [ ]
+    ├── C-15 frontend-catalogo-recursos [x]
+    │   └── C-16 frontend-crear-turno [x]
+    ├── C-17 frontend-agenda-turnos [x]
     ├── C-18 frontend-lista-de-espera [x]
-    ├── C-19 frontend-hc-odontograma [ ]
+    ├── C-19 frontend-hc-odontograma [x]
     ├── C-20 frontend-caja-pagos [x]
-    ├── C-21 frontend-reserva-publica [ ]
+    ├── C-21 frontend-reserva-publica [x]
     └── C-22 frontend-admin-roles-export [x]
 ```
 
-- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-14).
+- Leyenda: [x] archivado, [ ] pendiente (estado al 2026-11-17).
 
 | Change | Dependencias |
 |--------|--------------|
@@ -212,7 +218,7 @@ GATE 8: C-11 ✓
 **End-to-end con frontend (agenda operativa) — 8 changes:** `C-01 → C-02 → C-03 → C-13 → C-14 → C-15 → C-16 → C-17`
 
 Recorte TP (con UI, actualizado 2026-10-28): `C-01 → C-02 → C-03 → C-12 → C-13 → C-14 → C-15 → C-16`.
-Ya archivados del recorte: C-01, C-02, C-03, C-12, C-13 y C-14 (también están archivados C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11, C-20 y C-22, fuera del recorte). Pendientes del recorte: **C-15, C-16**.
+Ya archivados del recorte: los ocho (C-01, C-02, C-03, C-12, C-13, C-14, C-15 y C-16); también están archivados C-04 a C-11 y C-17 a C-24, fuera del recorte. Pendientes del recorte: ninguno.
 
 `C-23 fix-api-contenedor` (infraestructura) **no está en el camino crítico**: depende de C-03 y no bloquea a ningún otro change, y desde la rev. 11 (decisión del 2026-11-12) se adelanta: se hace antes de C-14 (reemplaza la decisión de la rev. 10 de cerrarlo al llegar a C-22). Desde la rev. 12 C-14 depende también de C-24 (archivado).
 
@@ -736,6 +742,6 @@ Paso │ Agente A (Backend Core)     │ Agente B (Backend Aux/Integr.) │ Agen
 
 ---
 
-> **Estado del roadmap al 2026-11-15 (rev. 14)**: 24 changes. Archivados (18): C-01 a C-14, C-20, C-22, C-23 y C-24. Pendientes (6): C-15 a C-19 y C-21. C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
-> Además de C-13, C-14, C-20 y C-22, ningún otro change de frontend está archivado. C-20 y C-22 quedaron fuera del recorte TP, que sigue en C-15 y C-16.
-> Habilitados por dependencias: **C-15**, C-17, C-18, C-19 y C-21 (C-16 espera a C-15). **Próximo del recorte: C-15**.
+> **Estado del roadmap al 2026-11-17 (rev. 15)**: 24 changes. Archivados (24): C-01 a C-24. Pendientes (0). C-13 quedó archivado con la task 5.2 abierta, que cerró C-23 (`/health` por compose verificado el 2026-11-13).
+> Los diez changes de frontend (C-13 a C-22) están archivados. El recorte TP está completo.
+> No quedan changes habilitados ni próximo: el roadmap está cerrado. Q1 de la KB sigue abierta.
