@@ -266,6 +266,70 @@ describe("3.3 Respuestas obsoletas", () => {
       expect(screen.queryByText(/Horario seleccionado/)).not.toBeInTheDocument(),
     );
   });
+
+  it("Mientras carga la nueva selección no muestra los slots de la anterior", async () => {
+    const user = userEvent.setup();
+    const pendienteB = diferida<SlotPublico[]>();
+    apiRequestMock.mockImplementation((ruta: string) => {
+      if (ruta === "/prestaciones") {
+        return Promise.resolve(PRESTACIONES);
+      }
+      if (ruta.includes(`prestacion=${PREST_A}`)) {
+        return Promise.resolve(SLOTS_A);
+      }
+      if (ruta.includes(`prestacion=${PREST_B}`)) {
+        return pendienteB.promesa;
+      }
+      return Promise.resolve([]);
+    });
+
+    renderReserva();
+    await elegirPrestacionYFecha(user, PREST_A);
+
+    expect(
+      await screen.findByRole("button", { name: "09:00 a 09:30" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "10:00 a 10:30" }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Prestación"), PREST_B);
+    await waitFor(() => expect(llamadasDeSlots()).toHaveLength(2));
+
+    // Control positivo: el indicador de carga (Skeleton, role="status") está en
+    // pantalla mientras la respuesta de B sigue pendiente.
+    expect(await screen.findByRole("status")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    // Y los slots de la selección anterior ya no están visibles.
+    expect(
+      screen.queryByRole("button", { name: "09:00 a 09:30" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "10:00 a 10:30" }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      pendienteB.resolver([
+        {
+          inicio: "2026-11-20T11:00:00-03:00",
+          fin: "2026-11-20T11:30:00-03:00",
+        },
+      ]);
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "11:00 a 11:30" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "09:00 a 09:30" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "10:00 a 10:30" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
 });
 
 describe("Re-verificación a nivel pantalla", () => {
