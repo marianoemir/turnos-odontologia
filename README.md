@@ -8,7 +8,14 @@ Sistema de gestión de turnos y agenda de pacientes para consultorios odontológ
 
 Stack: Python 3.13, FastAPI, SQLAlchemy, Alembic, PostgreSQL 16, Docker Compose, React, TypeScript y Vite. La autenticación es JWT; la identidad se envía con `Authorization: Bearer <token>`.
 
+
+## VIDEO DEL PARCIAL 
+
 [![Ver video de defensa](https://img.shields.io/badge/▶_Ver_video_de_defensa-8_a_12_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/0sj4smXVclY)
+
+
+## VIDEL DEL TPI
+[![Ver demostración del sistema](https://img.shields.io/badge/▶_YouTube-Demostración_del_Proyecto-3d33a8?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/UaL71U6th98ge)
 
 ## Estado del proyecto
 
